@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "NearShop",
+    "slug": "nearshop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "nearshop",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#7F77DD",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nearshop.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "NearShop needs your location to find nearby shops",
+        "NSCameraUsageDescription": "NearShop uses camera for product scanning"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#7F77DD"
+      },
+      "package": "com.nearshop.app",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-location",
+      "expo-image-picker",
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

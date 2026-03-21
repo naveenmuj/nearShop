@@ -1,0 +1,534 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
+  StatusBar, FlatList, TextInput, KeyboardAvoidingView, Platform,
+  Modal, Dimensions, Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
+import { COLORS, SHADOWS, formatPrice, formatDate } from '../../../constants/theme';
+import { getProduct, getSimilarProducts } from '../../../lib/products';
+import { addToWishlist, removeFromWishlist } from '../../../lib/wishlists';
+import { startHaggle } from '../../../lib/haggle';
+import { createOrder } from '../../../lib/orders';
+import useAuthStore from '../../../store/authStore';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+
+// ── Image carousel ──────────────────────────────────────────────────────────
+function ImageCarousel({ images = [] }) {
+  const [index, setIndex] = useState(0);
+  const scrollRef = useRef(null);
+  const displayImages = images.length > 0 ? images : [null];
+
+  const onScroll = (e) => {
+    const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    setIndex(newIndex);
+  };
+
+  return (
+    <View style={carousel.container}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        {displayImages.map((uri, i) => (
+          <View key={i} style={[carousel.slide, { width: SCREEN_W }]}>
+            {uri ? (
+              <View style={[carousel.img, { backgroundColor: COLORS.gray100 }]}>
+                <Text style={{ fontSize: 40 }}>📷</Text>
+              </View>
+            ) : (
+              <View style={[carousel.img, { backgroundColor: COLORS.gray100, justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ fontSize: 56 }}>📦</Text>
+              </View>
+            )}
+          </View>
+        ))}
+      </ScrollView>
+      {displayImages.length > 1 && (
+        <View style={carousel.dots}>
+          {displayImages.map((_, i) => (
+            <View key={i} style={[carousel.dot, i === index && carousel.dotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const carousel = StyleSheet.create({
+  container: { position: 'relative' },
+  slide: { height: 280 },
+  img: { width: '100%', height: 280, justifyContent: 'center', alignItems: 'center' },
+  dots: {
+    position: 'absolute', bottom: 12, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 6,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.5)' },
+  dotActive: { backgroundColor: COLORS.white, width: 18 },
+});
+
+// ── Haggle bottom sheet ──────────────────────────────────────────────────────
+function HaggleSheet({ visible, product, onClose, onSuccess }) {
+  const [price, setPrice] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    const offerPrice = parseFloat(price);
+    if (!offerPrice || offerPrice <= 0) {
+      Alert.alert('Invalid price', 'Please enter a valid offer price.');
+      return;
+    }
+    if (offerPrice >= product.price) {
+      Alert.alert('Too high', 'Your offer must be lower than the listed price.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await startHaggle({
+        product_id: product.id,
+        shop_id: product.shop_id,
+        offered_price: offerPrice,
+        message: message.trim() || undefined,
+      });
+      onSuccess();
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to send offer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <Pressable style={sheet.backdrop} onPress={onClose} />
+        <View style={sheet.container}>
+          <View style={sheet.handle} />
+          <Text style={sheet.title}>Make an Offer</Text>
+          <Text style={sheet.sub}>Listed at {formatPrice(product?.price)}</Text>
+
+          <Text style={sheet.label}>Your offer price (₹)</Text>
+          <TextInput
+            style={sheet.input}
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="numeric"
+            placeholder={`Max ${formatPrice(product?.price)}`}
+            placeholderTextColor={COLORS.gray400}
+          />
+
+          <Text style={sheet.label}>Message (optional)</Text>
+          <TextInput
+            style={[sheet.input, sheet.textarea]}
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            placeholder="Why should the seller accept your offer?"
+            placeholderTextColor={COLORS.gray400}
+          />
+
+          <Pressable
+            style={[sheet.submitBtn, loading && sheet.submitDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={sheet.submitText}>Send Offer</Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+const sheet = StyleSheet.create({
+  backdrop: { flex: 1 },
+  container: {
+    backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+  },
+  handle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.gray200,
+    alignSelf: 'center', marginBottom: 20,
+  },
+  title: { fontSize: 20, fontWeight: '700', color: COLORS.gray900, marginBottom: 4 },
+  sub: { fontSize: 13, color: COLORS.gray500, marginBottom: 20 },
+  label: { fontSize: 13, fontWeight: '600', color: COLORS.gray700, marginBottom: 6 },
+  input: {
+    backgroundColor: COLORS.gray50, borderWidth: 1, borderColor: COLORS.gray200,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: COLORS.gray900, marginBottom: 16,
+  },
+  textarea: { height: 80, textAlignVertical: 'top' },
+  submitBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16,
+    alignItems: 'center', marginTop: 4,
+  },
+  submitDisabled: { opacity: 0.7 },
+  submitText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
+});
+
+// ── Main screen ──────────────────────────────────────────────────────────────
+export default function ProductDetailScreen() {
+  const { id } = useLocalSearchParams();
+  const { user } = useAuthStore();
+  const [product, setProduct] = useState(null);
+  const [similar, setSimilar] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [inWishlist, setInWishlist] = useState(false);
+  const [showHaggle, setShowHaggle] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [pRes, sRes] = await Promise.allSettled([
+          getProduct(id),
+          getSimilarProducts(id),
+        ]);
+        if (pRes.status === 'fulfilled') setProduct(pRes.value.data);
+        if (sRes.status === 'fulfilled') setSimilar(sRes.value.data?.items ?? sRes.value.data ?? []);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+  }, [id]);
+
+  const toggleWishlist = async () => {
+    try {
+      if (inWishlist) {
+        await removeFromWishlist(id);
+      } else {
+        await addToWishlist(id);
+      }
+      setInWishlist((v) => !v);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleOrder = async () => {
+    if (!product) return;
+    setOrdering(true);
+    try {
+      await createOrder({
+        shop_id: product.shop_id,
+        items: [{ product_id: product.id, quantity: 1 }],
+      });
+      Alert.alert('Order placed!', 'Your order has been sent to the shop.', [
+        { text: 'View Orders', onPress: () => router.push('/(customer)/orders') },
+        { text: 'OK' },
+      ]);
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to place order');
+    } finally {
+      setOrdering(false);
+    }
+  };
+
+  const handleHaggleSuccess = () => {
+    setShowHaggle(false);
+    Alert.alert('Offer sent!', 'The seller will respond to your offer shortly.', [
+      { text: 'View Haggles', onPress: () => router.push('/(customer)/haggle') },
+      { text: 'OK' },
+    ]);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (!product) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>Product not found</Text>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backBtnText}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const isAvailable = product.is_available !== false;
+  const hagglingEnabled = product.haggling_enabled;
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+      {/* Back + wishlist overlay on hero */}
+      <View style={styles.floatingHeader} pointerEvents="box-none">
+        <Pressable style={styles.floatBtn} onPress={() => router.back()}>
+          <Text style={styles.floatBtnText}>←</Text>
+        </Pressable>
+        <Pressable style={styles.floatBtn} onPress={toggleWishlist}>
+          <Text style={styles.floatBtnText}>{inWishlist ? '❤️' : '🤍'}</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ImageCarousel images={product.images ?? []} />
+
+        <View style={styles.body}>
+          {/* Title + badges */}
+          <View style={styles.titleRow}>
+            <Text style={styles.productName}>{product.name}</Text>
+            {!isAvailable && (
+              <View style={styles.unavailableBadge}>
+                <Text style={styles.unavailableText}>Out of stock</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.metaRow}>
+            {product.category ? (
+              <View style={styles.catBadge}>
+                <Text style={styles.catBadgeText}>{product.category}</Text>
+              </View>
+            ) : null}
+            {product.sku ? (
+              <Text style={styles.sku}>SKU: {product.sku}</Text>
+            ) : null}
+          </View>
+
+          {/* Price */}
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{formatPrice(product.price)}</Text>
+            {product.original_price && product.original_price > product.price ? (
+              <>
+                <Text style={styles.originalPrice}>{formatPrice(product.original_price)}</Text>
+                <View style={styles.discountBadge}>
+                  <Text style={styles.discountText}>
+                    {Math.round((1 - product.price / product.original_price) * 100)}% off
+                  </Text>
+                </View>
+              </>
+            ) : null}
+          </View>
+
+          {/* Shop info */}
+          <Pressable
+            style={styles.shopCard}
+            onPress={() => router.push(`/(customer)/shop/${product.shop_id}`)}
+          >
+            <View style={styles.shopAvatar}>
+              <Text style={{ fontSize: 18 }}>🏪</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shopName}>{product.shop_name}</Text>
+              {product.shop_address ? (
+                <Text style={styles.shopAddress} numberOfLines={1}>{product.shop_address}</Text>
+              ) : null}
+            </View>
+            <Text style={styles.shopChevron}>›</Text>
+          </Pressable>
+
+          {/* Description */}
+          {product.description ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.description}>{product.description}</Text>
+            </View>
+          ) : null}
+
+          {/* Specs / attributes */}
+          {product.attributes && Object.keys(product.attributes).length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Specifications</Text>
+              {Object.entries(product.attributes).map(([k, v]) => (
+                <View key={k} style={styles.specRow}>
+                  <Text style={styles.specKey}>{k}</Text>
+                  <Text style={styles.specVal}>{String(v)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Haggle hint */}
+          {hagglingEnabled && isAvailable ? (
+            <View style={styles.haggleHint}>
+              <Text style={styles.haggleHintIcon}>🤝</Text>
+              <Text style={styles.haggleHintText}>
+                This seller accepts price negotiations. Make an offer below!
+              </Text>
+            </View>
+          ) : null}
+
+          {/* Similar products */}
+          {similar.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Similar Products</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                {similar.map((p) => (
+                  <Pressable
+                    key={p.id}
+                    style={styles.simCard}
+                    onPress={() => router.push(`/(customer)/product/${p.id}`)}
+                  >
+                    <View style={styles.simImg}>
+                      <Text style={{ fontSize: 28 }}>📦</Text>
+                    </View>
+                    <Text style={styles.simName} numberOfLines={2}>{p.name}</Text>
+                    <Text style={styles.simPrice}>{formatPrice(p.price)}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* Bottom padding for sticky bar */}
+          <View style={{ height: 100 }} />
+        </View>
+      </ScrollView>
+
+      {/* Sticky action bar */}
+      <SafeAreaView edges={['bottom']} style={styles.stickyBar}>
+        <View style={styles.stickyInner}>
+          {hagglingEnabled && isAvailable ? (
+            <Pressable
+              style={styles.haggleBtn}
+              onPress={() => setShowHaggle(true)}
+            >
+              <Text style={styles.haggleBtnText}>🤝 Haggle</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={[
+              styles.orderBtn,
+              !isAvailable && styles.orderBtnDisabled,
+              !hagglingEnabled && { flex: 1 },
+            ]}
+            onPress={handleOrder}
+            disabled={!isAvailable || ordering}
+          >
+            {ordering ? (
+              <ActivityIndicator color={COLORS.white} />
+            ) : (
+              <Text style={styles.orderBtnText}>
+                {isAvailable ? 'Place Order' : 'Out of Stock'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </SafeAreaView>
+
+      {/* Haggle bottom sheet */}
+      {showHaggle && (
+        <HaggleSheet
+          visible={showHaggle}
+          product={product}
+          onClose={() => setShowHaggle(false)}
+          onSuccess={handleHaggleSuccess}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, backgroundColor: COLORS.bg },
+  errorText: { fontSize: 16, color: COLORS.gray600 },
+  backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: COLORS.primary, borderRadius: 10 },
+  backBtnText: { color: COLORS.white, fontWeight: '600' },
+  scroll: { flex: 1 },
+  floatingHeader: {
+    position: 'absolute', top: 48, left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16,
+  },
+  floatBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  floatBtnText: { fontSize: 18, color: COLORS.white },
+  body: { paddingHorizontal: 20, paddingTop: 20 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+  productName: { flex: 1, fontSize: 20, fontWeight: '700', color: COLORS.gray900, lineHeight: 26 },
+  unavailableBadge: {
+    backgroundColor: COLORS.redLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+  },
+  unavailableText: { fontSize: 11, fontWeight: '700', color: COLORS.red },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  catBadge: {
+    backgroundColor: COLORS.primaryLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,
+  },
+  catBadgeText: { fontSize: 12, fontWeight: '600', color: COLORS.primaryDark },
+  sku: { fontSize: 12, color: COLORS.gray400 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  price: { fontSize: 24, fontWeight: '700', color: COLORS.green },
+  originalPrice: { fontSize: 15, color: COLORS.gray400, textDecorationLine: 'line-through' },
+  discountBadge: { backgroundColor: COLORS.redLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  discountText: { fontSize: 12, fontWeight: '700', color: COLORS.red },
+  shopCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORS.white, borderRadius: 14, padding: 14, marginBottom: 20,
+    ...SHADOWS.card,
+  },
+  shopAvatar: {
+    width: 44, height: 44, borderRadius: 10,
+    backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center',
+  },
+  shopName: { fontSize: 14, fontWeight: '600', color: COLORS.gray900 },
+  shopAddress: { fontSize: 12, color: COLORS.gray500, marginTop: 2 },
+  shopChevron: { fontSize: 20, color: COLORS.gray300 },
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray900, marginBottom: 10 },
+  description: { fontSize: 14, color: COLORS.gray600, lineHeight: 22 },
+  specRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.gray100,
+  },
+  specKey: { fontSize: 13, color: COLORS.gray500, flex: 1 },
+  specVal: { fontSize: 13, fontWeight: '600', color: COLORS.gray800, flex: 1, textAlign: 'right' },
+  haggleHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: COLORS.greenLight, borderRadius: 12, padding: 14, marginBottom: 24,
+  },
+  haggleHintIcon: { fontSize: 20 },
+  haggleHintText: { flex: 1, fontSize: 13, color: COLORS.green, lineHeight: 18 },
+  simCard: {
+    width: 140, backgroundColor: COLORS.white, borderRadius: 12,
+    padding: 10, marginHorizontal: 4, ...SHADOWS.card,
+  },
+  simImg: {
+    height: 90, backgroundColor: COLORS.gray50, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 8,
+  },
+  simName: { fontSize: 12, fontWeight: '600', color: COLORS.gray800, marginBottom: 4, lineHeight: 16 },
+  simPrice: { fontSize: 13, fontWeight: '700', color: COLORS.green },
+  stickyBar: {
+    backgroundColor: COLORS.white, borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.gray200,
+  },
+  stickyInner: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  haggleBtn: {
+    flex: 1, paddingVertical: 16, borderRadius: 14,
+    backgroundColor: COLORS.amberLight, alignItems: 'center',
+  },
+  haggleBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.amber },
+  orderBtn: {
+    flex: 2, paddingVertical: 16, borderRadius: 14,
+    backgroundColor: COLORS.primary, alignItems: 'center',
+  },
+  orderBtnDisabled: { backgroundColor: COLORS.gray300 },
+  orderBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+});

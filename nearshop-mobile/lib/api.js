@@ -1,0 +1,70 @@
+import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
+
+// Dev: Android Emulator 10.0.2.2, Production: real API server
+const API_BASE = __DEV__
+  ? 'http://10.0.2.2:8000'
+  : 'https://api.nearshop.in';
+
+const client = axios.create({
+  baseURL: API_BASE + '/api/v1',
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+client.interceptors.request.use(async (config) => {
+  try {
+    const token = await SecureStore.getItemAsync('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {
+    // SecureStore may not be available
+  }
+  if (__DEV__) {
+    const auth = config.headers.Authorization ? '🔑 authed' : '🔓 anon';
+    console.log(`[API →] ${config.method?.toUpperCase()} ${config.baseURL}${config.url} ${auth}`, config.params || '');
+  }
+  config._startTime = Date.now();
+  return config;
+});
+
+client.interceptors.response.use(
+  (response) => {
+    if (__DEV__) {
+      const ms = Date.now() - (response.config._startTime || 0);
+      console.log(`[API ✅] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url} (${ms}ms)`);
+    }
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        const refreshToken = await SecureStore.getItemAsync('refresh_token');
+        if (refreshToken) {
+          const { data } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {
+            refresh_token: refreshToken,
+          });
+          await SecureStore.setItemAsync('access_token', data.access_token);
+          if (data.refresh_token) {
+            await SecureStore.setItemAsync('refresh_token', data.refresh_token);
+          }
+          originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+          return client(originalRequest);
+        }
+      } catch (refreshError) {
+        await SecureStore.deleteItemAsync('access_token');
+        await SecureStore.deleteItemAsync('refresh_token');
+      }
+    }
+    if (__DEV__) {
+      const ms = Date.now() - (error.config?._startTime || 0);
+      console.log(`[API ❌] ${error.response?.status ?? 'ERR'} ${error.config?.method?.toUpperCase()} ${error.config?.url} (${ms}ms)`, error.response?.data || error.message);
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default client;
