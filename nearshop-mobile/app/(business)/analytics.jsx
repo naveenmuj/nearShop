@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import useMyShop from '../../hooks/useMyShop';
-import { useLocationStore } from '../../store/locationStore';
+import useLocationStore from '../../store/locationStore';
 import { getShopStats, getProductAnalytics, getDemandInsights } from '../../lib/analytics';
 
 const COLORS = {
@@ -76,14 +76,20 @@ export default function AnalyticsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, productsData, insightsData] = await Promise.all([
+      const [statsRes, productsRes, insightsRes] = await Promise.allSettled([
         getShopStats(shopId, period),
         getProductAnalytics(shopId),
         getDemandInsights(shopId, lat, lng),
       ]);
-      setStats(statsData);
-      setTopProducts(productsData || []);
-      setDemandInsights(insightsData || []);
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value?.data ?? null);
+      if (productsRes.status === 'fulfilled') {
+        const d = productsRes.value?.data;
+        setTopProducts(d?.items ?? d?.products ?? d ?? []);
+      }
+      if (insightsRes.status === 'fulfilled') {
+        const d = insightsRes.value?.data;
+        setDemandInsights(d?.items ?? d?.insights ?? d ?? []);
+      }
     } catch (e) {
       setError('Failed to load analytics. Please try again.');
     } finally {

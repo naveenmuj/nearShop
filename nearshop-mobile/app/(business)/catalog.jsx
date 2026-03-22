@@ -63,8 +63,9 @@ export default function CatalogScreen() {
     if (!shopId) return;
     setLoading(true);
     try {
-      const data = await getShopProducts(shopId, { limit: 50 });
-      setProducts(data || []);
+      const res = await getShopProducts(shopId, { per_page: 50 });
+      const items = res?.data?.items ?? res?.data ?? [];
+      setProducts(Array.isArray(items) ? items : []);
     } catch {
       Alert.alert('Error', 'Failed to load products');
     } finally {
@@ -125,37 +126,41 @@ export default function CatalogScreen() {
     );
   };
 
-  const renderProduct = ({ item }) => (
-    <TouchableOpacity
-      style={styles.productRow}
-      onLongPress={() => handleToggle(item)}
-      activeOpacity={0.7}
-    >
-      <Image
-        source={{ uri: item.image_url || 'https://via.placeholder.com/56' }}
-        style={styles.productImage}
-      />
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
-        <Text style={styles.productCategory} numberOfLines={1}>{item.category}</Text>
-      </View>
-      <View style={styles.productActions}>
-        <View style={[styles.badge, item.available ? styles.badgeLive : styles.badgeOff]}>
-          <Text style={[styles.badgeText, item.available ? styles.badgeLiveText : styles.badgeOffText]}>
-            {item.available ? 'Live' : 'Off'}
-          </Text>
+  const renderProduct = ({ item }) => {
+    const isLive = item.is_available ?? item.available ?? true;
+    const imageUrl = item.images?.[0] ?? item.image_url;
+    return (
+      <TouchableOpacity
+        style={styles.productRow}
+        onLongPress={() => handleToggle(item)}
+        activeOpacity={0.7}
+      >
+        <Image
+          source={{ uri: imageUrl || 'https://via.placeholder.com/56' }}
+          style={styles.productImage}
+        />
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.productPrice}>{formatPrice(item.price)}</Text>
+          <Text style={styles.productCategory} numberOfLines={1}>{item.category}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.trashBtn}
-          onPress={() => handleDelete(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="trash-outline" size={18} color={COLORS.red} />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.productActions}>
+          <View style={[styles.badge, isLive ? styles.badgeLive : styles.badgeOff]}>
+            <Text style={[styles.badgeText, isLive ? styles.badgeLiveText : styles.badgeOffText]}>
+              {isLive ? 'Live' : 'Off'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.trashBtn}
+            onPress={() => handleDelete(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="trash-outline" size={18} color={COLORS.red} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const ListEmpty = () => (
     <View style={styles.emptyState}>

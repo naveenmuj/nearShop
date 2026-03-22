@@ -214,6 +214,18 @@ export default function ProfileScreen() {
           />
         </View>
 
+        {/* ── Admin ────────────────────────────────────────────────── */}
+        <SectionHeader title="Admin" />
+        <View style={styles.menuCard}>
+          <MenuRow
+            icon="📊"
+            label="Admin Dashboard"
+            onPress={() => router.push('/admin')}
+            right={<Chevron />}
+            isLast
+          />
+        </View>
+
         {/* ── Settings ─────────────────────────────────────────────── */}
         <SectionHeader title="Settings" />
         <View style={styles.menuCard}>

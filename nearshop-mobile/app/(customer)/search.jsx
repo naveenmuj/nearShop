@@ -72,8 +72,11 @@ export default function SearchScreen() {
     try {
       const params = { per_page: 40, sort_by: sort };
       if (q) params.q = q;
-      if (lat != null) params.lat = lat;
-      if (lng != null) params.lng = lng;
+      // Only send lat/lng for category browse (no text query) to avoid geo-filtering text searches
+      if (!q && category && category !== 'All' && lat != null) {
+        params.lat = lat;
+        params.lng = lng;
+      }
       if (category && category !== 'All') params.category = category;
       const res = await searchProducts(params);
       // API returns { items: [...], total, page, per_page }

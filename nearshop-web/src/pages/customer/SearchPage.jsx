@@ -95,8 +95,11 @@ export default function SearchPage() {
     try {
       const params = { page: pg, per_page: PER_PAGE }
       if (q.trim()) params.q = q
-      if (latitude != null) params.lat = latitude
-      if (longitude != null) params.lng = longitude
+      // Only send lat/lng for category-only browse (no text query) to avoid geo-filtering text searches
+      if (!q.trim() && category && latitude != null) {
+        params.lat = latitude
+        params.lng = longitude
+      }
       if (category) params.category = category
 
       const [productsRes, shopsRes] = await Promise.allSettled([

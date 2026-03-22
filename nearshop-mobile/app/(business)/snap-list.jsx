@@ -18,39 +18,8 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 import useMyShop from '../../hooks/useMyShop';
-import { createProduct } from '../../lib/products';
-
-const COLORS = {
-  primary: '#7F77DD',
-  green: '#1D9E75',
-  amber: '#EF9F27',
-  red: '#E24B4A',
-  blue: '#3B8BD4',
-  white: '#FFFFFF',
-  bg: '#F9FAFB',
-  gray50: '#F9FAFB',
-  gray100: '#F3F4F6',
-  gray200: '#E5E7EB',
-  gray300: '#D1D5DB',
-  gray400: '#9CA3AF',
-  gray500: '#6B7280',
-  gray600: '#4B5563',
-  gray700: '#374151',
-  gray800: '#1F2937',
-  gray900: '#111827',
-  primaryLight: '#EEEDFE',
-  greenLight: '#E1F5EE',
-};
-
-const SHADOWS = {
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-};
+import client from '../../lib/api';
+import { COLORS, SHADOWS } from '../../constants/theme';
 
 const CATEGORIES = [
   'Grocery', 'Bakery', 'Dairy', 'Snacks', 'Beverages',
@@ -61,7 +30,7 @@ const STEPS = ['capture', 'analyzing', 'review'];
 const STEP_LABELS = ['Capture', 'Analyzing', 'Review'];
 
 export default function SnapListScreen() {
-  const { shopId } = useMyShop();
+  const { shopId, loading: shopLoading } = useMyShop();
   const [step, setStep] = useState('capture');
   const [imageUri, setImageUri] = useState(null);
   const [aiResult, setAiResult] = useState(null);
@@ -111,6 +80,22 @@ export default function SnapListScreen() {
     }
   };
 
+  // ── Upload image to server and get back a URL ────────────────────────────
+  const uploadImage = async (uri) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri,
+      type: 'image/jpeg',
+      name: 'product.jpg',
+    });
+    const res = await client.post('/upload?folder=products', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+    return res.data.url;
+  };
+
+  // ── AI analysis using the backend endpoint ───────────────────────────────
   const handleImagePicked = async (uri) => {
     setImageUri(uri);
     setStep('analyzing');
@@ -122,16 +107,24 @@ export default function SnapListScreen() {
         type: 'image/jpeg',
         name: 'product.jpg',
       });
-      const response = await fetch('/ai/catalog/snap', {
-        method: 'POST',
-        body: formData,
+      // Use the axios client which has base URL + auth token
+      const response = await client.post('/ai/catalog/snap', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 30000,
       });
-      if (!response.ok) throw new Error('AI request failed');
-      const data = await response.json();
+      const data = response.data;
+      if (data.error || data.fallback) {
+        throw new Error('AI returned fallback');
+      }
       setAiResult(data);
       setName(data.name || '');
-      setPrice(data.price ? String(data.price) : '');
+      // Handle estimated_price_range from AI
+      if (data.estimated_price_range) {
+        const avg = Math.round((data.estimated_price_range.min + data.estimated_price_range.max) / 2);
+        setPrice(String(avg));
+      } else if (data.price) {
+        setPrice(String(data.price));
+      }
       setDescription(data.description || '');
       setCategory(data.category || '');
     } catch {
@@ -145,29 +138,51 @@ export default function SnapListScreen() {
     }
   };
 
+  // ── Publish product ──────────────────────────────────────────────────────
   const handlePublish = async () => {
     if (!name.trim()) {
       Alert.alert('Validation', 'Product name is required');
       return;
     }
-    if (!price || isNaN(Number(price))) {
+    if (!price || isNaN(Number(price)) || Number(price) < 0) {
       Alert.alert('Validation', 'Please enter a valid price');
       return;
     }
+    if (!shopId) {
+      Alert.alert('Error', 'No shop found. Please create a shop first.');
+      return;
+    }
+
     setPublishing(true);
     try {
-      await createProduct(shopId, {
+      // Step 1: Upload the image to get a public URL
+      let imageUrl = null;
+      if (imageUri) {
+        try {
+          imageUrl = await uploadImage(imageUri);
+        } catch {
+          // Image upload failed — create product without image
+        }
+      }
+
+      // Step 2: Create product with proper schema
+      const productData = {
         name: name.trim(),
         price: Number(price),
-        description: description.trim(),
-        category,
-        image_uri: imageUri,
-      });
+        description: description.trim() || undefined,
+        category: category || undefined,
+        images: imageUrl ? [imageUrl] : [],
+      };
+
+      await client.post(`/products?shop_id=${shopId}`, productData);
+
       Alert.alert('Success', 'Product published!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
-    } catch {
-      Alert.alert('Error', 'Failed to publish product. Please try again.');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : 'Failed to publish product. Please try again.';
+      Alert.alert('Error', msg);
     } finally {
       setPublishing(false);
     }
@@ -201,7 +216,7 @@ export default function SnapListScreen() {
       {/* STEP 1: Capture */}
       {step === 'capture' && (
         <ScrollView contentContainerStyle={styles.captureContainer}>
-          <Text style={styles.captureTitle}>Snap &amp; List</Text>
+          <Text style={styles.captureTitle}>Snap & List</Text>
           <Text style={styles.captureSubtitle}>AI will auto-fill product details</Text>
 
           <TouchableOpacity style={styles.cameraCard} onPress={pickFromCamera} activeOpacity={0.8}>
@@ -301,11 +316,19 @@ export default function SnapListScreen() {
               ))}
             </ScrollView>
 
+            {/* Shop status */}
+            {shopLoading && (
+              <Text style={styles.shopStatus}>Loading shop...</Text>
+            )}
+            {!shopLoading && !shopId && (
+              <Text style={styles.shopStatusError}>No shop found. Please create a shop first.</Text>
+            )}
+
             {/* Action Buttons */}
             <TouchableOpacity
-              style={[styles.publishBtn, publishing && { opacity: 0.7 }]}
+              style={[styles.publishBtn, (publishing || !shopId) && { opacity: 0.7 }]}
               onPress={handlePublish}
-              disabled={publishing}
+              disabled={publishing || !shopId}
             >
               {publishing ? (
                 <ActivityIndicator color={COLORS.white} />
@@ -329,237 +352,73 @@ export default function SnapListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   stepBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray100,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 24, paddingVertical: 16,
+    backgroundColor: COLORS.white, borderBottomWidth: 1, borderBottomColor: COLORS.gray100,
   },
-  stepItem: {
-    alignItems: 'center',
-  },
+  stepItem: { alignItems: 'center' },
   stepDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.gray100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
+    width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.gray100,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  stepDotActive: {
-    backgroundColor: COLORS.primary,
-  },
-  stepDotText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.gray400,
-  },
-  stepDotTextActive: {
-    color: COLORS.white,
-  },
-  stepLabel: {
-    fontSize: 11,
-    color: COLORS.gray400,
-    fontWeight: '500',
-  },
-  stepLabelActive: {
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  stepLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: COLORS.gray200,
-    marginHorizontal: 6,
-    marginBottom: 16,
-  },
-  stepLineActive: {
-    backgroundColor: COLORS.primary,
-  },
-  captureContainer: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingTop: 32,
-  },
-  captureTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.gray900,
-    marginBottom: 6,
-  },
-  captureSubtitle: {
-    fontSize: 15,
-    color: COLORS.gray500,
-    marginBottom: 32,
-  },
+  stepDotActive: { backgroundColor: COLORS.primary },
+  stepDotText: { fontSize: 13, fontWeight: '700', color: COLORS.gray400 },
+  stepDotTextActive: { color: COLORS.white },
+  stepLabel: { fontSize: 11, color: COLORS.gray400, fontWeight: '500' },
+  stepLabelActive: { color: COLORS.primary, fontWeight: '700' },
+  stepLine: { flex: 1, height: 2, backgroundColor: COLORS.gray200, marginHorizontal: 6, marginBottom: 16 },
+  stepLineActive: { backgroundColor: COLORS.primary },
+  captureContainer: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 32 },
+  captureTitle: { fontSize: 24, fontWeight: '800', color: COLORS.gray900, marginBottom: 6 },
+  captureSubtitle: { fontSize: 15, color: COLORS.gray500, marginBottom: 32 },
   cameraCard: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
-    backgroundColor: COLORS.white,
-    borderWidth: 2,
-    borderColor: COLORS.gray200,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    ...SHADOWS.card,
+    width: '100%', height: 200, borderRadius: 16, backgroundColor: COLORS.white,
+    borderWidth: 2, borderColor: COLORS.gray200, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', gap: 12, ...SHADOWS.card,
   },
-  cameraCardText: {
-    fontSize: 15,
-    color: COLORS.gray400,
-    fontWeight: '500',
-  },
-  galleryLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 20,
-    padding: 10,
-  },
-  galleryLinkText: {
-    fontSize: 15,
-    color: COLORS.primary,
-    fontWeight: '600',
-  },
-  analyzingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    paddingTop: 24,
-  },
-  analyzingImage: {
-    width: '100%',
-    height: 250,
-  },
-  analyzingText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.gray700,
-    marginTop: 16,
-  },
-  reviewContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 40,
-  },
+  cameraCardText: { fontSize: 15, color: COLORS.gray400, fontWeight: '500' },
+  galleryLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, padding: 10 },
+  galleryLinkText: { fontSize: 15, color: COLORS.primary, fontWeight: '600' },
+  analyzingContainer: { flex: 1, alignItems: 'center', paddingTop: 24 },
+  analyzingImage: { width: '100%', height: 250 },
+  analyzingText: { fontSize: 16, fontWeight: '600', color: COLORS.gray700, marginTop: 16 },
+  reviewContainer: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
   aiBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: COLORS.amberLight || '#FAEEDA',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: COLORS.amberLight, borderRadius: 8, padding: 10, marginBottom: 14,
   },
-  aiBannerText: {
-    fontSize: 14,
-    color: COLORS.amber,
-    fontWeight: '600',
-  },
-  reviewImage: {
-    width: '100%',
-    height: 100,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
+  aiBannerText: { fontSize: 14, color: COLORS.amber, fontWeight: '600' },
+  reviewImage: { width: '100%', height: 100, borderRadius: 10, marginBottom: 12 },
   confidenceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.greenLight,
-    alignSelf: 'flex-start',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: COLORS.greenLight,
+    alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, marginBottom: 16,
   },
-  confidenceText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.green,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.gray600,
-    marginBottom: 6,
-    marginTop: 12,
-  },
+  confidenceText: { fontSize: 13, fontWeight: '700', color: COLORS.green },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray600, marginBottom: 6, marginTop: 12 },
   input: {
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 15,
-    color: COLORS.gray900,
+    backgroundColor: COLORS.white, borderRadius: 10, borderWidth: 1, borderColor: COLORS.gray200,
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.gray900,
   },
-  inputMultiline: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-    paddingTop: 11,
-  },
-  categoryScroll: {
-    flexGrow: 0,
-    marginTop: 2,
-  },
+  inputMultiline: { minHeight: 80, textAlignVertical: 'top', paddingTop: 11 },
+  categoryScroll: { flexGrow: 0, marginTop: 2 },
   categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    marginRight: 8,
-    marginBottom: 4,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: COLORS.white,
+    borderWidth: 1, borderColor: COLORS.gray200, marginRight: 8, marginBottom: 4,
   },
-  categoryChipActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.gray600,
-  },
-  categoryChipTextActive: {
-    color: COLORS.white,
-    fontWeight: '700',
-  },
+  categoryChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  categoryChipText: { fontSize: 13, fontWeight: '500', color: COLORS.gray600 },
+  categoryChipTextActive: { color: COLORS.white, fontWeight: '700' },
+  shopStatus: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', marginTop: 16 },
+  shopStatusError: { fontSize: 13, color: COLORS.red, textAlign: 'center', marginTop: 16 },
   publishBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 24,
+    backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 24,
   },
-  publishBtnText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  publishBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
   retakeBtn: {
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-    marginTop: 10,
-    borderWidth: 1.5,
-    borderColor: COLORS.primary,
+    borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 10,
+    borderWidth: 1.5, borderColor: COLORS.primary,
   },
-  retakeBtnText: {
-    color: COLORS.primary,
-    fontWeight: '700',
-    fontSize: 16,
-  },
+  retakeBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: 16 },
 });
