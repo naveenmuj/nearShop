@@ -4,13 +4,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.auth.permissions import get_current_user
+from app.auth.models import User
+from app.core.exceptions import ForbiddenError
 from app.admin import service
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
-def require_admin(current_user=Depends(get_current_user)):
-    # TODO: In production, restrict to users with "admin" role
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Enforce admin role for administrative endpoints."""
+    if "admin" not in (current_user.roles or []):
+        raise ForbiddenError("Admin role required to access this resource")
     return current_user
 
 

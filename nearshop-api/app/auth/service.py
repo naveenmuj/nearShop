@@ -15,6 +15,8 @@ from app.core.security import (
     generate_otp,
     generate_referral_code,
     validate_phone,
+    hash_otp,
+    verify_otp_hash,
 )
 
 logger = logging.getLogger(__name__)
@@ -29,9 +31,12 @@ class AuthService:
         code = generate_otp()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
+        # Hash the OTP for secure storage
+        hashed_code = hash_otp(code, validated_phone)
+
         otp = OTPCode(
             phone=validated_phone,
-            code=code,
+            code=hashed_code,  # Store hashed version
             expires_at=expires_at,
         )
         db.add(otp)
@@ -77,8 +82,8 @@ class AuthService:
         if now > expires:
             raise BadRequestError("OTP has expired. Request a new one.")
 
-        # Validate code
-        if otp_record.code != code:
+        # Validate code using hash comparison
+        if not verify_otp_hash(code, validated_phone, otp_record.code):
             remaining = 3 - otp_record.attempts
             raise BadRequestError(
                 f"Invalid OTP. {remaining} attempt(s) remaining."
