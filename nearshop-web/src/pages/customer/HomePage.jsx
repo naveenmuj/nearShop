@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Store, Bell, Search, ChevronRight, Zap } from 'lucide-react'
+import { MapPin, Store, Bell, Search, ChevronRight, Zap, ChevronDown } from 'lucide-react'
 import { useLocation } from '../../hooks/useLocation'
 import { useAuthStore } from '../../store/authStore'
 import { getNearbyShops } from '../../api/shops'
@@ -10,6 +10,7 @@ import { getCategories } from '../../api/categories'
 import StoryCircle from '../../components/StoryCircle'
 import EmptyState from '../../components/ui/EmptyState'
 import { ProductCardSkeleton } from '../../components/Skeleton'
+import LocationPicker from '../../components/LocationPicker'
 
 const CATEGORY_ICONS = {
   food: '🍔', grocery: '🛒', pharmacy: '💊', electronics: '📱',
@@ -29,6 +30,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [showLocationPicker, setShowLocationPicker] = useState(false)
 
   useEffect(() => {
     if (!latitude || !longitude) return
@@ -66,6 +68,7 @@ export default function HomePage() {
   const firstName = user?.name?.split(' ')[0] || 'there'
 
   return (
+    <>
     <div className="bg-gray-50 min-h-screen">
       {/* Gradient header */}
       <div className="bg-gradient-to-br from-[#5B2BE7] via-[#7F77DD] to-[#38BDF8] px-4 pt-5 pb-8">
@@ -82,13 +85,17 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Location pill */}
-        <div className="inline-flex items-center gap-1.5 mb-4 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1.5">
+        {/* Location pill — clickable to open picker */}
+        <button
+          onClick={() => setShowLocationPicker(true)}
+          className="inline-flex items-center gap-1.5 mb-4 bg-white/15 backdrop-blur-sm hover:bg-white/25 active:bg-white/30 rounded-full px-3 py-1.5 transition-all"
+        >
           <MapPin className="w-3.5 h-3.5 text-white flex-shrink-0" />
           <span className="text-white/90 text-xs font-medium truncate max-w-[200px]">
             {locationLoading ? 'Getting location...' : locationName || 'Set your location'}
           </span>
-        </div>
+          <ChevronDown className="w-3 h-3 text-white/70 flex-shrink-0" />
+        </button>
 
         {/* Search bar */}
         <button
@@ -273,5 +280,11 @@ export default function HomePage() {
         </section>
       </div>
     </div>
+
+      {/* Location Picker modal */}
+      {showLocationPicker && (
+        <LocationPicker onClose={() => setShowLocationPicker(false)} />
+      )}
+    </>
   )
 }

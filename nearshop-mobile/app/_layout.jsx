@@ -7,11 +7,17 @@ import useLocationStore from '../store/locationStore';
 
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
+  const initLocation = useLocationStore((s) => s.initialize);
   const requestLocation = useLocationStore((s) => s.requestLocation);
+  const locationLat = useLocationStore((s) => s.lat);
 
   useEffect(() => {
     initialize();
-    requestLocation();
+    // Restore saved location first; only request GPS if nothing saved
+    initLocation().then(() => {
+      const { lat } = useLocationStore.getState();
+      if (!lat) requestLocation();
+    });
   }, []);
 
   return (

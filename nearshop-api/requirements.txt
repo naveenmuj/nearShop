@@ -1,23 +1,44 @@
+# ── Core framework ────────────────────────────────────────────────────────────
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+gunicorn==21.2.0
+
+# ── Database ──────────────────────────────────────────────────────────────────
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
 alembic==1.14.1
+psycopg2-binary==2.9.10
+
+# ── Validation & settings ─────────────────────────────────────────────────────
 pydantic[email]==2.10.4
 pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# ── Auth & security ───────────────────────────────────────────────────────────
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+firebase-admin==6.5.0
+
+# ── Caching & rate limiting ───────────────────────────────────────────────────
 redis==5.2.1
-celery==5.4.0
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
 httpx==0.28.1
+
+# ── File handling ─────────────────────────────────────────────────────────────
 python-multipart==0.0.20
 pillow==11.1.0
 boto3==1.36.7
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
 phonenumbers==8.13.52
-geoalchemy2==0.15.2
-pgvector==0.3.6
 structlog==24.4.0
-python-dotenv==1.0.1
 qrcode==8.0
-firebase-admin==6.5.0
+
+# ── AI (optional — comment out if not using AI features) ─────────────────────
 openai==1.56.2
+
+# Removed (not used in codebase):
+#   celery       — no task queue code found
+#   geoalchemy2  — using pure Python Haversine, not PostGIS
+#   pgvector     — embedding table exists but no active query path

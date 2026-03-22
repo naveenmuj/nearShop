@@ -298,7 +298,7 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-gray-500 truncate">{product.shop.address}</p>
               )}
               {product.shop.avg_rating != null && (
-                <p className="text-xs text-gray-500 mt-0.5">⭐ {product.shop.avg_rating.toFixed(1)}</p>
+                <p className="text-xs text-gray-500 mt-0.5">⭐ {Number(product.shop.avg_rating).toFixed(1)}</p>
               )}
             </div>
             <span className="text-gray-400 text-sm">›</span>

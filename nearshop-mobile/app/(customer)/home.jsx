@@ -25,6 +25,7 @@ import StoryCircle from '../../components/StoryCircle';
 import ShopCard from '../../components/ShopCard';
 import ProductCard from '../../components/ProductCard';
 import DealCard from '../../components/DealCard';
+import LocationPicker from '../../components/LocationPicker';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const CATEGORIES = [
@@ -49,6 +50,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const loadData = useCallback(async () => {
     const [storiesRes, dealsRes, shopsRes, productsRes] = await Promise.allSettled([
@@ -131,12 +133,17 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>Hi, {firstName} 👋</Text>
-            <View style={styles.locationRow}>
+            <Pressable
+              style={styles.locationRow}
+              onPress={() => setShowLocationPicker(true)}
+              accessibilityLabel="Change location"
+            >
               <Text style={styles.locationPin}>📍</Text>
               <Text style={styles.locationText} numberOfLines={1}>
                 {locality}
               </Text>
-            </View>
+              <Text style={styles.locationChevron}>▾</Text>
+            </Pressable>
           </View>
           <Pressable
             style={({ pressed }) => [styles.notifBtn, pressed && styles.notifBtnPressed]}
@@ -266,6 +273,11 @@ export default function HomeScreen() {
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
+
+      <LocationPicker
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -313,6 +325,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 3,
+  },
+  locationChevron: {
+    fontSize: 11,
+    color: COLORS.gray400,
+    marginLeft: 3,
   },
   locationPin: {
     fontSize: 13,

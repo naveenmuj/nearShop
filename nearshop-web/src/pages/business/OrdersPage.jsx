@@ -89,10 +89,10 @@ export default function OrdersPage() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 rounded-2xl text-xs font-bold capitalize transition-all ${
               activeTab === tab
-                ? 'bg-brand-purple text-white shadow-sm'
-                : 'bg-white text-gray-500 shadow-card'
+                ? 'bg-[#5B2BE7] text-white shadow-sm shadow-purple-200'
+                : 'bg-white text-gray-500 border border-gray-200 hover:border-[#5B2BE7]/30'
             }`}
           >
             {tab}

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, delete
+from sqlalchemy import select, func, and_, or_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, BadRequestError, ForbiddenError
@@ -177,16 +177,25 @@ async def search_shops(
     lat: Optional[float] = None,
     lng: Optional[float] = None,
 ) -> list[Shop]:
-    """Search shops using full-text search and optional geo filtering."""
+    """Search shops using full-text search + ILIKE fallback for partial queries."""
     ts_query = func.plainto_tsquery("english", query)
     ts_vector = func.to_tsvector(
-        "english", func.coalesce(Shop.name, "") + " " + func.coalesce(Shop.description, "")
+        "english",
+        func.coalesce(Shop.name, "") + " " +
+        func.coalesce(Shop.description, "") + " " +
+        func.coalesce(Shop.category, ""),
     )
+    like_pattern = f"%{query}%"
 
     stmt = select(Shop).where(
         and_(
             Shop.is_active == True,
-            ts_vector.op("@@")(ts_query),
+            or_(
+                ts_vector.op("@@")(ts_query),
+                Shop.name.ilike(like_pattern),
+                Shop.category.ilike(like_pattern),
+                Shop.description.ilike(like_pattern),
+            ),
         )
     )
 

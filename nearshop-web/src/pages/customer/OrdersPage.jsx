@@ -65,7 +65,7 @@ export default function OrdersPage() {
     if (activeFilter === 'active') return ['pending', 'confirmed', 'preparing'].includes(order.status?.toLowerCase())
     if (activeFilter === 'completed') return ['completed', 'delivered'].includes(order.status?.toLowerCase())
     if (activeFilter === 'cancelled') return order.status?.toLowerCase() === 'cancelled'
-    return true
+    return false
   })
 
   if (loading) {
@@ -100,7 +100,7 @@ export default function OrdersPage() {
       <div className="flex gap-2 px-4 overflow-x-auto py-3 bg-white border-b border-gray-100">
         {['All', 'Active', 'Completed', 'Cancelled'].map(tab => (
           <button key={tab} onClick={() => setActiveFilter(tab.toLowerCase())}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeFilter === tab.toLowerCase() ? 'bg-brand-purple text-white' : 'bg-gray-100 text-gray-600'}`}>
+            className={`flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-bold transition-all ${activeFilter === tab.toLowerCase() ? 'bg-[#5B2BE7] text-white shadow-sm shadow-purple-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
             {tab}
           </button>
         ))}

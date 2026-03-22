@@ -21,7 +21,8 @@ export default function CommunityPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data } = await getCommunityFeed({ lat: latitude, lng: longitude, sort: 'newest' })
+      const geoParams = latitude != null ? { lat: latitude, lng: longitude } : {}
+      const { data } = await getCommunityFeed({ ...geoParams, sort: 'newest' })
       setPosts(data.items || data || [])
     } catch (err) {
       setError(err.message || 'Failed to load posts')

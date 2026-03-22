@@ -1,3 +1,4 @@
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -30,6 +31,10 @@ class Settings(BaseSettings):
     # Razorpay
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+
+    # CORS — comma-separated list of allowed origins for production
+    # e.g. ALLOWED_ORIGINS=https://nearshop.in,https://www.nearshop.in
+    ALLOWED_ORIGINS: Optional[List[str]] = None
 
     # App
     APP_ENV: str = "development"

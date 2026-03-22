@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, cast, String
+from sqlalchemy import select, func, and_, or_, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, contains_eager
 
@@ -150,14 +150,27 @@ async def search_products(
         )
     )
 
-    # Full-text search
+    # Full-text search + ILIKE fallback for partial/prefix queries
     if query:
         ts_query = func.plainto_tsquery("english", query)
         ts_vector = func.to_tsvector(
             "english",
-            func.concat(Product.name, " ", func.coalesce(Product.description, "")),
+            func.concat(
+                Product.name, " ",
+                func.coalesce(Product.description, ""), " ",
+                func.coalesce(Product.category, ""), " ",
+                func.coalesce(cast(Product.tags, String), ""),
+            ),
         )
-        base_query = base_query.where(ts_vector.op("@@")(ts_query))
+        like_pattern = f"%{query}%"
+        base_query = base_query.where(
+            or_(
+                ts_vector.op("@@")(ts_query),
+                Product.name.ilike(like_pattern),
+                Product.category.ilike(like_pattern),
+                Product.description.ilike(like_pattern),
+            )
+        )
 
     # Geo filter
     if lat is not None and lng is not None:
