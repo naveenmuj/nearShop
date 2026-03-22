@@ -3,6 +3,10 @@ import client from './api';
 export const createOrder = (data) => client.post('/orders', data);
 export const getMyOrders = (params = {}) =>
   client.get('/orders/my', { params });
+export const getOrderById = async (id) => {
+  const response = await client.get(`/orders/${id}`);
+  return response.data;
+};
 export const getShopOrders = (shopId, params = {}) =>
   client.get(`/orders/shop/${shopId}`, { params });
 export const updateOrderStatus = (id, status) =>

@@ -14,6 +14,7 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingProvider, setLoadingProvider] = useState(null); // 'google' | 'apple'
+  const [phoneValid, setPhoneValid] = useState(false);
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
 
@@ -28,21 +29,52 @@ export default function LoginScreen() {
     }
   };
 
+  const getFriendlyError = (error) => {
+    const errorMap = {
+      'auth/invalid-phone-number': 'Invalid phone number format. Please check and try again.',
+      'auth/missing-phone-number': 'Please enter a phone number.',
+      'auth/quota-exceeded': 'Too many SMS messages sent. Please try again later.',
+      'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
+      'auth/captcha-check-failed': 'Verification failed. Please try again.',
+      'auth/network-request-failed': 'Network error. Please check your internet connection.',
+      'auth/invalid-credential': 'Authentication failed. Please try again.',
+      'auth/user-disabled': 'This account has been disabled. Contact support.',
+    };
+
+    const errorCode = error.code || '';
+    return errorMap[errorCode] || error.message || 'Something went wrong. Please try again.';
+  };
+
+  const handlePhoneChange = (text) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, 10);
+    setPhone(cleaned);
+    setPhoneValid(cleaned.length === 10);
+  };
+
   const handleSendOtp = async () => {
     if (phone.length !== 10) {
-      Toast.show({ type: 'error', text1: 'Enter a valid 10-digit number' });
+      Toast.show({
+        type: 'error',
+        text1: 'Invalid Phone Number',
+        text2: 'Please enter a valid 10-digit number'
+      });
       return;
     }
     setLoading(true);
     try {
       const formattedPhone = '+91' + phone;
       await sendFirebaseOtp(formattedPhone);
+      Toast.show({
+        type: 'success',
+        text1: 'OTP Sent! 📱',
+        text2: 'Please check your messages'
+      });
       router.push({ pathname: '/(auth)/verify', params: { phone: formattedPhone } });
     } catch (err) {
       Toast.show({
         type: 'error',
         text1: 'Could not send OTP',
-        text2: err.message || 'Check the phone number and try again',
+        text2: getFriendlyError(err),
       });
     } finally {
       setLoading(false);
@@ -53,10 +85,19 @@ export default function LoginScreen() {
     setLoadingProvider('google');
     try {
       const data = await signInWithGoogle();
+      Toast.show({
+        type: 'success',
+        text1: 'Welcome! 👋',
+        text2: `Signed in as ${data.user?.name || 'user'}`
+      });
       navigateAfterAuth(data);
     } catch (err) {
       if (err.code !== 'SIGN_IN_CANCELLED' && err.code !== 'auth/popup-closed-by-user') {
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err.message });
+        Toast.show({
+          type: 'error',
+          text1: 'Google Sign-In failed',
+          text2: getFriendlyError(err)
+        });
       }
     } finally {
       setLoadingProvider(null);
@@ -65,15 +106,28 @@ export default function LoginScreen() {
 
   const handleApple = async () => {
     if (Platform.OS !== 'ios') {
-      Toast.show({ type: 'info', text1: 'Apple Sign-In', text2: 'Only available on iOS devices' });
+      Toast.show({
+        type: 'info',
+        text1: 'Apple Sign-In',
+        text2: 'Only available on iOS devices'
+      });
       return;
     }
     setLoadingProvider('apple');
     try {
       const data = await signInWithApple();
+      Toast.show({
+        type: 'success',
+        text1: 'Welcome! 👋',
+        text2: `Signed in with Apple`
+      });
       navigateAfterAuth(data);
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Apple Sign-In failed', text2: err.message });
+      Toast.show({
+        type: 'error',
+        text1: 'Apple Sign-In failed',
+        text2: getFriendlyError(err)
+      });
     } finally {
       setLoadingProvider(null);
     }
@@ -105,15 +159,32 @@ export default function LoginScreen() {
               <View style={styles.countryCode}>
                 <Text style={styles.countryText}>🇮🇳 +91</Text>
               </View>
-              <TextInput
-                value={phone}
-                onChangeText={(t) => setPhone(t.replace(/\D/g, '').slice(0, 10))}
-                placeholder="Enter 10-digit number"
-                placeholderTextColor={COLORS.gray400}
-                keyboardType="phone-pad"
-                maxLength={10}
-                style={styles.input}
-              />
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                  placeholder="Enter 10-digit number"
+                  placeholderTextColor={COLORS.gray400}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  style={[
+                    styles.input,
+                    phone.length > 0 && (phoneValid
+                      ? styles.inputValid
+                      : styles.inputPartial
+                    )
+                  ]}
+                />
+                {phone.length > 0 && (
+                  <View style={styles.validationIcon}>
+                    {phoneValid ? (
+                      <Text style={styles.checkmark}>✓</Text>
+                    ) : (
+                      <Text style={styles.remainingCount}>{10 - phone.length}</Text>
+                    )}
+                  </View>
+                )}
+              </View>
             </View>
 
             <TouchableOpacity
@@ -225,10 +296,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countryText: { fontSize: 15, color: COLORS.gray700, fontWeight: '500' },
+  inputWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
   input: {
-    flex: 1, height: 52, paddingHorizontal: 16, fontSize: 17, fontWeight: '500',
+    height: 52, paddingHorizontal: 16, paddingRight: 44, fontSize: 17, fontWeight: '500',
     backgroundColor: COLORS.white, borderRadius: 14, borderWidth: 1,
     borderColor: COLORS.gray200, color: COLORS.gray900,
+  },
+  inputValid: {
+    borderColor: '#10b981',
+    backgroundColor: '#f0fdf4',
+  },
+  inputPartial: {
+    borderColor: '#f59e0b',
+    backgroundColor: '#fffbeb',
+  },
+  validationIcon: {
+    position: 'absolute',
+    right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkmark: {
+    fontSize: 18,
+    color: '#10b981',
+    fontWeight: '700',
+  },
+  remainingCount: {
+    fontSize: 11,
+    color: '#d97706',
+    fontWeight: '600',
   },
   btn: { height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
   btnText: { fontSize: 16, fontWeight: '700' },

@@ -12,13 +12,20 @@ import { useAuthStore } from '../../store/authStore'
 import api from '../../api/client'
 
 const FRIENDLY_ERRORS = {
-  'auth/user-not-found': 'No account found with this email.',
-  'auth/wrong-password': 'Incorrect password.',
-  'auth/email-already-in-use': 'An account with this email already exists.',
-  'auth/invalid-email': 'Invalid email address.',
-  'auth/weak-password': 'Password is too weak (min 6 chars).',
-  'auth/too-many-requests': 'Too many attempts. Try again later.',
-  'auth/invalid-credential': 'Invalid email or password.',
+  'auth/user-not-found': 'No account found with this email. Try creating one!',
+  'auth/wrong-password': 'Incorrect password. Please try again.',
+  'auth/email-already-in-use': 'This email is already registered. Try signing in instead.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+  'auth/weak-password': 'Password must be at least 6 characters long.',
+  'auth/too-many-requests': 'Too many failed attempts. Please wait a few minutes and try again.',
+  'auth/invalid-credential': 'Invalid email or password. Please check and try again.',
+  'auth/network-request-failed': 'Network error. Please check your internet connection.',
+  'auth/popup-blocked': 'Pop-up was blocked. Please allow pop-ups for this site.',
+  'auth/cancelled-popup-request': 'Sign-in was cancelled.',
+  'auth/invalid-phone-number': 'Invalid phone number format. Please check and try again.',
+  'auth/missing-phone-number': 'Please enter a phone number.',
+  'auth/quota-exceeded': 'Too many SMS messages sent. Please try again later.',
+  'auth/captcha-check-failed': 'reCAPTCHA verification failed. Please try again.',
 }
 
 export default function LoginPage() {
@@ -31,41 +38,81 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('') // New: Success messages
+  const [phoneValid, setPhoneValid] = useState(false) // New: Phone validation state
   const navigate = useNavigate()
   const { login } = useAuthStore()
+
+  // Real-time phone validation
+  const handlePhoneChange = (value) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 10)
+    setPhone(cleaned)
+    setPhoneValid(cleaned.length === 10)
+    if (error) setError('') // Clear error on input change
+  }
+
+  // Real-time email validation
+  const handleEmailChange = (value) => {
+    setEmail(value)
+    if (error) setError('') // Clear error on input change
+  }
 
   const setupRecaptcha = () => {
     if (!window.recaptchaVerifier) {
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         size: 'invisible',
-        callback: () => {},
+        callback: () => {
+          setSuccess('reCAPTCHA verified ✓')
+          setTimeout(() => setSuccess(''), 2000)
+        },
+        'expired-callback': () => {
+          setError('reCAPTCHA expired. Please try again.')
+        }
       })
     }
     return window.recaptchaVerifier
   }
 
   const exchangeFirebaseToken = async (idToken) => {
-    const { data } = await api.post('/auth/firebase-signin', { firebase_token: idToken })
-    login(data.user, data.access_token)
-    if (data.is_new_user || !data.user.name) navigate('/auth/select-role')
-    else if (data.user.active_role === 'business') navigate('/biz/dashboard')
-    else navigate('/app/home')
+    try {
+      const { data } = await api.post('/auth/firebase-signin', { firebase_token: idToken })
+      login(data.user, data.access_token)
+
+      // Show success message before navigation
+      setSuccess('✓ Signed in successfully!')
+
+      // Small delay for better UX
+      setTimeout(() => {
+        if (data.is_new_user || !data.user.name) navigate('/auth/select-role')
+        else if (data.user.active_role === 'business') navigate('/biz/dashboard')
+        else navigate('/app/home')
+      }, 500)
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || 'Failed to complete sign-in')
+    }
   }
 
   const handleSendOTP = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
     setLoading(true)
     try {
       const appVerifier = setupRecaptcha()
       const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`
+      setSuccess('Sending OTP via Firebase...')
       const confirmationResult = await signInWithPhoneNumber(auth, formattedPhone, appVerifier)
       window.confirmationResult = confirmationResult
       sessionStorage.setItem('pendingPhone', formattedPhone)
-      navigate('/auth/verify')
+      setSuccess('✓ OTP sent to your phone!')
+      setTimeout(() => navigate('/auth/verify'), 800)
     } catch (err) {
-      setError(err.message || 'Failed to send OTP. Check the phone number.')
-      if (window.recaptchaVerifier) { window.recaptchaVerifier.clear(); window.recaptchaVerifier = null }
+      console.error('OTP Error:', err)
+      setError(FRIENDLY_ERRORS[err.code] || err.message || 'Failed to send OTP. Please try again.')
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear()
+        window.recaptchaVerifier = null
+      }
     } finally {
       setLoading(false)
     }
@@ -74,14 +121,20 @@ export default function LoginPage() {
   const handleEmailAuth = async (e) => {
     e.preventDefault()
     setError('')
-    if (isRegister && password !== confirmPassword) { setError('Passwords do not match.'); return }
+    setSuccess('')
+    if (isRegister && password !== confirmPassword) {
+      setError('Passwords do not match. Please check and try again.')
+      return
+    }
     setLoading(true)
     try {
+      setSuccess(isRegister ? 'Creating your account...' : 'Signing you in...')
       const result = isRegister
         ? await createUserWithEmailAndPassword(auth, email, password)
         : await signInWithEmailAndPassword(auth, email, password)
       await exchangeFirebaseToken(await result.user.getIdToken())
     } catch (err) {
+      console.error('Email Auth Error:', err)
       setError(FRIENDLY_ERRORS[err.code] || err.message)
     } finally {
       setLoading(false)
@@ -90,12 +143,19 @@ export default function LoginPage() {
 
   const handleSocial = async (provider, name) => {
     setError('')
+    setSuccess('')
     setSocialLoading(name)
     try {
+      setSuccess(`Opening ${name} sign-in...`)
       const result = await signInWithPopup(auth, provider)
       await exchangeFirebaseToken(await result.user.getIdToken())
     } catch (err) {
-      if (err.code !== 'auth/popup-closed-by-user') setError(err.message || `${name} sign-in failed`)
+      console.error(`${name} Auth Error:`, err)
+      if (err.code === 'auth/popup-closed-by-user') {
+        setSuccess('') // Don't show error if user closed popup
+      } else {
+        setError(FRIENDLY_ERRORS[err.code] || err.message || `${name} sign-in failed`)
+      }
     } finally {
       setSocialLoading('')
     }
@@ -176,23 +236,47 @@ export default function LoginPage() {
                   <div className="flex items-center gap-2 px-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 text-sm font-semibold whitespace-nowrap">
                     🇮🇳 +91
                   </div>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    placeholder="98765 43210"
-                    maxLength={10}
-                    className="flex-1 px-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-[#5B2BE7] focus:ring-4 focus:ring-[#5B2BE7]/10 outline-none text-gray-900 transition-all"
-                    required
-                  />
+                  <div className="relative flex-1">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={e => handlePhoneChange(e.target.value)}
+                      placeholder="98765 43210"
+                      maxLength={10}
+                      className={`w-full px-4 py-3 bg-gray-100 border rounded-xl focus:bg-white focus:ring-4 outline-none text-gray-900 transition-all ${
+                        phone.length > 0
+                          ? phoneValid
+                            ? 'border-green-400 focus:border-green-500 focus:ring-green-100'
+                            : 'border-amber-400 focus:border-amber-500 focus:ring-amber-100'
+                          : 'border-transparent focus:border-[#5B2BE7] focus:ring-[#5B2BE7]/10'
+                      }`}
+                      required
+                      autoComplete="tel"
+                    />
+                    {phone.length > 0 && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {phoneValid ? (
+                          <span className="text-green-500 text-lg">✓</span>
+                        ) : (
+                          <span className="text-xs text-amber-600 font-medium">{10 - phone.length} more</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="submit"
-                  disabled={loading || phone.length < 10}
-                  className="w-full bg-gradient-to-r from-[#5B2BE7] to-[#7F77DD] text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-purple-200 disabled:opacity-50 disabled:shadow-none hover:shadow-purple-300 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98]"
+                  disabled={loading || !phoneValid}
+                  className="w-full bg-gradient-to-r from-[#5B2BE7] to-[#7F77DD] text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-purple-200 disabled:opacity-50 disabled:shadow-none hover:shadow-purple-300 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed"
                 >
                   {loading ? <SpinnerRow label="Sending OTP..." /> : 'Send OTP →'}
                 </button>
+                {!loading && phone.length > 0 && !phoneValid && (
+                  <p className="mt-2 text-xs text-amber-600 flex items-center gap-1.5">
+                    <span>⚠️</span>
+                    <span>Please enter a valid 10-digit mobile number</span>
+                  </p>
+                )}
               </form>
             )}
 
@@ -202,7 +286,7 @@ export default function LoginPage() {
                 <div className="flex bg-gray-100 rounded-xl p-0.5 mb-4 gap-0.5">
                   {[['Sign In', false], ['Register', true]].map(([label, reg]) => (
                     <button key={label} type="button"
-                      onClick={() => { setIsRegister(reg); setError('') }}
+                      onClick={() => { setIsRegister(reg); setError(''); setSuccess('') }}
                       className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                         isRegister === reg ? 'bg-white shadow text-[#5B2BE7]' : 'text-gray-500'
                       }`}>
@@ -211,29 +295,58 @@ export default function LoginPage() {
                   ))}
                 </div>
                 <div className="space-y-3 mb-4">
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => handleEmailChange(e.target.value)}
                     placeholder="you@example.com"
                     className="w-full px-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-[#5B2BE7] focus:ring-4 focus:ring-[#5B2BE7]/10 outline-none transition-all"
-                    required />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => { setPassword(e.target.value); if (error) setError('') }}
                     placeholder="Password (min 6 chars)" minLength={6}
                     className="w-full px-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-[#5B2BE7] focus:ring-4 focus:ring-[#5B2BE7]/10 outline-none transition-all"
-                    required />
+                    required
+                    autoComplete={isRegister ? 'new-password' : 'current-password'}
+                  />
                   {isRegister && (
-                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm password"
-                      className={`w-full px-4 py-3 bg-gray-100 border rounded-xl focus:ring-4 outline-none transition-all ${
-                        confirmPassword && confirmPassword !== password
-                          ? 'border-red-400 focus:ring-red-100 bg-red-50'
-                          : 'border-transparent focus:bg-white focus:border-[#5B2BE7] focus:ring-[#5B2BE7]/10'
-                      }`}
-                      required />
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={e => { setConfirmPassword(e.target.value); if (error) setError('') }}
+                        placeholder="Confirm password"
+                        className={`w-full px-4 py-3 bg-gray-100 border rounded-xl focus:ring-4 outline-none transition-all ${
+                          confirmPassword && confirmPassword !== password
+                            ? 'border-red-400 focus:ring-red-100 bg-red-50'
+                            : 'border-transparent focus:bg-white focus:border-[#5B2BE7] focus:ring-[#5B2BE7]/10'
+                        }`}
+                        required
+                        autoComplete="new-password"
+                      />
+                      {confirmPassword && confirmPassword !== password && (
+                        <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                          <span>⚠️</span>
+                          <span>Passwords don't match</span>
+                        </p>
+                      )}
+                      {confirmPassword && confirmPassword === password && confirmPassword.length >= 6 && (
+                        <p className="mt-1.5 text-xs text-green-600 flex items-center gap-1">
+                          <span>✓</span>
+                          <span>Passwords match</span>
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <button
                   type="submit"
                   disabled={loading || !email || password.length < 6 || (isRegister && password !== confirmPassword)}
-                  className="w-full bg-gradient-to-r from-[#5B2BE7] to-[#7F77DD] text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-purple-200 disabled:opacity-50 disabled:shadow-none hover:shadow-purple-300 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98]"
+                  className="w-full bg-gradient-to-r from-[#5B2BE7] to-[#7F77DD] text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-purple-200 disabled:opacity-50 disabled:shadow-none hover:shadow-purple-300 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed"
                 >
                   {loading
                     ? <SpinnerRow label={isRegister ? 'Creating account...' : 'Signing in...'} />
@@ -272,10 +385,27 @@ export default function LoginPage() {
               </button>
             </div>
 
+            {/* Success message */}
+            {success && (
+              <div className="mt-4 flex items-start gap-2.5 bg-green-50 border border-green-200 text-green-700 text-sm p-3.5 rounded-2xl animate-fade-in">
+                <span className="mt-0.5">✓</span>
+                <span className="font-medium">{success}</span>
+              </div>
+            )}
+
+            {/* Error message */}
             {error && (
-              <div className="mt-4 flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-600 text-sm p-3.5 rounded-2xl">
+              <div className="mt-4 flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-600 text-sm p-3.5 rounded-2xl animate-fade-in">
                 <span className="mt-0.5">⚠️</span>
-                <span>{error}</span>
+                <div className="flex-1">
+                  <p className="font-medium">{error}</p>
+                  {error.includes('network') && (
+                    <p className="mt-1 text-xs text-red-500">Please check your internet connection and try again.</p>
+                  )}
+                  {error.includes('too many') && (
+                    <p className="mt-1 text-xs text-red-500">For security, please wait a few minutes before trying again.</p>
+                  )}
+                </div>
               </div>
             )}
           </div>

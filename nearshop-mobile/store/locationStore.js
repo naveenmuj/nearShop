@@ -32,9 +32,14 @@ const useLocationStore = create((set) => ({
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        const fallback = { lat: 12.935, lng: 77.624, address: 'Koramangala, Bangalore' };
-        set({ ...fallback, error: 'Permission denied', isLoading: false });
-        await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(fallback));
+        // User explicitly denied permission - notify them clearly
+        set({
+          lat: null,
+          lng: null,
+          address: null,
+          error: 'Location permission denied. Please enable location services in your device settings to find nearby shops.',
+          isLoading: false
+        });
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -47,12 +52,17 @@ const useLocationStore = create((set) => ({
         address = [geo.name, geo.district || geo.subregion].filter(Boolean).join(', ');
       } catch { /* coords still usable */ }
       const payload = { lat: loc.coords.latitude, lng: loc.coords.longitude, address };
-      set({ ...payload, isLoading: false });
+      set({ ...payload, error: null, isLoading: false });
       await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(payload));
     } catch (err) {
-      const fallback = { lat: 12.935, lng: 77.624, address: 'Koramangala, Bangalore' };
-      set({ ...fallback, error: err.message, isLoading: false });
-      await SecureStore.setItemAsync(STORE_KEY, JSON.stringify(fallback));
+      // GPS error - show clear message
+      set({
+        lat: null,
+        lng: null,
+        address: null,
+        error: `Could not get your location: ${err.message}. Please try again or set location manually.`,
+        isLoading: false
+      });
     }
   },
 

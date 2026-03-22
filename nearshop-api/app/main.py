@@ -29,12 +29,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — update ALLOWED_ORIGINS in .env for production
-    _origins = (
-        ["*"]
-        if settings.APP_ENV == "development"
-        else settings.ALLOWED_ORIGINS or ["*"]
-    )
+    # CORS — Secure configuration with validation
+    if settings.APP_ENV == "development":
+        _origins = ["*"]
+    else:
+        if not settings.ALLOWED_ORIGINS:
+            raise ValueError(
+                "ALLOWED_ORIGINS must be set in production. "
+                "Set APP_ENV='development' for unrestricted CORS in dev mode."
+            )
+        _origins = settings.ALLOWED_ORIGINS
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_origins,

@@ -97,8 +97,9 @@ async def create_order(
                 reference_id=order.id,
                 order_number=order.order_number,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            # Log notification failure but don't fail the order creation
+            logger.warning(f"Failed to create new order notification: {e}")
 
     return order
 

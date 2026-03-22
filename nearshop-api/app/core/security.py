@@ -1,5 +1,6 @@
-import random
+import secrets
 import string
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
@@ -56,11 +57,24 @@ def verify_refresh_token(token: str) -> dict[str, Any]:
 
 
 def generate_otp() -> str:
-    return "".join(random.choices(string.digits, k=6))
+    """Generate a cryptographically secure 6-digit OTP."""
+    return "".join(secrets.choice(string.digits) for _ in range(6))
 
 
 def generate_referral_code() -> str:
-    return "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    """Generate a cryptographically secure 8-character referral code."""
+    return "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
+
+
+def hash_otp(otp: str, phone: str) -> str:
+    """Hash OTP with phone number as salt for secure storage."""
+    combined = f"{otp}:{phone}:{settings.JWT_SECRET_KEY}"
+    return hashlib.sha256(combined.encode()).hexdigest()
+
+
+def verify_otp_hash(otp: str, phone: str, hashed: str) -> bool:
+    """Verify OTP against its hash."""
+    return hash_otp(otp, phone) == hashed
 
 
 def validate_phone(phone: str) -> str:
