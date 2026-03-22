@@ -1,4 +1,4 @@
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,48 +9,54 @@ build/
 venv/
 .venv/
 *.egg
-*.apk
-# Environment
+
+# ── Environment (never commit secrets) ───────────────────────────────────────
 .env
 .env.local
 .env.production
+# .env.example and .env.production template ARE committed (no real secrets)
 
-# Firebase (never commit — contains private keys)
+# ── Firebase (private keys — never commit) ────────────────────────────────────
 firebase-service-account.json
 *-service-account.json
 
-# IDE
+# ── Scripts with hardcoded credentials ───────────────────────────────────────
+nearshop-api/scripts/migrate_to_cloud.py
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Node
+# ── Node ──────────────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build
+# ── Build output ──────────────────────────────────────────────────────────────
 nearshop-web/dist/
 nearshop-web/build/
+nearshop-mobile/builds/*.apk
+*.apk
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Database
+# ── Database ──────────────────────────────────────────────────────────────────
 *.db
 *.sqlite3
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# Coverage
+# ── Test coverage ─────────────────────────────────────────────────────────────
 htmlcov/
 .coverage
 .coverage.*
 
-# Claude
+# ── Claude Code internal ──────────────────────────────────────────────────────
 .claude/
