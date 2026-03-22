@@ -39,6 +39,11 @@ export default function SettingsPage() {
     phone: '',
     whatsapp: '',
     category: 'general',
+    delivery_options: ['pickup'],
+    delivery_fee: '',
+    free_delivery_above: '',
+    delivery_radius: '',
+    min_order: '',
   })
 
   // Populate form when shop loads
@@ -51,6 +56,11 @@ export default function SettingsPage() {
         phone: shop.phone || '',
         whatsapp: shop.whatsapp || '',
         category: shop.category || 'general',
+        delivery_options: shop.delivery_options || ['pickup'],
+        delivery_fee: shop.delivery_fee ? String(shop.delivery_fee) : '',
+        free_delivery_above: shop.free_delivery_above ? String(shop.free_delivery_above) : '',
+        delivery_radius: shop.delivery_radius ? String(shop.delivery_radius) : '',
+        min_order: shop.min_order ? String(shop.min_order) : '',
       })
     }
   }, [shop])
@@ -83,7 +93,20 @@ export default function SettingsPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      await updateShop(shopId, form)
+      const payload = {
+        name: form.name,
+        description: form.description || undefined,
+        address: form.address || undefined,
+        phone: form.phone || undefined,
+        whatsapp: form.whatsapp || undefined,
+        category: form.category,
+        delivery_options: form.delivery_options,
+        delivery_fee: form.delivery_fee ? Number(form.delivery_fee) : 0,
+        free_delivery_above: form.free_delivery_above ? Number(form.free_delivery_above) : undefined,
+        delivery_radius: form.delivery_radius ? Number(form.delivery_radius) : undefined,
+        min_order: form.min_order ? Number(form.min_order) : undefined,
+      }
+      await updateShop(shopId, payload)
       toast.success('Settings saved!')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save settings')
@@ -91,6 +114,19 @@ export default function SettingsPage() {
       setSaving(false)
     }
   }
+
+  const toggleDeliveryOpt = (key) => {
+    setForm((p) => {
+      const opts = p.delivery_options || []
+      if (opts.includes(key)) {
+        if (opts.length === 1) return p // keep at least one
+        return { ...p, delivery_options: opts.filter((o) => o !== key) }
+      }
+      return { ...p, delivery_options: [...opts, key] }
+    })
+  }
+
+  const hasDelivery = form.delivery_options?.includes('delivery')
 
   if (shopLoading) {
     return (
@@ -234,6 +270,69 @@ export default function SettingsPage() {
                 className={inputClass}
               />
             </div>
+
+            {/* Delivery Settings */}
+            <div className="pt-4 mt-2 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Delivery Settings</p>
+
+              <div className="space-y-2 mb-4">
+                {[
+                  { key: 'pickup', label: 'Pickup', icon: '🏪', desc: 'Customer picks up from shop' },
+                  { key: 'delivery', label: 'Delivery', icon: '🚚', desc: 'You deliver to customer' },
+                ].map(({ key, label, icon, desc }) => {
+                  const active = form.delivery_options?.includes(key)
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleDeliveryOpt(key)}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${active ? 'border-[#5B2BE7]/40 bg-[#5B2BE7]/5' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+                    >
+                      <span className="text-xl">{icon}</span>
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${active ? 'text-[#5B2BE7]' : 'text-gray-700'}`}>{label}</p>
+                        <p className="text-xs text-gray-400">{desc}</p>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${active ? 'border-[#5B2BE7] bg-[#5B2BE7]' : 'border-gray-300'}`}>
+                        {active && <span className="text-white text-xs">✓</span>}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {hasDelivery && (
+                <div className="grid grid-cols-2 gap-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <div>
+                    <label className={labelClass}>Delivery Fee (₹)</label>
+                    <input type="number" min="0" value={form.delivery_fee} onChange={(e) => setForm((p) => ({ ...p, delivery_fee: e.target.value }))} className={inputClass} placeholder="e.g. 30" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Free Above (₹)</label>
+                    <input type="number" min="0" value={form.free_delivery_above} onChange={(e) => setForm((p) => ({ ...p, free_delivery_above: e.target.value }))} className={inputClass} placeholder="e.g. 500" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Radius (km)</label>
+                    <input type="number" min="1" value={form.delivery_radius} onChange={(e) => setForm((p) => ({ ...p, delivery_radius: e.target.value }))} className={inputClass} placeholder="e.g. 5" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Min. Order (₹)</label>
+                    <input type="number" min="0" value={form.min_order} onChange={(e) => setForm((p) => ({ ...p, min_order: e.target.value }))} className={inputClass} placeholder="e.g. 100" />
+                  </div>
+                  {(form.delivery_fee || form.free_delivery_above) && (
+                    <div className="col-span-2 bg-green-50 rounded-lg p-3 border border-green-100">
+                      <p className="text-xs font-semibold text-green-700">
+                        {form.delivery_fee && Number(form.delivery_fee) > 0 ? `₹${form.delivery_fee} delivery fee` : 'Free delivery'}
+                        {form.free_delivery_above ? ` · Free above ₹${form.free_delivery_above}` : ''}
+                        {form.delivery_radius ? ` · Within ${form.delivery_radius}km` : ''}
+                        {form.min_order ? ` · Min order ₹${form.min_order}` : ''}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={saving}

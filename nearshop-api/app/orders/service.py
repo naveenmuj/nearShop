@@ -64,6 +64,34 @@ async def create_order(
             }
         )
 
+    # Calculate delivery fee based on shop settings
+    delivery_fee = Decimal("0")
+    if data.delivery_type == "delivery":
+        shop_result_fee = await db.execute(select(Shop).where(Shop.id == data.shop_id))
+        shop_for_fee = shop_result_fee.scalar_one_or_none()
+        if shop_for_fee:
+            # Check if shop supports delivery
+            shop_delivery_opts = shop_for_fee.delivery_options or ["pickup"]
+            if "delivery" not in shop_delivery_opts:
+                raise BadRequestError("This shop does not offer delivery")
+
+            # Check minimum order
+            if shop_for_fee.min_order and subtotal < shop_for_fee.min_order:
+                raise BadRequestError(
+                    f"Minimum order amount is ₹{shop_for_fee.min_order}. "
+                    f"Your cart is ₹{subtotal}."
+                )
+
+            # Calculate fee: free if above threshold, else shop's delivery fee
+            fee_amount = Decimal(str(shop_for_fee.delivery_fee or 0))
+            free_above = shop_for_fee.free_delivery_above
+            if free_above and subtotal >= free_above:
+                delivery_fee = Decimal("0")  # Free delivery
+            else:
+                delivery_fee = fee_amount
+
+    total = subtotal + delivery_fee
+
     order_number = (
         f"NS-{datetime.now().strftime('%y%m%d')}-{random.randint(10000, 99999)}"
     )
@@ -74,7 +102,8 @@ async def create_order(
         shop_id=data.shop_id,
         items=items_json,
         subtotal=subtotal,
-        total=subtotal,
+        delivery_fee=delivery_fee,
+        total=total,
         delivery_type=data.delivery_type,
         delivery_address=data.delivery_address,
         payment_method=data.payment_method,

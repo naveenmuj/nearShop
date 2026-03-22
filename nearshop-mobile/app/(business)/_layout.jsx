@@ -38,6 +38,10 @@ export default function BusinessTabs() {
         name="analytics"
         options={{ title: 'Analytics', tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart" size={size} color={color} /> }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} /> }}
+      />
       <Tabs.Screen name="snap-list" options={{ href: null }} />
     </Tabs>
   );

@@ -55,6 +55,8 @@ class Shop(Base):
         ARRAY(Text), server_default=text("'{pickup}'"), nullable=False
     )
     delivery_radius = Column(Integer, nullable=True)
+    delivery_fee = Column(Numeric(10, 2), server_default=text("0"), nullable=False)
+    free_delivery_above = Column(Numeric(10, 2), nullable=True)
     min_order = Column(Numeric(10, 2), nullable=True)
     metadata_ = Column("metadata", JSONB, nullable=True)
     created_at = Column(

@@ -18,6 +18,8 @@ class ShopCreate(BaseModel):
     opening_hours: Optional[dict[str, Any]] = None
     delivery_options: Optional[list[str]] = None
     delivery_radius: Optional[int] = None
+    delivery_fee: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    free_delivery_above: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     min_order: Optional[Decimal] = None
 
 
@@ -38,6 +40,8 @@ class ShopUpdate(BaseModel):
     gallery: Optional[list[str]] = None
     delivery_options: Optional[list[str]] = None
     delivery_radius: Optional[int] = None
+    delivery_fee: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+    free_delivery_above: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     min_order: Optional[Decimal] = None
 
 
@@ -65,6 +69,8 @@ class ShopResponse(BaseModel):
     total_products: int = 0
     delivery_options: list[str] = ["pickup"]
     delivery_radius: Optional[int] = None
+    delivery_fee: Decimal = Decimal("0")
+    free_delivery_above: Optional[Decimal] = None
     min_order: Optional[Decimal] = None
     is_open_now: bool = False
     product_count: int = 0
