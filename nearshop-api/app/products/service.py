@@ -129,7 +129,7 @@ async def search_products(
     query: Optional[str] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
-    radius_km: float = 10.0,
+    radius_km: Optional[float] = None,
     category: Optional[str] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
@@ -137,7 +137,15 @@ async def search_products(
     page: int = 1,
     per_page: int = 20,
 ) -> tuple[list[Product], int]:
-    """Search products with FTS, geo filtering, and price range."""
+    """Search products with FTS, geo filtering, and price range.
+
+    Geo behaviour:
+    - If radius_km is explicitly provided  → filter by radius
+    - If only lat/lng provided (no radius) → order by distance, don't filter
+    - If neither                           → order by relevance / recency
+    """
+    from app.core.geo import haversine_distance_km as _haversine
+
     base_query = (
         select(Product)
         .join(Shop, Product.shop_id == Shop.id)
@@ -172,8 +180,8 @@ async def search_products(
             )
         )
 
-    # Geo filter
-    if lat is not None and lng is not None:
+    # Geo filter — ONLY when radius explicitly provided
+    if lat is not None and lng is not None and radius_km is not None:
         base_query = base_query.where(
             within_radius(Shop.latitude, Shop.longitude, lat, lng, radius_km)
         )
@@ -193,15 +201,17 @@ async def search_products(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Sorting
+    # Sorting — prefer distance ordering when lat/lng present
     if sort_by == "price_asc":
         base_query = base_query.order_by(Product.price.asc())
     elif sort_by == "price_desc":
         base_query = base_query.order_by(Product.price.desc())
-    elif sort_by == "newest":
-        base_query = base_query.order_by(Product.created_at.desc())
     elif sort_by == "popular":
         base_query = base_query.order_by(Product.view_count.desc())
+    elif lat is not None and lng is not None:
+        # Default: sort by distance so nearest results first
+        dist = _haversine(lat, lng, Shop.latitude, Shop.longitude)
+        base_query = base_query.order_by(dist, Product.created_at.desc())
     else:
         base_query = base_query.order_by(Product.created_at.desc())
 
