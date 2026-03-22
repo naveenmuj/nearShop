@@ -21,11 +21,31 @@ from app.core.security import create_access_token
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
+# ========================================
+# LOCAL OTP ENDPOINTS (BACKUP/LEGACY)
+# ========================================
+# NOTE: These endpoints generate OTP locally and are NOT the primary authentication method.
+# The primary auth flow uses Firebase Authentication for all phone OTP operations.
+#
+# Frontend (Web & Mobile) uses Firebase directly via:
+#   - Web: signInWithPhoneNumber() from Firebase SDK
+#   - Mobile: sendFirebaseOtp() wrapper around Firebase React Native SDK
+#
+# These local endpoints exist as a fallback but are not integrated with the
+# main authentication flow. Consider removing or clearly documenting their purpose.
+# ========================================
+
 @router.post("/send-otp")
 async def send_otp(
     body: SendOTPRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    ⚠️ LEGACY ENDPOINT - Not used in primary flow
+
+    Generates and sends OTP locally (logs to console in dev).
+    The primary authentication method uses Firebase phone authentication.
+    """
     result = await AuthService.send_otp(db, body.phone)
     return result
 
@@ -35,6 +55,12 @@ async def verify_otp(
     body: VerifyOTPRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    ⚠️ LEGACY ENDPOINT - Not used in primary flow
+
+    Verifies OTP that was generated locally.
+    The primary authentication method uses Firebase phone authentication.
+    """
     result = await AuthService.verify_otp(db, body.phone, body.code)
     return result
 
@@ -72,15 +98,32 @@ async def firebase_signin(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create or sync a user record after Firebase authentication, then issue an
-    internal HS256 JWT so the frontend can authenticate subsequent API calls
-    without relying on the Firebase Admin SDK for every request.
+    🔐 PRIMARY AUTHENTICATION ENDPOINT - Firebase Token Exchange
+
+    This is the main authentication endpoint used by both web and mobile apps.
+    All authentication methods (Phone OTP, Google, Apple, Email/Password) go through
+    Firebase first, then exchange the Firebase ID token here for an internal JWT.
 
     Flow:
-      1. Verify Firebase ID token via Firebase Admin SDK
-      2. Create a new User row on first sign-in, or update existing record
-      3. Issue an internal access_token (HS256 JWT)
-      4. Return user profile + access_token + metadata
+      1. User authenticates via Firebase (Phone OTP / Google / Apple / Email)
+      2. Firebase returns an ID token (RS256, verified by Google's keys)
+      3. Frontend sends this ID token to this endpoint
+      4. Backend verifies the ID token using Firebase Admin SDK
+      5. Backend creates or updates the User record in the database
+      6. Backend issues an internal JWT (HS256) for subsequent API calls
+      7. Returns: { user, access_token, is_new_user, provider }
+
+    Why exchange tokens?
+      - Performance: Local JWT verification is 100x faster than Firebase Admin SDK calls
+      - Cost: Avoids Firebase quota limits on every API request
+      - Flexibility: Can add custom claims (roles, permissions) to internal JWT
+      - Offline: Internal JWT can be verified without internet connection
+
+    Supported Firebase providers:
+      - phone (Phone OTP via SMS)
+      - google.com (Google Sign-In)
+      - apple.com (Apple Sign-In)
+      - password (Email/Password)
     """
     firebase_id_token = body.firebase_token or body.id_token
 
