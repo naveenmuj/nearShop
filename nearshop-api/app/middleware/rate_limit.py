@@ -1,7 +1,10 @@
 import time
+import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -53,8 +56,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     headers={"Retry-After": str(window)},
                 )
             await redis.aclose()
-        except Exception:
-            # If Redis is down, allow the request through
+        except Exception as e:
+            # If Redis is down, log warning and allow the request through
+            logger.warning(f"Rate limiting unavailable (Redis error): {e}")
             pass
 
         response = await call_next(request)
