@@ -82,8 +82,9 @@ export default function HaggleScreen() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getMyHaggles();
-      setHaggles(data || []);
+      const res = await getMyHaggles();
+      const d = res?.data;
+      setHaggles(Array.isArray(d) ? d : d?.items ?? d?.haggles ?? []);
     } catch {
       setError('Failed to load negotiations');
     } finally {

@@ -29,8 +29,10 @@ export default function BizDashboardScreen() {
         getShopOrders(shopId, { status: 'pending', limit: 5 }),
       ]);
       if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
-      if (ordersRes.status === 'fulfilled')
-        setPendingOrders(ordersRes.value.data?.items ?? ordersRes.value.data ?? []);
+      if (ordersRes.status === 'fulfilled') {
+        const d = ordersRes.value?.data;
+        setPendingOrders(Array.isArray(d) ? d : d?.items ?? d?.orders ?? []);
+      }
     } catch {}
     finally { setLoading(false); }
   }, [shopId]);

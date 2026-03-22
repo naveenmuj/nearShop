@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getMyOrders, cancelOrder } from '../../lib/orders';
 import { COLORS, STATUS_COLORS, SHADOWS, formatPrice, formatDate } from '../../constants/theme';
@@ -126,7 +126,8 @@ export default function OrdersScreen() {
     try {
       const params = activeFilter === 'all' ? {} : { status: activeFilter };
       const res = await getMyOrders(params);
-      setOrders(res?.data?.orders ?? []);
+      const d = res?.data;
+      setOrders(Array.isArray(d) ? d : d?.items ?? d?.orders ?? []);
     } catch (err) {
       setError('Failed to load orders. Pull down to retry.');
       setOrders([]);

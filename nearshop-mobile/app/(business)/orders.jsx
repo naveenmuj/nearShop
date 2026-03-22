@@ -95,10 +95,11 @@ export default function BizOrdersScreen() {
     if (!shopId) return;
     if (!silent) setLoading(true);
     try {
-      const data = await getShopOrders(shopId, {
+      const res = await getShopOrders(shopId, {
         status: activeTab === 'all' ? undefined : activeTab,
       });
-      setOrders(data || []);
+      const d = res?.data;
+      setOrders(Array.isArray(d) ? d : d?.items ?? d?.orders ?? []);
     } catch {
       if (!silent) Alert.alert('Error', 'Failed to load orders');
     } finally {

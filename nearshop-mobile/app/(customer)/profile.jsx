@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
+import { switchRole as apiSwitchRole } from '../../lib/auth';
 import { COLORS, SHADOWS, formatDate } from '../../constants/theme';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -90,8 +91,13 @@ export default function ProfileScreen() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleSwitchToBusiness = async () => {
-    await switchRole('business');
-    router.replace('/(business)/dashboard');
+    try {
+      await apiSwitchRole('business');  // Update server-side role
+      await switchRole('business');     // Update local store
+      router.replace('/(business)/dashboard');
+    } catch {
+      Alert.alert('Error', 'Could not switch to business mode');
+    }
   };
 
   const handleSignOut = () => {

@@ -8,8 +8,9 @@ export default function useMyShop() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const { data } = await getMyShops();
-        const shops = data.items ?? data ?? [];
+        const res = await getMyShops();
+        const d = res?.data;
+        const shops = Array.isArray(d) ? d : d?.items ?? d ?? [];
         if (shops.length > 0) setShop(shops[0]);
       } catch {
         // user may not have a shop yet
