@@ -155,7 +155,7 @@ ExecStart=$APP_DIR/venv/bin/gunicorn app.main:app \\
     --worker-class uvicorn.workers.UvicornWorker \\
     --bind 127.0.0.1:8000 \\
     --timeout 120 \\
-    --keepalive 5 \\
+    --keep-alive 5 \\
     --max-requests 1000 \\
     --max-requests-jitter 100 \\
     --log-level info \\

@@ -2,7 +2,7 @@ import axios from 'axios'
 import { auth } from '../config/firebase'
 import { useAuthStore } from '../store/authStore'
 
-const api = axios.create({ baseURL: '/api/v1' })
+const api = axios.create({ baseURL: `${import.meta.env.VITE_API_BASE_URL}/api/v1` })
 
 /**
  * Request interceptor — attach auth token to every request.

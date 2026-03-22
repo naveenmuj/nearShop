@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true, timeout: 90000, proxyTimeout: 90000 }
+      '/api': { target: 'http://165.232.182.130', changeOrigin: true, timeout: 90000, proxyTimeout: 90000 }
     }
   }
 })

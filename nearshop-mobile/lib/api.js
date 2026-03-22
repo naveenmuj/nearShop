@@ -2,9 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Dev: Android Emulator 10.0.2.2, Production: real API server
-const API_BASE = __DEV__
-  ? 'http://10.0.2.2:8000'
-  : 'https://api.nearshop.in';
+const API_BASE = 'http://165.232.182.130';
 
 const client = axios.create({
   baseURL: API_BASE + '/api/v1',
