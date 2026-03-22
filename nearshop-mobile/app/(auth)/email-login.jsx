@@ -33,15 +33,27 @@ export default function EmailLoginScreen() {
 
   const handleSubmit = async () => {
     if (!email || !password) {
-      Toast.show({ type: 'error', text1: 'Fill in all fields' });
+      Toast.show({
+        type: 'error',
+        text1: 'Missing Information',
+        text2: 'Please fill in all fields'
+      });
       return;
     }
     if (isRegister && password !== confirm) {
-      Toast.show({ type: 'error', text1: 'Passwords do not match' });
+      Toast.show({
+        type: 'error',
+        text1: 'Password Mismatch',
+        text2: 'Passwords do not match'
+      });
       return;
     }
     if (password.length < 6) {
-      Toast.show({ type: 'error', text1: 'Password must be at least 6 characters' });
+      Toast.show({
+        type: 'error',
+        text1: 'Weak Password',
+        text2: 'Password must be at least 6 characters'
+      });
       return;
     }
     setLoading(true);
@@ -49,10 +61,19 @@ export default function EmailLoginScreen() {
       const data = isRegister
         ? await registerWithEmail(email, password)
         : await signInWithEmail(email, password);
+      Toast.show({
+        type: 'success',
+        text1: isRegister ? 'Account Created! 🎉' : 'Welcome Back! 👋',
+        text2: `Signed in as ${data.user?.email || 'user'}`
+      });
       navigateAfterAuth(data);
     } catch (err) {
-      const msg = friendlyError(err.code) || err.message;
-      Toast.show({ type: 'error', text1: isRegister ? 'Registration failed' : 'Sign-in failed', text2: msg });
+      const msg = friendlyError(err.code) || err.message || 'Something went wrong';
+      Toast.show({
+        type: 'error',
+        text1: isRegister ? 'Registration Failed' : 'Sign-in Failed',
+        text2: msg
+      });
     } finally {
       setLoading(false);
     }
@@ -62,10 +83,20 @@ export default function EmailLoginScreen() {
     setGoogleLoading(true);
     try {
       const data = await signInWithGoogle();
+      Toast.show({
+        type: 'success',
+        text1: 'Welcome! 👋',
+        text2: `Signed in as ${data.user?.name || 'user'}`
+      });
       navigateAfterAuth(data);
     } catch (err) {
       if (err.code !== 'SIGN_IN_CANCELLED') {
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err.message });
+        const msg = friendlyError(err.code) || err.message || 'Something went wrong';
+        Toast.show({
+          type: 'error',
+          text1: 'Google Sign-In Failed',
+          text2: msg
+        });
       }
     } finally {
       setGoogleLoading(false);
@@ -201,13 +232,15 @@ export default function EmailLoginScreen() {
 
 function friendlyError(code) {
   const map = {
-    'auth/user-not-found': 'No account found with this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/email-already-in-use': 'An account with this email already exists.',
-    'auth/invalid-email': 'Invalid email address.',
-    'auth/weak-password': 'Password is too weak.',
-    'auth/too-many-requests': 'Too many attempts. Try again later.',
-    'auth/invalid-credential': 'Invalid email or password.',
+    'auth/user-not-found': 'No account found with this email. Try creating one!',
+    'auth/wrong-password': 'Incorrect password. Please try again.',
+    'auth/email-already-in-use': 'This email is already registered. Try signing in instead.',
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/weak-password': 'Password must be at least 6 characters long.',
+    'auth/too-many-requests': 'Too many attempts. Please wait a few minutes and try again.',
+    'auth/invalid-credential': 'Invalid email or password. Please check and try again.',
+    'auth/network-request-failed': 'Network error. Please check your internet connection.',
+    'auth/user-disabled': 'This account has been disabled. Contact support.',
   };
   return map[code] || null;
 }

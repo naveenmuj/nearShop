@@ -49,11 +49,30 @@ export default function VerifyScreen() {
     }
   };
 
+  const getFriendlyError = (error) => {
+    const errorMap = {
+      'auth/invalid-verification-code': 'Invalid OTP. Please check and try again.',
+      'auth/code-expired': 'OTP has expired. Please request a new one.',
+      'auth/session-expired': 'Session expired. Please request a new OTP.',
+      'auth/too-many-requests': 'Too many attempts. Please wait a few minutes.',
+      'auth/network-request-failed': 'Network error. Please check your connection.',
+      'auth/invalid-credential': 'Invalid OTP. Please try again.',
+    };
+
+    const errorCode = error.code || '';
+    return errorMap[errorCode] || error.message || 'Invalid OTP. Please try again.';
+  };
+
   const handleVerify = async (code) => {
     if (!code || code.length !== 6) return;
     setLoading(true);
     try {
       const data = await verifyFirebaseOtp(code);
+      Toast.show({
+        type: 'success',
+        text1: 'Verified! 🎉',
+        text2: 'Welcome to NearShop'
+      });
       // data = { user, access_token, refresh_token, is_new_user }
       await login(
         { access_token: data.access_token, refresh_token: data.refresh_token },
@@ -69,8 +88,8 @@ export default function VerifyScreen() {
     } catch (err) {
       Toast.show({
         type: 'error',
-        text1: 'Invalid OTP',
-        text2: err.message || 'Please try again',
+        text1: 'Verification Failed',
+        text2: getFriendlyError(err),
       });
       setOtp(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
@@ -84,9 +103,19 @@ export default function VerifyScreen() {
     try {
       await sendFirebaseOtp(phone);
       setTimer(60);
-      Toast.show({ type: 'success', text1: 'OTP resent!' });
+      Toast.show({
+        type: 'success',
+        text1: 'OTP Resent! 📱',
+        text2: 'Please check your messages'
+      });
+      setOtp(['', '', '', '', '', '']);
+      inputs.current[0]?.focus();
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Failed to resend', text2: err.message });
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to resend',
+        text2: getFriendlyError(err)
+      });
     }
   };
 
