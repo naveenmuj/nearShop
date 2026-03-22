@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { searchProducts } from '../../lib/products';
+import { searchProducts, getSearchSuggestions } from '../../lib/products';
 import { searchShops } from '../../lib/shops';
 import ProductCard from '../../components/ProductCard';
 import ShopCard from '../../components/ShopCard';
 import { COLORS, SHADOWS } from '../../constants/theme';
+import useLocationStore from '../../store/locationStore';
 
 const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Clothing', 'Food', 'Beauty', 'Home'];
 
@@ -27,12 +28,15 @@ const SORT_OPTIONS = [
   { label: 'Popular', value: 'popular' },
 ];
 
+const TYPE_ICONS = { product: '🛍️', shop: '🏪' };
+
 export default function SearchScreen() {
   const router = useRouter();
   const { category: initialCategory } = useLocalSearchParams();
+  const { lat, lng } = useLocationStore();
 
   const [query, setQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'shops'
+  const [activeTab, setActiveTab] = useState('products');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'All');
   const [selectedSort, setSelectedSort] = useState('newest');
   const [products, setProducts] = useState([]);
@@ -40,38 +44,64 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // Suggestions state
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+
   const inputRef = useRef(null);
   const debounceTimer = useRef(null);
+  const suggestTimer = useRef(null);
+
+  // ─── Fetch suggestions ────────────────────────────────────────────────────────
+
+  const fetchSuggestions = useCallback(async (q) => {
+    if (!q.trim() || q.length < 2) { setSuggestions([]); return; }
+    try {
+      const res = await getSearchSuggestions(q.trim(), lat, lng);
+      setSuggestions(res?.data?.suggestions ?? []);
+    } catch {
+      setSuggestions([]);
+    }
+  }, [lat, lng]);
 
   // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
   const fetchProducts = useCallback(async (q, category, sort) => {
     setLoading(true);
     try {
-      const params = { q, limit: 40, sort };
+      const params = { per_page: 40, sort_by: sort };
+      if (q) params.q = q;
+      if (lat != null) params.lat = lat;
+      if (lng != null) params.lng = lng;
       if (category && category !== 'All') params.category = category;
       const res = await searchProducts(params);
-      setProducts(res?.data?.products ?? []);
+      // API returns { items: [...], total, page, per_page }
+      setProducts(res?.data?.items ?? []);
     } catch {
       setProducts([]);
     } finally {
       setLoading(false);
       setHasSearched(true);
     }
-  }, []);
+  }, [lat, lng]);
 
   const fetchShops = useCallback(async (q) => {
     setLoading(true);
     try {
-      const res = await searchShops(q, { limit: 30 });
-      setShops(res?.data?.shops ?? []);
+      const params = {};
+      if (lat != null) params.lat = lat;
+      if (lng != null) params.lng = lng;
+      const res = await searchShops(q, params);
+      // API returns { items: [...], total, page, per_page }
+      setShops(res?.data?.items ?? []);
     } catch {
       setShops([]);
     } finally {
       setLoading(false);
       setHasSearched(true);
     }
-  }, []);
+  }, [lat, lng]);
 
   // ─── Debounced search trigger ─────────────────────────────────────────────────
 
@@ -79,22 +109,34 @@ export default function SearchScreen() {
     (q, category, sort, tab) => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       debounceTimer.current = setTimeout(() => {
-        if (tab === 'products') {
-          fetchProducts(q, category, sort);
-        } else {
-          fetchShops(q);
-        }
-      }, 400);
+        setShowSuggestions(false);
+        if (tab === 'products') fetchProducts(q, category, sort);
+        else fetchShops(q);
+      }, 450);
     },
     [fetchProducts, fetchShops],
   );
 
   useEffect(() => {
     scheduleSearch(query, selectedCategory, selectedSort, activeTab);
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
   }, [query, selectedCategory, selectedSort, activeTab, scheduleSearch]);
+
+  // Suggestions debounce (faster — 200ms)
+  useEffect(() => {
+    if (!inputFocused) return;
+    if (suggestTimer.current) clearTimeout(suggestTimer.current);
+    suggestTimer.current = setTimeout(() => {
+      if (query.length >= 2) {
+        setShowSuggestions(true);
+        fetchSuggestions(query);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 200);
+    return () => { if (suggestTimer.current) clearTimeout(suggestTimer.current); };
+  }, [query, inputFocused, fetchSuggestions]);
 
   // Auto-focus on mount
   useEffect(() => {
@@ -107,31 +149,31 @@ export default function SearchScreen() {
   const handleQueryChange = (text) => {
     setQuery(text);
     setHasSearched(false);
+    if (!text.trim()) { setSuggestions([]); setShowSuggestions(false); }
   };
 
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    setHasSearched(false);
-  };
-
-  const handleCategoryChange = (cat) => {
-    setSelectedCategory(cat);
-    setHasSearched(false);
-  };
-
-  const handleSortChange = (sort) => {
-    setSelectedSort(sort);
-    setHasSearched(false);
-  };
-
-  const handleCancel = () => {
+  const handleSuggestionPress = (item) => {
+    setQuery(item.name);
+    setShowSuggestions(false);
     Keyboard.dismiss();
-    router.back();
+    if (item.type === 'shop') {
+      router.push(`/(customer)/shop/${item.id}`);
+    } else {
+      setHasSearched(false);
+      scheduleSearch(item.name, selectedCategory, selectedSort, 'products');
+      setActiveTab('products');
+    }
   };
 
+  const handleTabChange = (tab) => { setActiveTab(tab); setHasSearched(false); };
+  const handleCategoryChange = (cat) => { setSelectedCategory(cat); setHasSearched(false); };
+  const handleSortChange = (sort) => { setSelectedSort(sort); setHasSearched(false); };
+  const handleCancel = () => { Keyboard.dismiss(); router.back(); };
   const handleClearInput = () => {
     setQuery('');
     setHasSearched(false);
+    setSuggestions([]);
+    setShowSuggestions(false);
     inputRef.current?.focus();
   };
 
@@ -182,7 +224,7 @@ export default function SearchScreen() {
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
 
-        <View style={styles.inputWrap}>
+        <View style={[styles.inputWrap, inputFocused && styles.inputWrapFocused]}>
           <Text style={styles.searchIconText}>🔍</Text>
           <TextInput
             ref={inputRef}
@@ -195,12 +237,12 @@ export default function SearchScreen() {
             autoCorrect={false}
             autoCapitalize="none"
             clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setTimeout(() => setInputFocused(false), 150)}
+            onSubmitEditing={() => setShowSuggestions(false)}
           />
           {Platform.OS === 'android' && query.length > 0 && (
-            <TouchableOpacity
-              onPress={handleClearInput}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
+            <TouchableOpacity onPress={handleClearInput} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Text style={styles.clearBtn}>✕</Text>
             </TouchableOpacity>
           )}
@@ -210,6 +252,29 @@ export default function SearchScreen() {
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── Amazon-style Suggestions dropdown ───────────────────────────────── */}
+      {showSuggestions && suggestions.length > 0 && (
+        <View style={styles.suggestionsBox}>
+          {suggestions.map((item, idx) => (
+            <TouchableOpacity
+              key={`${item.type}-${item.id}`}
+              style={[styles.suggestionRow, idx < suggestions.length - 1 && styles.suggestionBorder]}
+              onPress={() => handleSuggestionPress(item)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.suggestionTypeIcon}>{TYPE_ICONS[item.type]}</Text>
+              <View style={styles.suggestionTextWrap}>
+                <Text style={styles.suggestionName} numberOfLines={1}>{item.name}</Text>
+                {item.category ? (
+                  <Text style={styles.suggestionSub}>{item.type === 'shop' ? '🏪 Shop' : `in ${item.category}`}</Text>
+                ) : null}
+              </View>
+              <Text style={styles.suggestionArrow}>↗</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {/* ── Tab pills ───────────────────────────────────────────────────────── */}
       <View style={styles.tabRow}>
@@ -221,7 +286,9 @@ export default function SearchScreen() {
             activeOpacity={0.8}
           >
             <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
-              {tab === 'products' ? 'Products' : 'Shops'}
+              {tab === 'products'
+                ? `Products${products.length > 0 ? ` (${products.length})` : ''}`
+                : `Shops${shops.length > 0 ? ` (${shops.length})` : ''}`}
             </Text>
           </TouchableOpacity>
         ))}
@@ -278,6 +345,7 @@ export default function SearchScreen() {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Searching nearby…</Text>
         </View>
       ) : (
         <FlatList
@@ -341,10 +409,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     height: 40,
     gap: 6,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
   },
-  searchIconText: {
-    fontSize: 14,
+  inputWrapFocused: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.white,
   },
+  searchIconText: { fontSize: 14 },
   input: {
     flex: 1,
     fontSize: 15,
@@ -366,6 +438,43 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
 
+  // Suggestions
+  suggestionsBox: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+    ...SHADOWS.card,
+    zIndex: 99,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  suggestionBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.gray200,
+  },
+  suggestionTypeIcon: { fontSize: 16 },
+  suggestionTextWrap: { flex: 1 },
+  suggestionName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray900,
+  },
+  suggestionSub: {
+    fontSize: 12,
+    color: COLORS.gray400,
+    marginTop: 1,
+  },
+  suggestionArrow: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+
   // Tabs
   tabRow: {
     flexDirection: 'row',
@@ -384,17 +493,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gray100,
     alignItems: 'center',
   },
-  tabPillActive: {
-    backgroundColor: COLORS.primary,
-  },
-  tabLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.gray500,
-  },
-  tabLabelActive: {
-    color: COLORS.white,
-  },
+  tabPillActive: { backgroundColor: COLORS.primary },
+  tabLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+  tabLabelActive: { color: COLORS.white },
 
   // Chips
   chipsSection: {
@@ -409,9 +510,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 8,
   },
-  sortRow: {
-    paddingTop: 6,
-  },
+  sortRow: { paddingTop: 6 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -420,52 +519,23 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
   },
-  sortChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  chipActive: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: COLORS.gray600,
-  },
-  chipTextActive: {
-    color: COLORS.primaryDark,
-    fontWeight: '700',
-  },
+  sortChip: { paddingHorizontal: 12, paddingVertical: 5 },
+  chipActive: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
+  chipText: { fontSize: 13, fontWeight: '500', color: COLORS.gray600 },
+  chipTextActive: { color: COLORS.primaryDark, fontWeight: '700' },
 
   // List
-  listContent: {
-    padding: 12,
-    paddingBottom: 32,
-  },
-  listContentEmpty: {
-    flexGrow: 1,
-  },
-  columnWrapper: {
-    gap: 10,
-    marginBottom: 10,
-  },
-  productItemWrap: {
-    flex: 1,
-  },
+  listContent: { padding: 12, paddingBottom: 32 },
+  listContentEmpty: { flexGrow: 1 },
+  columnWrapper: { gap: 10, marginBottom: 10 },
+  productItemWrap: { flex: 1 },
   productItemLeft: {},
   productItemRight: {},
-  shopItemWrap: {
-    width: '100%',
-    marginBottom: 10,
-  },
+  shopItemWrap: { width: '100%', marginBottom: 10 },
 
   // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
+  loadingText: { fontSize: 14, color: COLORS.gray400 },
 
   // Empty state
   emptyContainer: {
@@ -475,21 +545,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     paddingTop: 60,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.gray800,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: COLORS.gray500,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
+  emptyIcon: { fontSize: 48, marginBottom: 16 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800, textAlign: 'center', marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: COLORS.gray500, textAlign: 'center', lineHeight: 20 },
 });

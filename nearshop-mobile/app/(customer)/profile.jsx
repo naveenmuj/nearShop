@@ -257,7 +257,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── App version ──────────────────────────────────────────── */}
-        <Text style={styles.appVersion}>NearShop v1.0.0</Text>
+        <Text style={styles.appVersion} onLongPress={() => router.push('/debug-logs')}>NearShop v1.0.0</Text>
 
         <View style={styles.bottomSpacing} />
       </ScrollView>

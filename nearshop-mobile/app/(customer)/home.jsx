@@ -56,22 +56,22 @@ export default function HomeScreen() {
     const [storiesRes, dealsRes, shopsRes, productsRes] = await Promise.allSettled([
       getStoriesFeed(),
       getNearbyDeals(lat, lng),
-      getNearbyShops(lat, lng, 5000),
+      getNearbyShops(lat, lng, { radius: 5000 }),
       searchProducts({ sort: 'newest', limit: 20 }),
     ]);
 
     if (storiesRes.status === 'fulfilled') {
-      const raw = storiesRes.value?.data?.stories ?? [];
+      const raw = storiesRes.value?.data?.items ?? [];
       setStories(raw.slice(0, 8));
     }
     if (dealsRes.status === 'fulfilled') {
-      setDeals(dealsRes.value?.data?.deals ?? []);
+      setDeals(dealsRes.value?.data?.items ?? []);
     }
     if (shopsRes.status === 'fulfilled') {
-      setShops(shopsRes.value?.data?.shops ?? []);
+      setShops(shopsRes.value?.data?.items ?? []);
     }
     if (productsRes.status === 'fulfilled') {
-      setProducts(productsRes.value?.data?.products ?? []);
+      setProducts(productsRes.value?.data?.items ?? []);
     }
   }, [lat, lng]);
 

@@ -13,7 +13,7 @@ import client from './api';
 // Replace with actual value from: Firebase Console → Project Settings → Web API client
 // ---------------------------------------------------------------------------
 GoogleSignin.configure({
-  webClientId: '880214447785-web.apps.googleusercontent.com', // placeholder — update from Firebase Console
+  webClientId: '880214447785-t6930j38p2asatsa9dka5n69eperthba.apps.googleusercontent.com',
 });
 
 // ---------------------------------------------------------------------------

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { PackageSearch, ChevronLeft, ChevronRight, Store, ShoppingBag, Search, X } from 'lucide-react'
+import { PackageSearch, ChevronLeft, ChevronRight, Store, ShoppingBag, Search, X, ArrowUpRight } from 'lucide-react'
 import { useLocationStore } from '../../store/locationStore'
-import { searchProducts } from '../../api/products'
+import { searchProducts, getSearchSuggestions } from '../../api/products'
 import { searchShops } from '../../api/shops'
 import { getCategories } from '../../api/categories'
 import EmptyState from '../../components/ui/EmptyState'
 
 const DEBOUNCE_MS = 400
+const SUGGEST_MS = 180
 const PER_PAGE = 20
 
 const CATEGORY_ICONS = {
@@ -20,6 +21,8 @@ const getCategoryIcon = (name = '') => {
   return CATEGORY_ICONS[key] ?? CATEGORY_ICONS.default
 }
 
+const TYPE_ICON = { product: '🛍️', shop: '🏪' }
+
 export default function SearchPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -27,7 +30,7 @@ export default function SearchPage() {
 
   const [query, setQuery] = useState(searchParams.get('q') || '')
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '')
-  const [activeResultTab, setActiveResultTab] = useState('products') // 'products' | 'shops'
+  const [activeResultTab, setActiveResultTab] = useState('products')
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
 
   const [products, setProducts] = useState([])
@@ -35,8 +38,16 @@ export default function SearchPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState([])
+
+  // Suggestions state
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [inputFocused, setInputFocused] = useState(false)
+
   const inputRef = useRef(null)
+  const containerRef = useRef(null)
   const debounceTimer = useRef(null)
+  const suggestTimer = useRef(null)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -45,6 +56,39 @@ export default function SearchPage() {
       .catch(() => {})
   }, [])
 
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // ── Suggestions ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!inputFocused || query.length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+    clearTimeout(suggestTimer.current)
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const res = await getSearchSuggestions(query.trim(), latitude, longitude)
+        const list = res.data?.suggestions ?? []
+        setSuggestions(list)
+        setShowSuggestions(list.length > 0)
+      } catch {
+        setSuggestions([])
+      }
+    }, SUGGEST_MS)
+    return () => clearTimeout(suggestTimer.current)
+  }, [query, inputFocused, latitude, longitude])
+
+  // ── Main search ──────────────────────────────────────────────────────────────
   const doSearch = useCallback(async (q, category, pg) => {
     if (!q.trim() && !category) { setProducts([]); setShops([]); setTotalCount(0); return }
     setLoading(true)
@@ -57,20 +101,20 @@ export default function SearchPage() {
 
       const [productsRes, shopsRes] = await Promise.allSettled([
         searchProducts(params),
-        q.trim() ? searchShops(q, latitude != null ? { lat: latitude, lng: longitude } : {}) : Promise.resolve({ data: [] }),
+        q.trim() ? searchShops(q, latitude != null ? { lat: latitude, lng: longitude } : {}) : Promise.resolve({ data: { items: [] } }),
       ])
 
       if (productsRes.status === 'fulfilled') {
         const d = productsRes.value.data
-        setProducts(d.items ?? d.products ?? d ?? [])
-        setTotalCount(d.total ?? d.count ?? 0)
+        setProducts(d.items ?? [])
+        setTotalCount(d.total ?? 0)
       } else {
         setProducts([])
         setTotalCount(0)
       }
       if (shopsRes.status === 'fulfilled') {
         const d = shopsRes.value.data
-        setShops(d.items ?? d.shops ?? d ?? [])
+        setShops(d.items ?? [])
       } else {
         setShops([])
       }
@@ -94,15 +138,29 @@ export default function SearchPage() {
     return () => clearTimeout(debounceTimer.current)
   }, [query, selectedCategory, page, doSearch, setSearchParams])
 
-  const handleQueryChange = (e) => { setQuery(e.target.value); setPage(1) }
+  const handleQueryChange = (e) => {
+    setQuery(e.target.value)
+    setPage(1)
+  }
+
+  const handleSuggestionClick = (item) => {
+    setShowSuggestions(false)
+    if (item.type === 'shop') {
+      navigate(`/app/shop/${item.id}`)
+    } else {
+      setQuery(item.name)
+      setPage(1)
+    }
+  }
+
   const handleCategorySelect = (slug) => { setSelectedCategory(prev => prev === slug ? '' : slug); setPage(1) }
   const totalPages = Math.ceil(totalCount / PER_PAGE)
   const hasResults = products.length > 0 || shops.length > 0
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Search bar */}
-      <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100 shadow-sm">
+      {/* ── Search bar + suggestions ──────────────────────────────────────────── */}
+      <div ref={containerRef} className="bg-white px-4 pt-4 pb-3 border-b border-gray-100 shadow-sm relative z-30">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate(-1)}
@@ -110,19 +168,21 @@ export default function SearchPage() {
           >
             <ChevronLeft className="w-4 h-4 text-gray-600" />
           </button>
-          <div className={`flex items-center gap-2 flex-1 bg-gray-100 rounded-2xl px-3.5 h-11 border-2 transition-all ${query ? 'border-[#5B2BE7]/30 bg-white' : 'border-transparent'}`}>
+          <div className={`flex items-center gap-2 flex-1 rounded-2xl px-3.5 h-11 border-2 transition-all ${inputFocused ? 'border-[#5B2BE7]/50 bg-white shadow-sm shadow-purple-100' : 'bg-gray-100 border-transparent'}`}>
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input
               ref={inputRef}
               autoFocus
               value={query}
               onChange={handleQueryChange}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setTimeout(() => setInputFocused(false), 150)}
               placeholder="Search products, shops..."
               className="flex-1 text-sm text-gray-800 placeholder-gray-400 outline-none bg-transparent"
             />
             {query && (
               <button
-                onClick={() => { setQuery(''); setPage(1) }}
+                onClick={() => { setQuery(''); setPage(1); setSuggestions([]); setShowSuggestions(false) }}
                 className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center hover:bg-gray-400 transition-colors flex-shrink-0"
               >
                 <X className="w-3 h-3 text-gray-600" />
@@ -130,9 +190,33 @@ export default function SearchPage() {
             )}
           </div>
         </div>
+
+        {/* Amazon-style suggestions dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute left-4 right-4 top-full mt-1 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+            {suggestions.map((item, idx) => (
+              <button
+                key={`${item.type}-${item.id}`}
+                onMouseDown={() => handleSuggestionClick(item)}
+                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${idx < suggestions.length - 1 ? 'border-b border-gray-50' : ''}`}
+              >
+                <span className="text-base flex-shrink-0">{TYPE_ICON[item.type] ?? '🔍'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
+                  {item.category && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {item.type === 'shop' ? '🏪 Shop' : `in ${item.category}`}
+                    </p>
+                  )}
+                </div>
+                <ArrowUpRight className="w-3.5 h-3.5 text-[#5B2BE7] flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Category filter strip */}
+      {/* ── Category filter strip ──────────────────────────────────────────────── */}
       {categories.length > 0 && (
         <div className="bg-white border-b border-gray-100 px-4 py-2.5">
           <div className="flex gap-2 overflow-x-auto scrollbar-hide">
@@ -175,6 +259,18 @@ export default function SearchPage() {
             <p className="text-sm text-gray-400 text-center">
               Find products, shops, and deals<br />near your location
             </p>
+            {/* Popular suggestions */}
+            <div className="mt-2 flex flex-wrap gap-2 justify-center">
+              {['Grocery', 'Electronics', 'Food', 'Beauty', 'Clothing'].map(term => (
+                <button
+                  key={term}
+                  onClick={() => setQuery(term)}
+                  className="px-3.5 py-1.5 bg-white border border-gray-200 rounded-2xl text-xs font-semibold text-gray-600 hover:border-[#5B2BE7]/40 hover:text-[#5B2BE7] transition-colors"
+                >
+                  {getCategoryIcon(term)} {term}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

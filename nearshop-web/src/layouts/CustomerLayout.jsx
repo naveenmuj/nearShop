@@ -18,7 +18,7 @@ export default function CustomerLayout() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 max-w-lg mx-auto">
       {/* Top header */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-gradient-to-br from-[#5B2BE7] to-[#7F77DD] rounded-lg flex items-center justify-center">
@@ -41,7 +41,7 @@ export default function CustomerLayout() {
 
       {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto">
-        <div className="bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-2xl">
+        <div className="bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
           <div className="flex items-center justify-around px-1 py-2">
             {NAV.map(({ to, icon: Icon, label }) => (
               <NavLink

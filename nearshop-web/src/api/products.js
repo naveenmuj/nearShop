@@ -1,6 +1,12 @@
 import client from './client'
 
 export const searchProducts = (params = {}) => client.get('/products/search', { params })
+export const getSearchSuggestions = (q, lat, lng) => {
+  const params = { q }
+  if (lat != null) params.lat = lat
+  if (lng != null) params.lng = lng
+  return client.get('/products/suggestions', { params })
+}
 export const getProduct = (id) => client.get(`/products/${id}`)
 export const getSimilarProducts = (id) => client.get(`/products/${id}/similar`)
 

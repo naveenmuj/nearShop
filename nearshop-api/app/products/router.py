@@ -2,6 +2,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -34,6 +35,53 @@ def _product_to_response(p) -> ProductResponse:
     except Exception:
         resp.shop_name = None
     return resp
+
+
+@router.get("/suggestions")
+async def search_suggestions_endpoint(
+    q: str = Query(..., min_length=1, max_length=60),
+    lat: Optional[float] = Query(None, ge=-90, le=90),
+    lng: Optional[float] = Query(None, ge=-180, le=180),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fast autocomplete suggestions: prefix-match product & shop names."""
+    from sqlalchemy import select, and_
+    from app.products.models import Product
+    from app.shops.models import Shop
+
+    prefix = f"{q}%"
+    broad = f"%{q}%"
+
+    product_rows = await db.execute(
+        select(Product.id, Product.name, Product.category)
+        .where(and_(Product.is_available == True, Product.name.ilike(prefix)))
+        .order_by(Product.view_count.desc())
+        .limit(5)
+    )
+    products = [{"id": str(r.id), "name": r.name, "type": "product", "category": r.category} for r in product_rows.fetchall()]
+
+    # Broaden if prefix returned few results
+    if len(products) < 3:
+        extra = await db.execute(
+            select(Product.id, Product.name, Product.category)
+            .where(and_(Product.is_available == True, Product.name.ilike(broad)))
+            .order_by(Product.view_count.desc())
+            .limit(6 - len(products))
+        )
+        seen_ids = {p["id"] for p in products}
+        for r in extra.fetchall():
+            if str(r.id) not in seen_ids:
+                products.append({"id": str(r.id), "name": r.name, "type": "product", "category": r.category})
+
+    shop_rows = await db.execute(
+        select(Shop.id, Shop.name, Shop.category)
+        .where(and_(Shop.is_active == True, or_(Shop.name.ilike(prefix), Shop.category.ilike(broad))))
+        .order_by(Shop.score.desc())
+        .limit(4)
+    )
+    shops = [{"id": str(r.id), "name": r.name, "type": "shop", "category": r.category} for r in shop_rows.fetchall()]
+
+    return {"suggestions": products[:6] + shops[:4]}
 
 
 @router.get("/search", response_model=ProductListResponse)
