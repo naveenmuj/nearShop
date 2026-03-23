@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  RefreshControl, TouchableOpacity, StatusBar,
+  RefreshControl, TouchableOpacity, StatusBar, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,25 +18,25 @@ function StatCard({ label, value, icon, color }) {
   );
 }
 
-function Section({ title, children }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
 export default function AdminDashboard() {
   const router = useRouter();
   const [overview, setOverview] = useState(null);
-  const [shopLeaderboard, setShopLeaderboard] = useState([]);
-  const [topProducts, setTopProducts] = useState([]);
-  const [recentUsers, setRecentUsers] = useState([]);
-  const [orderFunnel, setOrderFunnel] = useState(null);
+  const [shops, setShops] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [funnel, setFunnel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  // Handle Android back button
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
+  }, [router]);
 
   const loadData = useCallback(async () => {
     try {
@@ -49,30 +49,22 @@ export default function AdminDashboard() {
         client.get('/admin/orders/funnel'),
       ]);
 
-      const [overviewRes, shopsRes, productsRes, usersRes, funnelRes] = results;
+      if (results[0].status === 'fulfilled') setOverview(results[0].value.data);
+      else setError(results[0].reason?.response?.data?.detail || 'Failed to load');
 
-      if (overviewRes.status === 'fulfilled') {
-        setOverview(overviewRes.value.data);
-      } else {
-        const msg = overviewRes.reason?.response?.data?.detail || overviewRes.reason?.message;
-        setError(msg || 'Failed to load admin data');
+      if (results[1].status === 'fulfilled') {
+        const d = results[1].value.data;
+        setShops(Array.isArray(d) ? d : d?.items ?? []);
       }
-
-      if (shopsRes.status === 'fulfilled') {
-        const d = shopsRes.value.data;
-        setShopLeaderboard(Array.isArray(d) ? d : d?.shops ?? d?.items ?? []);
+      if (results[2].status === 'fulfilled') {
+        const d = results[2].value.data;
+        setProducts(Array.isArray(d) ? d : d?.items ?? []);
       }
-      if (productsRes.status === 'fulfilled') {
-        const d = productsRes.value.data;
-        setTopProducts(Array.isArray(d) ? d : d?.products ?? d?.items ?? []);
+      if (results[3].status === 'fulfilled') {
+        const d = results[3].value.data;
+        setUsers(Array.isArray(d) ? d : d?.items ?? []);
       }
-      if (usersRes.status === 'fulfilled') {
-        const d = usersRes.value.data;
-        setRecentUsers(Array.isArray(d) ? d : d?.users ?? d?.items ?? []);
-      }
-      if (funnelRes.status === 'fulfilled') {
-        setOrderFunnel(funnelRes.value.data);
-      }
+      if (results[4].status === 'fulfilled') setFunnel(results[4].value.data);
     } catch (e) {
       setError(e?.response?.data?.detail || 'Failed to load admin data');
     }
@@ -89,19 +81,19 @@ export default function AdminDashboard() {
     setRefreshing(false);
   };
 
+  const goBack = () => router.back();
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#4338CA" />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Admin Dashboard</Text>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={goBack}><Text style={styles.backText}>← Back</Text></TouchableOpacity>
+          <Text style={styles.headerBarTitle}>Admin Dashboard</Text>
+          <View style={{ width: 50 }} />
         </View>
-        <View style={[styles.center, { backgroundColor: COLORS.bg }]}>
+        <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading admin data...</Text>
         </View>
       </SafeAreaView>
     );
@@ -109,154 +101,137 @@ export default function AdminDashboard() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4338CA" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
+
+      {/* Header */}
+      <View style={styles.headerBar}>
+        <TouchableOpacity onPress={goBack}><Text style={styles.backText}>← Back</Text></TouchableOpacity>
+        <Text style={styles.headerBarTitle}>Admin Dashboard</Text>
+        <View style={{ width: 50 }} />
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.white} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Admin Dashboard</Text>
-          <Text style={styles.headerSub}>Platform Overview</Text>
-        </View>
+        {error && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorText}>{String(error)}</Text>
+            <TouchableOpacity onPress={onRefresh}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
+          </View>
+        )}
 
-        <View style={styles.body}>
-          {error && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retrySmallBtn} onPress={onRefresh}>
-                <Text style={styles.retrySmallText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Overview stats */}
-          {overview && (
+        {/* Overview Stats */}
+        {overview && (
+          <>
+            <Text style={styles.sectionTitle}>Platform Overview</Text>
             <View style={styles.statsGrid}>
-              <StatCard label="Total Users" value={overview.total_users ?? 0} icon="👥" color={COLORS.blue} />
-              <StatCard label="Total Shops" value={overview.total_shops ?? 0} icon="🏪" color={COLORS.green} />
+              <StatCard label="Users" value={overview.total_users ?? 0} icon="👥" color={COLORS.blue} />
+              <StatCard label="Shops" value={overview.total_shops ?? 0} icon="🏪" color={COLORS.green} />
               <StatCard label="Products" value={overview.total_products ?? 0} icon="📦" color={COLORS.primary} />
               <StatCard label="Orders" value={overview.total_orders ?? 0} icon="🛒" color={COLORS.amber} />
               <StatCard label="Revenue" value={formatPrice(overview.gmv_total ?? 0)} icon="💰" color="#1D9E75" />
-              <StatCard label="Avg Rating" value={overview.avg_platform_rating ?? 0} icon="⭐" color="#EF9F27" />
+              <StatCard label="Rating" value={overview.avg_platform_rating ?? 0} icon="⭐" color="#EF9F27" />
             </View>
-          )}
 
-          {/* Key metrics */}
-          {overview && (
-            <Section title="Key Metrics">
-              <View style={styles.metricsCard}>
-                {[
-                  { label: 'New users (7d)', value: overview.new_users_7d ?? 0 },
-                  { label: 'New shops (7d)', value: overview.new_shops_7d ?? 0 },
-                  { label: 'Orders (7d)', value: overview.orders_7d ?? 0 },
-                  { label: 'Revenue (7d)', value: formatPrice(overview.gmv_7d ?? 0) },
-                  { label: 'Avg order value', value: formatPrice(overview.avg_order_value ?? 0) },
-                  { label: 'Cancel rate', value: `${overview.cancellation_rate ?? 0}%` },
-                  { label: 'Active deals', value: overview.active_deals ?? 0 },
-                  { label: 'Total reviews', value: overview.total_reviews ?? 0 },
-                  { label: 'Haggles', value: overview.total_haggles ?? 0 },
-                  { label: 'ShopCoins in circ.', value: overview.shopcoins_circulation ?? 0 },
-                ].map(({ label, value }) => (
-                  <View key={label} style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>{label}</Text>
-                    <Text style={styles.metricValue}>{value}</Text>
-                  </View>
-                ))}
-              </View>
-            </Section>
-          )}
-
-          {/* Order funnel */}
-          {orderFunnel && typeof orderFunnel === 'object' && (
-            <Section title="Order Funnel">
-              <View style={styles.funnelCard}>
-                {Object.entries(orderFunnel).map(([status, count]) => (
-                  <View key={status} style={styles.funnelRow}>
-                    <View style={[styles.funnelDot, { backgroundColor: STATUS_COLOR[status] || COLORS.gray400 }]} />
-                    <Text style={styles.funnelLabel}>{status}</Text>
-                    <Text style={styles.funnelCount}>{count}</Text>
-                  </View>
-                ))}
-              </View>
-            </Section>
-          )}
-
-          {/* Top shops */}
-          {shopLeaderboard.length > 0 && (
-            <Section title="Top Shops">
-              <View style={styles.listCard}>
-                {shopLeaderboard.map((shop, idx) => (
-                  <View key={shop.id || idx} style={[styles.listRow, idx === shopLeaderboard.length - 1 && styles.listRowLast]}>
-                    <View style={styles.rankBadge}>
-                      <Text style={styles.rankText}>{idx + 1}</Text>
-                    </View>
-                    <View style={styles.listInfo}>
-                      <Text style={styles.listName} numberOfLines={1}>{shop.name}</Text>
-                      <Text style={styles.listSub}>{shop.category || 'N/A'} · {shop.products ?? shop.total_products ?? 0} products</Text>
-                    </View>
-                    <View style={styles.listRight}>
-                      <Text style={styles.listScore}>{Number(shop.score ?? shop.avg_rating ?? 0).toFixed(1)}</Text>
-                      <Text style={styles.listScoreLabel}>score</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </Section>
-          )}
-
-          {/* Top products */}
-          {topProducts.length > 0 && (
-            <Section title="Most Viewed Products">
-              <View style={styles.listCard}>
-                {topProducts.map((p, idx) => (
-                  <View key={p.id || idx} style={[styles.listRow, idx === topProducts.length - 1 && styles.listRowLast]}>
-                    <View style={[styles.rankBadge, { backgroundColor: COLORS.primaryLight }]}>
-                      <Text style={[styles.rankText, { color: COLORS.primary }]}>{idx + 1}</Text>
-                    </View>
-                    <View style={styles.listInfo}>
-                      <Text style={styles.listName} numberOfLines={1}>{p.name}</Text>
-                      <Text style={styles.listSub}>{formatPrice(p.price)} · {p.view_count ?? p.views ?? 0} views</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </Section>
-          )}
-
-          {/* Recent users */}
-          {recentUsers.length > 0 && (
-            <Section title="Recent Users">
-              <View style={styles.listCard}>
-                {recentUsers.map((u, idx) => (
-                  <View key={u.id || idx} style={[styles.listRow, idx === recentUsers.length - 1 && styles.listRowLast]}>
-                    <View style={styles.userAvatar}>
-                      <Text style={styles.userAvatarText}>{(u.name || '?')[0].toUpperCase()}</Text>
-                    </View>
-                    <View style={styles.listInfo}>
-                      <Text style={styles.listName} numberOfLines={1}>{u.name || u.email || u.phone || 'User'}</Text>
-                      <Text style={styles.listSub}>{u.active_role || u.role || 'customer'} · {u.phone || u.email || ''}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </Section>
-          )}
-
-          {/* Empty state when no data at all */}
-          {!overview && !error && (
-            <View style={styles.center}>
-              <Text style={{ fontSize: 48 }}>📊</Text>
-              <Text style={styles.loadingText}>No admin data available</Text>
+            {/* Key Metrics */}
+            <Text style={styles.sectionTitle}>This Week</Text>
+            <View style={styles.metricsCard}>
+              {[
+                ['New Users', overview.new_users_7d ?? 0],
+                ['New Shops', overview.new_shops_7d ?? 0],
+                ['Orders', overview.orders_7d ?? 0],
+                ['Revenue', formatPrice(overview.gmv_7d ?? 0)],
+                ['Avg Order', formatPrice(overview.avg_order_value ?? 0)],
+                ['Cancel Rate', `${overview.cancellation_rate ?? 0}%`],
+                ['Active Deals', overview.active_deals ?? 0],
+                ['Reviews', overview.total_reviews ?? 0],
+                ['Haggles', overview.total_haggles ?? 0],
+              ].map(([label, val]) => (
+                <View key={label} style={styles.metricRow}>
+                  <Text style={styles.metricLabel}>{label}</Text>
+                  <Text style={styles.metricValue}>{val}</Text>
+                </View>
+              ))}
             </View>
-          )}
+          </>
+        )}
 
-          <View style={{ height: 40 }} />
-        </View>
+        {/* Order Funnel */}
+        {funnel && typeof funnel === 'object' && (
+          <>
+            <Text style={styles.sectionTitle}>Order Funnel</Text>
+            <View style={styles.card}>
+              {Object.entries(funnel).map(([status, count]) => (
+                <View key={status} style={styles.funnelRow}>
+                  <View style={[styles.funnelDot, { backgroundColor: STATUS_COLOR[status] || COLORS.gray400 }]} />
+                  <Text style={styles.funnelLabel}>{status}</Text>
+                  <Text style={styles.funnelCount}>{count}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Top Shops */}
+        {shops.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Top Shops</Text>
+            <View style={styles.card}>
+              {shops.map((s, i) => (
+                <View key={s.id || i} style={[styles.listRow, i === shops.length - 1 && styles.listRowLast]}>
+                  <View style={styles.rankBadge}><Text style={styles.rankText}>{i + 1}</Text></View>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName} numberOfLines={1}>{s.name}</Text>
+                    <Text style={styles.listSub}>{s.category} · {s.products ?? 0} products</Text>
+                  </View>
+                  <Text style={styles.scoreText}>{Number(s.score ?? 0).toFixed(1)}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Top Products */}
+        {products.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Most Viewed</Text>
+            <View style={styles.card}>
+              {products.map((p, i) => (
+                <View key={p.id || i} style={[styles.listRow, i === products.length - 1 && styles.listRowLast]}>
+                  <View style={[styles.rankBadge, { backgroundColor: COLORS.primaryLight }]}>
+                    <Text style={[styles.rankText, { color: COLORS.primary }]}>{i + 1}</Text>
+                  </View>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName} numberOfLines={1}>{p.name}</Text>
+                    <Text style={styles.listSub}>{formatPrice(p.price)} · {p.view_count ?? 0} views</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Recent Users */}
+        {users.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Recent Users</Text>
+            <View style={styles.card}>
+              {users.map((u, i) => (
+                <View key={u.id || i} style={[styles.listRow, i === users.length - 1 && styles.listRowLast]}>
+                  <View style={styles.avatar}><Text style={styles.avatarText}>{(u.name || '?')[0].toUpperCase()}</Text></View>
+                  <View style={styles.listInfo}>
+                    <Text style={styles.listName} numberOfLines={1}>{u.name || u.phone || 'User'}</Text>
+                    <Text style={styles.listSub}>{u.active_role || 'customer'} · {u.phone || u.email || ''}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -268,36 +243,35 @@ const STATUS_COLOR = {
 };
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#4338CA' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, paddingTop: 60 },
-  loadingText: { color: COLORS.gray400, fontSize: 14 },
-  body: { backgroundColor: COLORS.bg, minHeight: 500 },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
 
-  header: { backgroundColor: '#4338CA', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
-  backBtn: { marginBottom: 12 },
-  backText: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontWeight: '600' },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: COLORS.white },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  headerBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.white,
+    borderBottomWidth: 1, borderBottomColor: COLORS.gray100,
+  },
+  backText: { fontSize: 15, fontWeight: '600', color: COLORS.primary },
+  headerBarTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray900 },
 
   errorBanner: {
-    backgroundColor: COLORS.redLight, padding: 14, marginHorizontal: 16, marginTop: 16,
-    borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#FCEBEB', padding: 14, borderRadius: 12, marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   errorText: { color: COLORS.red, fontWeight: '600', fontSize: 13, flex: 1 },
-  retrySmallBtn: { backgroundColor: COLORS.red, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginLeft: 8 },
-  retrySmallText: { color: COLORS.white, fontWeight: '700', fontSize: 12 },
+  retryText: { color: COLORS.white, fontWeight: '700', fontSize: 12, backgroundColor: COLORS.red, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden', marginLeft: 8 },
 
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 16, gap: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray900, marginTop: 20, marginBottom: 10 },
+
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   statCard: {
-    width: '47%', backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
-    borderLeftWidth: 4, ...SHADOWS.card,
+    width: '48%', backgroundColor: COLORS.white, borderRadius: 14, padding: 16,
+    borderLeftWidth: 4, marginBottom: 10, ...SHADOWS.card,
   },
   statIcon: { fontSize: 20, marginBottom: 6 },
   statValue: { fontSize: 22, fontWeight: '800' },
   statLabel: { fontSize: 12, color: COLORS.gray500, fontWeight: '500', marginTop: 2 },
-
-  section: { paddingHorizontal: 16, paddingTop: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray900, marginBottom: 10 },
 
   metricsCard: { backgroundColor: COLORS.white, borderRadius: 14, padding: 16, ...SHADOWS.card },
   metricRow: {
@@ -307,33 +281,30 @@ const styles = StyleSheet.create({
   metricLabel: { fontSize: 14, color: COLORS.gray600 },
   metricValue: { fontSize: 14, fontWeight: '700', color: COLORS.gray900 },
 
-  funnelCard: { backgroundColor: COLORS.white, borderRadius: 14, padding: 16, ...SHADOWS.card },
-  funnelRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10 },
-  funnelDot: { width: 10, height: 10, borderRadius: 5 },
+  card: { backgroundColor: COLORS.white, borderRadius: 14, overflow: 'hidden', ...SHADOWS.card },
+  funnelRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
+  funnelDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
   funnelLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.gray700, textTransform: 'capitalize' },
   funnelCount: { fontSize: 16, fontWeight: '700', color: COLORS.gray900 },
 
-  listCard: { backgroundColor: COLORS.white, borderRadius: 14, overflow: 'hidden', ...SHADOWS.card },
   listRow: {
-    flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.gray100,
   },
   listRowLast: { borderBottomWidth: 0 },
   rankBadge: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.amberLight,
-    justifyContent: 'center', alignItems: 'center',
+    width: 30, height: 30, borderRadius: 15, backgroundColor: '#FAEEDA',
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
   rankText: { fontSize: 13, fontWeight: '800', color: COLORS.amber },
   listInfo: { flex: 1 },
   listName: { fontSize: 14, fontWeight: '600', color: COLORS.gray900 },
   listSub: { fontSize: 12, color: COLORS.gray400, marginTop: 2 },
-  listRight: { alignItems: 'center' },
-  listScore: { fontSize: 16, fontWeight: '800', color: COLORS.green },
-  listScoreLabel: { fontSize: 10, color: COLORS.gray400 },
+  scoreText: { fontSize: 16, fontWeight: '800', color: COLORS.green },
 
-  userAvatar: {
+  avatar: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primary,
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  userAvatarText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+  avatarText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
 });

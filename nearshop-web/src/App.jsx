@@ -45,6 +45,18 @@ const StoriesPage = lazy(() => import('./pages/business/StoriesPage'))
 const HaggleInboxPage = lazy(() => import('./pages/business/HaggleInboxPage'))
 const AnalyticsPage = lazy(() => import('./pages/business/AnalyticsPage'))
 const SettingsPage = lazy(() => import('./pages/business/SettingsPage'))
+const ReviewsPage = lazy(() => import('./pages/business/ReviewsPage'))
+const CustomersPage = lazy(() => import('./pages/business/CustomersPage'))
+const UdhaarPage = lazy(() => import('./pages/business/UdhaarPage'))
+const BillingPage = lazy(() => import('./pages/business/BillingPage'))
+const MarketingPage = lazy(() => import('./pages/business/MarketingPage'))
+const ExpensesPage = lazy(() => import('./pages/business/ExpensesPage'))
+const InventoryPage = lazy(() => import('./pages/business/InventoryPage'))
+const ReportsPage = lazy(() => import('./pages/business/ReportsPage'))
+const BroadcastPage = lazy(() => import('./pages/business/BroadcastPage'))
+const AdvisorPage = lazy(() => import('./pages/business/AdvisorPage'))
+const FestivalCalendarPage = lazy(() => import('./pages/business/FestivalCalendarPage'))
+const ShopWebsite = lazy(() => import('./pages/public/ShopWebsite'))
 
 function ProtectedRoute({ children, requiredRole }) {
   const { isAuthenticated, authReady, user } = useAuthStore()
@@ -151,10 +163,24 @@ export default function App() {
           <Route path="haggle" element={<HaggleInboxPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="customers" element={<CustomersPage />} />
+          <Route path="udhaar" element={<UdhaarPage />} />
+          <Route path="billing" element={<BillingPage />} />
+          <Route path="marketing" element={<MarketingPage />} />
+          <Route path="expenses" element={<ExpensesPage />} />
+          <Route path="inventory" element={<InventoryPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="broadcast" element={<BroadcastPage />} />
+          <Route path="advisor" element={<AdvisorPage />} />
+          <Route path="festivals" element={<FestivalCalendarPage />} />
         </Route>
 
         {/* Admin */}
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+
+        {/* Public shop page — no auth required */}
+        <Route path="/shop/:slug" element={<ShopWebsite />} />
 
         {/* Default redirect */}
         <Route path="/" element={

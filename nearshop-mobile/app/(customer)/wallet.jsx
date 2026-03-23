@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Animated,
   StatusBar,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -181,6 +182,14 @@ function TransactionRow({ tx }) {
 export default function WalletScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
+
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
+  }, [router]);
 
   // Data state
   const [balance, setBalance] = useState(null);

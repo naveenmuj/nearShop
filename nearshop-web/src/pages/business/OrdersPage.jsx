@@ -1,187 +1,206 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ShoppingBag } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Check, X, ChevronRight, Phone, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getShopOrders, updateOrderStatus } from '../../api/orders'
 import useMyShop from '../../hooks/useMyShop'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import EmptyState from '../../components/ui/EmptyState'
 
-const TABS = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled']
-
-const STATUS_COLORS = {
-  pending: 'bg-[#FAEEDA] text-brand-amber',
-  confirmed: 'bg-brand-blue-light text-brand-blue',
-  preparing: 'bg-[#FAEEDA] text-brand-amber',
-  ready: 'bg-brand-green-light text-brand-green',
-  delivered: 'bg-brand-green-light text-brand-green',
-  cancelled: 'bg-brand-red-light text-brand-red',
+const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
+const timeAgo = (d) => {
+  if (!d) return ''
+  const s = Math.floor((Date.now() - new Date(d)) / 1000)
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
 }
 
-const NEXT_STATUS = {
-  pending: 'confirmed',
-  confirmed: 'preparing',
-  preparing: 'ready',
-  ready: 'delivered',
-}
+const COLUMNS = [
+  { key: 'pending',   label: 'New',        color: '#EF9F27', bg: '#FFF8EB' },
+  { key: 'confirmed', label: 'Confirmed',  color: '#3B8BD4', bg: '#EFF6FF' },
+  { key: 'preparing', label: 'Preparing',  color: '#7F77DD', bg: '#F3F0FF' },
+  { key: 'ready',     label: 'Ready',      color: '#5DCAA5', bg: '#ECFDF5' },
+  { key: 'completed', label: 'Done',       color: '#1D9E75', bg: '#E1F5EE' },
+]
 
-function formatTime(dateStr) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-}
+const NEXT_STATUS = { pending: 'confirmed', confirmed: 'preparing', preparing: 'ready', ready: 'completed' }
+const NEXT_LABEL = { confirmed: 'Start Preparing', preparing: 'Mark Ready', ready: 'Complete' }
+
+const TABS = ['all', 'pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled']
 
 export default function OrdersPage() {
   const { shopId } = useMyShop()
-  const [activeTab, setActiveTab] = useState('pending')
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [acting, setActing] = useState(null)
+  const [activeTab, setActiveTab] = useState('all')
+  const pollRef = useRef(null)
 
-  const fetchOrders = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!shopId) return
-    setLoading(true)
-    setError(null)
+    if (!silent) setLoading(true)
     try {
-      const { data } = await getShopOrders(shopId, { status: activeTab })
-      setOrders(data.items || data || [])
-    } catch (err) {
-      setError(err.message || 'Failed to load orders')
+      const res = await getShopOrders(shopId, { per_page: 100 })
+      const d = res.data
+      setOrders(Array.isArray(d) ? d : d?.items ?? [])
+    } catch {
+      if (!silent) toast.error('Failed to load orders')
     } finally {
       setLoading(false)
     }
-  }, [shopId, activeTab])
+  }, [shopId])
 
+  useEffect(() => { load() }, [load])
+
+  // Poll for new orders every 15s
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    pollRef.current = setInterval(() => load(true), 15000)
+    return () => clearInterval(pollRef.current)
+  }, [load])
 
-  // Poll pending orders every 15 seconds
-  useEffect(() => {
-    if (activeTab !== 'pending') return
-    const interval = setInterval(fetchOrders, 15000)
-    return () => clearInterval(interval)
-  }, [activeTab, fetchOrders])
-
-  const handleStatusChange = async (orderId, newStatus) => {
+  const handleStatus = async (orderId, status) => {
     setActing(orderId)
     try {
-      await updateOrderStatus(orderId, newStatus)
-      toast.success(`Order marked as ${newStatus}`)
-      fetchOrders()
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to update order')
+      await updateOrderStatus(orderId, status)
+      toast.success(status === 'cancelled' ? 'Order rejected' : `Order ${status}`)
+      await load(true)
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to update')
     } finally {
       setActing(null)
     }
   }
 
+  const filtered = activeTab === 'all' ? orders : orders.filter(o => o.status === activeTab)
+  const pendingCount = orders.filter(o => o.status === 'pending').length
+
+  if (loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
+
   return (
-    <div className="bg-gray-50 min-h-screen pb-24">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <h1 className="text-xl font-bold text-gray-900">🛒 Orders</h1>
-      </div>
-
-      {/* Tab pills */}
-      <div className="flex gap-2 overflow-x-auto pb-2 px-4 mb-4 scrollbar-hide">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-shrink-0 px-4 py-2 rounded-2xl text-xs font-bold capitalize transition-all ${
-              activeTab === tab
-                ? 'bg-[#5B2BE7] text-white shadow-sm shadow-purple-200'
-                : 'bg-white text-gray-500 border border-gray-200 hover:border-[#5B2BE7]/30'
-            }`}
-          >
-            {tab}
+      <div className="bg-white px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Orders</h1>
+            <p className="text-xs text-gray-400">{orders.length} total · {pendingCount} pending</p>
+          </div>
+          <button onClick={() => load()} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <RefreshCw className="w-4 h-4 text-gray-500" />
           </button>
-        ))}
+        </div>
       </div>
 
-      <div className="px-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : error ? (
-          <EmptyState icon={ShoppingBag} title="Could not load orders" message={error} action="Retry" onAction={fetchOrders} />
-        ) : orders.length === 0 ? (
-          <EmptyState icon={ShoppingBag} title={`No ${activeTab} orders`} message="Incoming orders will appear here" />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {orders.map((order) => (
-              <div key={order.id} className="bg-white rounded-2xl shadow-card p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-brand-purple-light flex items-center justify-center text-xs font-bold text-brand-purple">
-                        {order.customer_name?.[0]?.toUpperCase() || '#'}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm text-gray-800">
-                          {order.customer_name || 'Customer'}
-                        </p>
-                        <p className="text-xs text-gray-400">#{order.id?.toString().slice(-6)}</p>
-                      </div>
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      {(order.items || []).slice(0, 2).map((item, i) => (
-                        <p key={i} className="text-xs text-gray-600">
-                          {item.quantity || item.qty}× {item.product_name || item.name}
-                        </p>
-                      ))}
-                      {order.items?.length > 2 && (
-                        <p className="text-xs text-gray-400">+{order.items.length - 2} more</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">₹{order.total_amount || order.total}</p>
-                    <p className="text-xs text-gray-400 mt-1">{formatTime(order.created_at)}</p>
-                    <span
-                      className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${
-                        STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {order.status}
-                    </span>
-                  </div>
-                </div>
+      {/* Status tabs */}
+      <div className="bg-white border-b border-gray-100 px-2 overflow-x-auto">
+        <div className="flex gap-1 py-2">
+          {TABS.map(tab => {
+            const count = tab === 'all' ? orders.length : orders.filter(o => o.status === tab).length
+            const active = activeTab === tab
+            return (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  active ? 'bg-[#1D9E75] text-white' : 'text-gray-500 hover:bg-gray-100'
+                }`}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {count > 0 && <span className={`ml-1 ${active ? 'text-white/80' : 'text-gray-400'}`}>({count})</span>}
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
-                {/* Action buttons */}
-                {order.status === 'pending' ? (
-                  <div className="grid grid-cols-2 gap-2 mt-3">
-                    <button
-                      onClick={() => handleStatusChange(order.id, 'cancelled')}
-                      disabled={acting === order.id}
-                      className="h-10 border border-brand-red text-brand-red rounded-xl text-sm font-semibold hover:bg-brand-red-light transition-colors disabled:opacity-50"
-                    >
-                      ✕ Reject
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(order.id, NEXT_STATUS[order.status])}
-                      disabled={acting === order.id}
-                      className="h-10 bg-brand-green text-white rounded-xl text-sm font-semibold hover:bg-brand-green/90 transition-colors disabled:opacity-50"
-                    >
-                      {acting === order.id ? '...' : '✓ Accept'}
-                    </button>
-                  </div>
-                ) : NEXT_STATUS[order.status] ? (
-                  <div className="mt-3">
-                    <button
-                      onClick={() => handleStatusChange(order.id, NEXT_STATUS[order.status])}
-                      disabled={acting === order.id}
-                      className="w-full h-10 bg-brand-purple text-white rounded-xl text-sm font-semibold hover:bg-brand-purple-dark transition-colors disabled:opacity-50 capitalize"
-                    >
-                      {acting === order.id ? '...' : `Mark ${NEXT_STATUS[order.status]}`}
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ))}
+      {/* Orders list */}
+      <div className="px-4 py-3 space-y-3">
+        {filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-4xl mb-3">📋</div>
+            <p className="text-gray-500 font-medium">No {activeTab === 'all' ? '' : activeTab} orders</p>
           </div>
+        ) : (
+          filtered.map(order => {
+            const col = COLUMNS.find(c => c.key === order.status) || { color: '#9CA3AF', bg: '#F3F4F6' }
+            const next = NEXT_STATUS[order.status]
+            const isPending = order.status === 'pending'
+            const isActing = acting === order.id
+            const items = order.items || []
+
+            return (
+              <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Status indicator bar */}
+                <div className="h-1" style={{ backgroundColor: col.color }} />
+
+                <div className="p-4">
+                  {/* Header row */}
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-xs font-mono text-gray-400">#{(order.order_number || order.id)?.toString().slice(-8)}</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">
+                        {order.customer_name || 'Customer'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: col.bg, color: col.color }}>
+                        {order.status?.charAt(0).toUpperCase() + order.status?.slice(1)}
+                      </span>
+                      <span className="text-xs text-gray-400">{timeAgo(order.created_at)}</span>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  <div className="bg-gray-50 rounded-lg p-2.5 mb-3">
+                    {items.slice(0, 3).map((item, i) => (
+                      <div key={i} className="flex justify-between text-xs py-0.5">
+                        <span className="text-gray-600">{item.quantity}x {item.name}</span>
+                        <span className="text-gray-500">{formatPrice(item.total || item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                    {items.length > 3 && <p className="text-xs text-gray-400 mt-0.5">+{items.length - 3} more items</p>}
+                  </div>
+
+                  {/* Total + delivery */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <span>{order.delivery_type === 'delivery' ? '🚚 Delivery' : '🏪 Pickup'}</span>
+                      {order.delivery_fee > 0 && <span>· Fee {formatPrice(order.delivery_fee)}</span>}
+                    </div>
+                    <p className="text-base font-extrabold text-gray-900">{formatPrice(order.total_amount ?? order.total)}</p>
+                  </div>
+
+                  {/* Action buttons */}
+                  {isPending && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleStatus(order.id, 'confirmed')}
+                        disabled={isActing}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-[#1D9E75] text-white py-2.5 rounded-xl text-sm font-bold hover:bg-[#178a65] transition-colors disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4" /> Accept
+                      </button>
+                      <button
+                        onClick={() => handleStatus(order.id, 'cancelled')}
+                        disabled={isActing}
+                        className="flex items-center justify-center gap-1.5 bg-red-50 text-red-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors disabled:opacity-50"
+                      >
+                        <X className="w-4 h-4" /> Reject
+                      </button>
+                    </div>
+                  )}
+
+                  {next && !isPending && (
+                    <button
+                      onClick={() => handleStatus(order.id, next)}
+                      disabled={isActing}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 border-2"
+                      style={{ borderColor: col.color, color: col.color, backgroundColor: col.bg }}
+                    >
+                      {NEXT_LABEL[order.status] || `Move to ${next}`} <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })
         )}
       </div>
     </div>

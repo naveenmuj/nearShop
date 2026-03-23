@@ -10,6 +10,7 @@ import {
   Alert,
   ScrollView,
   StatusBar,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -107,6 +108,15 @@ function OrderCard({ order, onCancel, onPress }) {
 
 export default function OrdersScreen() {
   const router = useRouter();
+
+  // Handle Android hardware back → go back to profile, not home
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
+  }, [router]);
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [orders, setOrders] = useState([]);

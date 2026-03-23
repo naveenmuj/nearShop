@@ -113,6 +113,14 @@ async def create_order(
     await db.flush()
     await db.refresh(order)
 
+    # Decrement stock for tracked products
+    try:
+        from app.inventory.service import record_sale
+        for item in data.items:
+            await record_sale(db, item.product_id, item.quantity)
+    except Exception:
+        pass  # Don't fail order if stock tracking has issues
+
     # Notify shop owner about new order
     shop_result = await db.execute(select(Shop).where(Shop.id == data.shop_id))
     shop = shop_result.scalar_one_or_none()

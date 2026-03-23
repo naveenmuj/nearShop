@@ -1,161 +1,207 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Store } from 'lucide-react'
+import { Camera, Tag, BookOpen, Eye, BarChart2, Settings, ChevronRight, AlertCircle, ShoppingBag, Power } from 'lucide-react'
 import toast from 'react-hot-toast'
+import useMyShop from '../../hooks/useMyShop'
+import { useAuthStore } from '../../store/authStore'
 import { getShopStats } from '../../api/analytics'
 import { getShopOrders } from '../../api/orders'
+import client from '../../api/client'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import useMyShop from '../../hooks/useMyShop'
+
+const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
+const timeAgo = (d) => {
+  if (!d) return ''
+  const s = Math.floor((Date.now() - new Date(d)) / 1000)
+  if (s < 60) return 'just now'
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { shop, shopId } = useMyShop()
+  const { user } = useAuthStore()
+  const { shop, shopId, loading: shopLoading } = useMyShop()
   const [stats, setStats] = useState(null)
-  const [pendingOrders, setPendingOrders] = useState([])
+  const [pending, setPending] = useState([])
   const [loading, setLoading] = useState(true)
+  const [toggling, setToggling] = useState(false)
+  const [shopOpen, setShopOpen] = useState(shop?.is_active !== false)
 
-  useEffect(() => {
-    if (!shopId) return
-    const fetchAll = async () => {
-      setLoading(true)
-      try {
-        const [statsRes, ordersRes] = await Promise.all([
-          getShopStats(shopId, '7d'),
-          getShopOrders(shopId, { status: 'pending', limit: 5 }),
-        ])
-        setStats(statsRes.data)
-        setPendingOrders(ordersRes.data.items || ordersRes.data || [])
-      } catch {
-        // silently ignore
-      } finally {
-        setLoading(false)
+  const load = useCallback(async () => {
+    if (!shopId) { setLoading(false); return }
+    try {
+      const [statsRes, ordersRes] = await Promise.allSettled([
+        getShopStats(shopId, '7d'),
+        getShopOrders(shopId, { status: 'pending', per_page: 5 }),
+      ])
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
+      if (ordersRes.status === 'fulfilled') {
+        const d = ordersRes.value.data
+        setPending(Array.isArray(d) ? d : d?.items ?? [])
       }
-    }
-    fetchAll()
+    } catch {} finally { setLoading(false) }
   }, [shopId])
 
-  if (loading && shopId) {
+  useEffect(() => { load() }, [load])
+  useEffect(() => { setShopOpen(shop?.is_active !== false) }, [shop])
+
+  const handleToggleShop = async () => {
+    setToggling(true)
+    try {
+      const res = await client.post(`/shops/${shopId}/toggle-status`)
+      setShopOpen(res.data.is_active)
+      toast.success(res.data.message)
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to toggle')
+    } finally { setToggling(false) }
+  }
+
+  if (shopLoading || loading) {
+    return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
+  }
+
+  if (!shopId) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <LoadingSpinner size="lg" />
+      <div className="px-4 py-8">
+        <div className="bg-white rounded-2xl shadow-sm p-6 text-center border border-gray-100">
+          <div className="text-5xl mb-3">🏪</div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">Set up your shop</h2>
+          <p className="text-sm text-gray-500 mb-5">Create your shop to start listing products and accepting orders</p>
+          <button onClick={() => navigate('/biz/settings')} className="bg-[#1D9E75] text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-[#178a65] transition-colors">
+            Create My Shop
+          </button>
+        </div>
       </div>
     )
   }
 
-  const shopName = shop?.name || 'there'
-
   const statCards = [
-    { label: 'Total Orders', value: stats?.total_orders ?? 0, change: 'This week', borderColor: 'border-brand-purple' },
-    { label: 'Revenue', value: `₹${stats?.total_revenue ?? 0}`, change: 'This week', borderColor: 'border-brand-green' },
-    { label: 'Views', value: stats?.total_views ?? 0, change: 'This week', borderColor: 'border-brand-amber' },
-    { label: 'Visitors', value: stats?.unique_visitors ?? 0, change: 'This week', borderColor: 'border-brand-blue' },
+    { label: 'Views', value: stats?.total_views ?? 0, icon: '👁️' },
+    { label: 'Orders', value: stats?.total_orders ?? 0, icon: '🛍️' },
+    { label: 'Revenue', value: formatPrice(stats?.total_revenue ?? 0), icon: '💰' },
+    { label: 'Visitors', value: stats?.unique_visitors ?? 0, icon: '👥' },
   ]
 
-  const insight = {
-    message: stats
-      ? `You've had ${stats.total_orders ?? 0} orders and ₹${stats.total_revenue ?? 0} in revenue this week. Keep it up!`
-      : 'Add products and share your shop link to start getting orders from nearby customers.',
-  }
+  const quickActions = [
+    { icon: Camera, label: 'Add Product', color: '#7F77DD', bg: '#EEEDFE', to: '/biz/catalog/new' },
+    { icon: Tag, label: 'Create Deal', color: '#EF9F27', bg: '#FAEEDA', to: '/biz/deals/new' },
+    { icon: BookOpen, label: 'Post Story', color: '#3B8BD4', bg: '#E6F1FB', to: '/biz/stories/new' },
+    { icon: Eye, label: 'View as Customer', color: '#1D9E75', bg: '#E1F5EE', to: `/app/shop/${shopId}` },
+    { icon: BarChart2, label: 'Analytics', color: '#D4537E', bg: '#FCE4EC', to: '/biz/analytics' },
+    { icon: Settings, label: 'Settings', color: '#6B7280', bg: '#F3F4F6', to: '/biz/settings' },
+  ]
 
   return (
-    <div className="bg-gray-50 min-h-screen px-4 py-4 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <p className="text-xs text-gray-400 font-medium">Good morning,</p>
-          <h1 className="text-xl font-bold text-brand-purple leading-tight">{shopName}! 👋</h1>
+    <div className="pb-4">
+      {/* Shop header with open/close toggle */}
+      <div className={`px-5 py-5 text-white transition-colors ${shopOpen ? 'bg-gradient-to-r from-[#1D9E75] to-[#2DB88A]' : 'bg-gradient-to-r from-gray-600 to-gray-500'}`}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm opacity-80">Welcome back,</p>
+            <h1 className="text-xl font-bold mt-0.5">{user?.name || 'Shop Owner'}</h1>
+          </div>
+          <button onClick={handleToggleShop} disabled={toggling}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              shopOpen ? 'bg-white/20 hover:bg-white/30' : 'bg-red-500/30 hover:bg-red-500/40'
+            }`}>
+            <Power className="w-3.5 h-3.5" />
+            {toggling ? '...' : shopOpen ? 'Open' : 'Closed'}
+          </button>
         </div>
-        <button className="w-10 h-10 bg-white rounded-2xl shadow-card flex items-center justify-center relative">
-          <Bell className="h-5 w-5 text-gray-500" />
-          {pendingOrders.length > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red rounded-full text-white text-[9px] font-bold flex items-center justify-center">
-              {pendingOrders.length}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-3 mt-2 text-xs opacity-80">
+          <span>{shop?.total_products ?? 0} products</span>
+          <span>·</span>
+          <span>{shop?.total_reviews ?? 0} reviews</span>
+          {shop?.avg_rating > 0 && <><span>·</span><span>⭐ {Number(shop.avg_rating).toFixed(1)}</span></>}
+        </div>
       </div>
 
-      {!shopId && (
-        <button
-          onClick={() => navigate('/biz/settings')}
-          className="w-full bg-[#FAEEDA] border border-brand-amber rounded-2xl p-4 mb-5 flex items-center gap-3 text-left"
-        >
-          <Store className="h-8 w-8 text-brand-amber flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-gray-800">Create your shop to get started</p>
-            <p className="text-xs text-gray-500 mt-0.5">Tap here → Settings → fill in your shop name</p>
-          </div>
-        </button>
+      {/* Stat cards */}
+      <div className="px-4 -mt-3">
+        <div className="grid grid-cols-4 gap-2">
+          {statCards.map(s => (
+            <div key={s.label} className="bg-white rounded-xl p-3 shadow-sm border border-gray-50 text-center">
+              <span className="text-lg">{s.icon}</span>
+              <p className="text-base font-extrabold text-gray-900 mt-1">{s.value}</p>
+              <p className="text-[10px] font-medium text-gray-400 uppercase">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Pending orders alert */}
+      {pending.length > 0 && (
+        <div className="px-4 mt-4">
+          <button onClick={() => navigate('/biz/orders')} className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center gap-3 hover:bg-amber-100 transition-colors">
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-bold text-amber-800">{pending.length} order{pending.length > 1 ? 's' : ''} waiting</p>
+              <p className="text-xs text-amber-600">Tap to accept or reject</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-amber-400" />
+          </button>
+        </div>
       )}
 
-      {/* Stats 2x2 grid */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        {statCards.map((stat) => (
-          <div key={stat.label} className={`bg-white rounded-2xl shadow-card p-4 border-l-4 ${stat.borderColor}`}>
-            <p className="text-xs text-gray-400 font-medium">{stat.label}</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
-            <p className="text-xs text-brand-green mt-1">{stat.change}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* AI Insight card */}
-      <div className="rounded-2xl p-4 text-white mb-5" style={{ background: 'linear-gradient(135deg, #7F77DD, #3B8BD4)' }}>
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">✨</span>
-          <div>
-            <p className="font-semibold text-sm">AI Insight</p>
-            <p className="text-white/80 text-xs mt-1 leading-relaxed">{insight.message}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="mb-5">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</p>
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { icon: '📸', label: 'Add Product', to: '/biz/snap' },
-            { icon: '🎁', label: 'Create Deal', to: '/biz/deals/new' },
-            { icon: '📖', label: 'Add Story', to: '/biz/stories/new' },
-            { icon: '📊', label: 'Analytics', to: '/biz/analytics' },
-          ].map((a) => (
-            <button
-              key={a.label}
-              onClick={() => navigate(a.to)}
-              className="bg-white rounded-2xl shadow-card p-3 flex flex-col items-center gap-1.5 hover:shadow-card-hover transition-all active:scale-95"
-            >
-              <span className="text-2xl">{a.icon}</span>
-              <span className="text-[10px] text-gray-500 font-medium text-center leading-tight">{a.label}</span>
+      {/* Quick actions grid */}
+      <div className="px-4 mt-4">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">Quick Actions</p>
+        <div className="grid grid-cols-3 gap-2.5">
+          {quickActions.map(a => (
+            <button key={a.label} onClick={() => navigate(a.to)}
+              className="bg-white rounded-xl p-3 border border-gray-50 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-center">
+              <div className="w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-2" style={{ backgroundColor: a.bg }}>
+                <a.icon className="w-5 h-5" style={{ color: a.color }} />
+              </div>
+              <p className="text-xs font-semibold text-gray-700">{a.label}</p>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Orders needing attention */}
-      {pendingOrders.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Needs Attention</p>
-            <button onClick={() => navigate('/biz/orders')} className="text-xs text-brand-purple font-semibold">View all</button>
+      {/* AI Insight */}
+      <div className="px-4 mt-4">
+        <div className="bg-gradient-to-r from-[#7F77DD]/10 to-[#3B8BD4]/10 rounded-xl p-4 border border-[#7F77DD]/10">
+          <div className="flex items-start gap-2.5">
+            <span className="text-lg">✨</span>
+            <div>
+              <p className="text-sm font-bold text-gray-800">AI Insight</p>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                {stats?.total_orders > 0
+                  ? `You had ${stats.total_orders} orders and ${formatPrice(stats.total_revenue)} revenue this week. ${stats.total_views > 50 ? 'Great visibility!' : 'Share your shop to get more views.'}`
+                  : 'Add products and share your shop link to attract your first customers!'}
+              </p>
+            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            {pendingOrders.map((order) => (
-              <div key={order.id} className="bg-white rounded-2xl shadow-card p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Order #{order.id?.toString().slice(-6)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">₹{order.total_amount || order.total}</p>
+        </div>
+      </div>
+
+      {/* Recent pending orders */}
+      {pending.length > 0 && (
+        <div className="px-4 mt-4">
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Recent Orders</p>
+            <button onClick={() => navigate('/biz/orders')} className="text-xs font-semibold text-[#1D9E75]">View all</button>
+          </div>
+          <div className="space-y-2">
+            {pending.slice(0, 3).map(order => (
+              <button key={order.id} onClick={() => navigate('/biz/orders')}
+                className="w-full bg-white rounded-xl p-3 border border-gray-50 shadow-sm flex items-center gap-3 text-left hover:bg-gray-50 transition-colors">
+                <div className="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center flex-shrink-0">
+                  <ShoppingBag className="w-4 h-4 text-amber-600" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-[#FAEEDA] text-brand-amber px-2 py-1 rounded-full font-medium">Pending</span>
-                  <button
-                    onClick={() => navigate('/biz/orders')}
-                    className="text-xs bg-brand-purple text-white px-3 py-1.5 rounded-xl font-semibold"
-                  >
-                    Manage
-                  </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    Order #{(order.order_number || order.id)?.toString().slice(-6)}
+                  </p>
+                  <p className="text-xs text-gray-400">{order.items?.length ?? 0} items · {timeAgo(order.created_at)}</p>
                 </div>
-              </div>
+                <p className="text-sm font-bold text-gray-900">{formatPrice(order.total_amount ?? order.total)}</p>
+              </button>
             ))}
           </div>
         </div>

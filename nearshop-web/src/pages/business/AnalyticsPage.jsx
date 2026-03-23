@@ -1,167 +1,195 @@
-import { useState, useEffect } from 'react'
-import { BarChart3, Package, MapPin } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { TrendingUp, TrendingDown, Eye, Users, ShoppingBag, DollarSign, Search } from 'lucide-react'
 import { getShopStats, getProductAnalytics, getDemandInsights } from '../../api/analytics'
-import { useLocation } from '../../hooks/useLocation'
+import { getShopOrders } from '../../api/orders'
 import useMyShop from '../../hooks/useMyShop'
+import { useLocationStore } from '../../store/locationStore'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import EmptyState from '../../components/ui/EmptyState'
 
-const PERIODS = [
-  { value: '7d', label: '7d' },
-  { value: '30d', label: '30d' },
-  { value: '90d', label: '90d' },
-]
+const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
+
+const PERIODS = ['7d', '30d', '90d']
+const PERIOD_LABELS = { '7d': '7 Days', '30d': '30 Days', '90d': '90 Days' }
+
+const STATUS_COLORS = {
+  pending: { bg: 'bg-amber-50', text: 'text-amber-600', bar: 'bg-amber-400' },
+  confirmed: { bg: 'bg-blue-50', text: 'text-blue-600', bar: 'bg-blue-400' },
+  preparing: { bg: 'bg-purple-50', text: 'text-purple-600', bar: 'bg-purple-400' },
+  ready: { bg: 'bg-teal-50', text: 'text-teal-600', bar: 'bg-teal-400' },
+  completed: { bg: 'bg-green-50', text: 'text-green-600', bar: 'bg-green-400' },
+  cancelled: { bg: 'bg-red-50', text: 'text-red-600', bar: 'bg-red-400' },
+}
 
 export default function AnalyticsPage() {
   const { shopId } = useMyShop()
-  const { latitude, longitude } = useLocation()
+  const { latitude, longitude } = useLocationStore()
   const [period, setPeriod] = useState('7d')
   const [stats, setStats] = useState(null)
-  const [productData, setProductData] = useState([])
-  const [demandData, setDemandData] = useState(null)
+  const [products, setProducts] = useState([])
+  const [demand, setDemand] = useState([])
+  const [orderBreakdown, setOrderBreakdown] = useState({})
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
 
-  const fetchAll = async () => {
+  const load = useCallback(async () => {
     if (!shopId) return
     setLoading(true)
-    setError(null)
     try {
-      const requests = [
+      const results = await Promise.allSettled([
         getShopStats(shopId, period),
         getProductAnalytics(shopId),
-      ]
-      if (latitude && longitude) {
-        requests.push(getDemandInsights(shopId, latitude, longitude))
+        getDemandInsights(shopId, latitude ?? 12.935, longitude ?? 77.624),
+        getShopOrders(shopId, { per_page: 200 }),
+      ])
+      if (results[0].status === 'fulfilled') setStats(results[0].value.data)
+      if (results[1].status === 'fulfilled') {
+        const d = results[1].value.data
+        setProducts(Array.isArray(d) ? d : d?.items ?? [])
       }
-      const [statsRes, prodRes, demandRes] = await Promise.all(requests)
-      setStats(statsRes.data)
-      setProductData(prodRes.data.items || prodRes.data || [])
-      if (demandRes) setDemandData(demandRes.data || [])
-    } catch (err) {
-      setError(err.message || 'Failed to load analytics')
-    } finally {
-      setLoading(false)
-    }
-  }
+      if (results[2].status === 'fulfilled') {
+        const d = results[2].value.data
+        setDemand(Array.isArray(d) ? d : d?.items ?? [])
+      }
+      if (results[3].status === 'fulfilled') {
+        const orders = results[3].value.data
+        const list = Array.isArray(orders) ? orders : orders?.items ?? []
+        const b = {}
+        list.forEach(o => { b[o.status] = (b[o.status] || 0) + 1 })
+        setOrderBreakdown(b)
+      }
+    } catch {} finally { setLoading(false) }
+  }, [shopId, period, latitude, longitude])
 
-  useEffect(() => {
-    fetchAll()
-  }, [shopId, period])
+  useEffect(() => { load() }, [load])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
+  const conversion = stats?.total_views > 0 ? ((stats.total_orders / stats.total_views) * 100).toFixed(1) : '0'
+  const avgOrder = stats?.total_orders > 0 ? (stats.total_revenue / stats.total_orders).toFixed(0) : '0'
 
-  if (error) {
-    return (
-      <div className="bg-gray-50 min-h-screen px-4 py-4">
-        <h1 className="text-xl font-bold mb-4">📊 Analytics</h1>
-        <EmptyState icon={BarChart3} title="Could not load analytics" message={error} action="Retry" onAction={fetchAll} />
-      </div>
-    )
-  }
-
-  const statCards = [
-    { label: 'Revenue', value: `₹${stats?.total_revenue || 0}`, borderColor: 'border-brand-green' },
-    { label: 'Orders', value: stats?.total_orders || 0, borderColor: 'border-brand-purple' },
-    { label: 'Unique Visitors', value: stats?.unique_visitors || 0, borderColor: 'border-brand-blue' },
-    { label: 'Views', value: stats?.total_views || 0, borderColor: 'border-brand-amber' },
-  ]
+  if (loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
 
   return (
-    <div className="bg-gray-50 min-h-screen px-4 py-4 pb-24">
-      {/* Header + period selector */}
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-gray-900">📊 Analytics</h1>
-        <div className="flex bg-gray-100 rounded-xl p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPeriod(p.value)}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors ${
-                period === p.value ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
-              }`}
-            >
-              {p.label}
+    <div className="min-h-screen bg-gray-50 pb-6">
+      {/* Header */}
+      <div className="bg-white px-4 py-3 border-b border-gray-100">
+        <h1 className="text-lg font-bold text-gray-900">Analytics & Insights</h1>
+        <div className="flex gap-2 mt-2.5">
+          {PERIODS.map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                period === p ? 'bg-[#1D9E75] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}>
+              {PERIOD_LABELS[p]}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Key stats 2x2 grid */}
-      {stats && (
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          {statCards.map((stat) => (
-            <div key={stat.label} className={`bg-white rounded-2xl shadow-card p-4 border-l-4 ${stat.borderColor}`}>
-              <p className="text-xs text-gray-400 font-medium">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
-              <p className="text-xs text-brand-green mt-1">{period} period</p>
+      <div className="px-4 space-y-4 mt-4">
+        {/* Revenue highlight */}
+        <div className="bg-gradient-to-r from-[#1D9E75] to-[#2DB88A] rounded-2xl p-5 text-white">
+          <p className="text-sm opacity-80">Total Revenue</p>
+          <p className="text-3xl font-extrabold mt-1">{formatPrice(stats?.total_revenue ?? 0)}</p>
+          <p className="text-xs opacity-70 mt-1">{PERIOD_LABELS[period]} · {stats?.total_orders ?? 0} orders</p>
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { icon: Eye, label: 'Views', value: stats?.total_views ?? 0, color: '#EF9F27' },
+            { icon: Users, label: 'Visitors', value: stats?.unique_visitors ?? 0, color: '#3B8BD4' },
+            { icon: ShoppingBag, label: 'Orders', value: stats?.total_orders ?? 0, color: '#7F77DD' },
+            { icon: DollarSign, label: 'Avg Order', value: formatPrice(avgOrder), color: '#1D9E75' },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <s.icon className="w-4 h-4" style={{ color: s.color }} />
+              </div>
+              <p className="text-xl font-extrabold text-gray-900">{s.value}</p>
+              <p className="text-xs text-gray-400 font-medium mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
-      )}
 
-      {/* Top products */}
-      {productData.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Package className="h-4 w-4 text-brand-blue" />
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Top Products</p>
+        {/* Conversion rate */}
+        <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 font-medium">Conversion Rate</p>
+            <p className="text-2xl font-extrabold text-[#7F77DD]">{conversion}%</p>
           </div>
-          <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-            {productData.slice(0, 5).map((item, idx) => (
-              <div
-                key={item.product_id || idx}
-                className={`p-3 flex items-center justify-between ${idx < Math.min(productData.length, 5) - 1 ? 'border-b border-gray-50' : ''}`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-brand-purple-light text-brand-purple text-xs font-bold flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                  <div>
-                    <p className="font-medium text-sm text-gray-800">{item.name}</p>
-                    <p className="text-xs text-gray-400">{item.view_count || 0} views</p>
+          <div className="text-right text-xs text-gray-400">
+            <p>{stats?.total_orders ?? 0} orders</p>
+            <p>from {stats?.total_views ?? 0} views</p>
+          </div>
+        </div>
+
+        {/* Order breakdown */}
+        {Object.keys(orderBreakdown).length > 0 && (
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-2.5">Order Status</h3>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              {Object.entries(orderBreakdown).map(([status, count]) => {
+                const total = Object.values(orderBreakdown).reduce((a, b) => a + b, 0)
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                const colors = STATUS_COLORS[status] || { bg: 'bg-gray-50', text: 'text-gray-500', bar: 'bg-gray-400' }
+                return (
+                  <div key={status} className="flex items-center px-4 py-2.5 border-b border-gray-50 last:border-b-0">
+                    <span className={`text-xs font-semibold capitalize w-20 ${colors.text}`}>{status}</span>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full mx-3">
+                      <div className={`h-2 rounded-full ${colors.bar}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-sm font-bold text-gray-900 w-8 text-right">{count}</span>
                   </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Top products */}
+        {products.length > 0 && (
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-2.5">Top Products</h3>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              {products.slice(0, 8).map((p, i) => (
+                <div key={p.id || i} className="flex items-center px-4 py-3 border-b border-gray-50 last:border-b-0">
+                  <span className="w-6 h-6 rounded-full bg-[#EEEDFE] text-[#7F77DD] text-[10px] font-bold flex items-center justify-center mr-3">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
+                    <p className="text-xs text-gray-400">{formatPrice(p.price)} · {p.view_count ?? 0} views · {p.wishlist_count ?? 0} wishlists</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${p.is_available ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {p.is_available ? 'Live' : 'Off'}
+                  </span>
                 </div>
-                <p className="font-bold text-sm text-brand-purple">{item.inquiry_count || 0} inquiries</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Demand insights */}
-      {demandData !== null && (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="h-4 w-4 text-brand-red" />
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Demand Insights</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-card p-4">
-            {Array.isArray(demandData) && demandData.length > 0 ? (
-              <ul className="space-y-2">
-                {demandData.map((item, idx) => (
-                  <li key={idx} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">• {item.query}</span>
-                    <span className="text-brand-purple font-semibold text-xs">({item.count})</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-gray-500">No demand insights available yet</p>
-            )}
-          </div>
+        {/* Demand insights */}
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 mb-1">Demand Insights</h3>
+          <p className="text-xs text-gray-400 mb-2.5">Top searches near your shop</p>
+          {demand.length === 0 ? (
+            <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
+              <Search className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">No search data nearby yet</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {demand.map((item, i) => {
+                const text = typeof item === 'string' ? item : item.query || item.term
+                const count = item.count
+                return (
+                  <div key={i} className="flex items-center bg-blue-50 rounded-full px-3 py-1.5 border border-blue-100">
+                    <span className="text-xs font-semibold text-blue-700">{text}</span>
+                    {count != null && <span className="ml-1.5 text-[10px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full">{count}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
-      )}
-
-      {!stats && !productData.length && (
-        <EmptyState icon={BarChart3} title="No data yet" message="Analytics will appear once you start receiving orders" />
-      )}
+      </div>
     </div>
   )
 }

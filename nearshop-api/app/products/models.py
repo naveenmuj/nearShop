@@ -45,6 +45,10 @@ class Product(Base):
     inquiry_count = Column(Integer, server_default=text("0"), nullable=False)
     ai_generated = Column(Boolean, server_default=text("false"), nullable=False)
     barcode = Column(String(50), nullable=True)
+    stock_quantity = Column(Integer, nullable=True)
+    stock_unit = Column(String(20), server_default=text("'pieces'"))
+    low_stock_threshold = Column(Integer, server_default=text("5"))
+    purchase_price = Column(Numeric(10, 2), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

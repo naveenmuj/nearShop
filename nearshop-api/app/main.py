@@ -73,6 +73,12 @@ def create_app() -> FastAPI:
     from app.udhaar.router import router as udhaar_router
     from app.media.router import router as media_router
     from app.admin.router import router as admin_router
+    from app.billing.router import router as billing_router
+    from app.marketing.router import router as marketing_router
+    from app.expenses.router import router as expenses_router
+    from app.inventory.router import router as inventory_router
+    from app.broadcast.router import router as broadcast_router
+    from app.advisor.router import router as advisor_router
 
     app.include_router(auth_router)
     app.include_router(shops_router)
@@ -95,6 +101,12 @@ def create_app() -> FastAPI:
     app.include_router(udhaar_router)
     app.include_router(media_router)
     app.include_router(admin_router)
+    app.include_router(billing_router)
+    app.include_router(marketing_router)
+    app.include_router(expenses_router)
+    app.include_router(inventory_router)
+    app.include_router(broadcast_router)
+    app.include_router(advisor_router)
 
     # Serve locally uploaded files (dev fallback when R2 is not configured)
     static_dir = Path(__file__).resolve().parents[1] / "static"
