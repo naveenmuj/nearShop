@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { getBalance, getStreak, getBadges } from '../../api/loyalty'
 import client from '../../api/client'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import { ShoppingBag, Heart, Wallet, MessageSquare, Settings, Repeat, LogOut, ChevronRight, Coins, Award } from 'lucide-react'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -18,18 +19,11 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [balRes, streakRes, badgesRes] = await Promise.all([
-          getBalance(),
-          getStreak(),
-          getBadges(),
-        ])
+        const [balRes, streakRes, badgesRes] = await Promise.all([getBalance(), getStreak(), getBadges()])
         setBalance(balRes.data.balance || balRes.data.coins || 0)
         setStreak(streakRes.data)
         setBadges(badgesRes.data.items || badgesRes.data || [])
-      } catch {}
-      finally {
-        setLoading(false)
-      }
+      } catch {} finally { setLoading(false) }
     }
     fetchStats()
   }, [])
@@ -40,95 +34,100 @@ export default function ProfilePage() {
       const newRole = user?.active_role === 'business' ? 'customer' : 'business'
       await client.post('/auth/switch-role', { role: newRole })
       switchRole(newRole)
-      if (newRole === 'business') {
-        navigate('/biz/dashboard')
-      } else {
-        navigate('/app/home')
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to switch role')
-    } finally {
-      setSwitchingRole(false)
-    }
+      navigate(newRole === 'business' ? '/biz/dashboard' : '/app/home')
+    } catch (err) { toast.error(err.response?.data?.detail || 'Failed to switch role') } finally { setSwitchingRole(false) }
   }
 
-  const handleLogout = () => {
-    logout()
-    navigate('/auth/login')
-  }
+  const handleLogout = () => { logout(); navigate('/auth/login') }
 
-  const stats = {
-    orders: 0,
-    coins: balance,
-    reviews: badges.length,
-  }
-
-  const menuItems = [
-    { icon: '📦', label: 'My Orders', action: () => navigate('/app/orders') },
-    { icon: '❤️', label: 'Wishlist', action: () => navigate('/app/wishlist') },
-    { icon: '🪙', label: 'Wallet & Coins', action: () => navigate('/app/wallet') },
-    { icon: '📍', label: 'Saved Addresses', action: () => navigate('/app/addresses') },
-    { icon: '⚙️', label: 'Settings', action: () => navigate('/app/settings') },
+  const menuSections = [
+    {
+      title: 'My Account',
+      items: [
+        { icon: ShoppingBag, label: 'My Orders', to: '/app/orders' },
+        { icon: Heart, label: 'Wishlist', to: '/app/wishlist' },
+        { icon: Wallet, label: 'Wallet & Coins', to: '/app/wallet', badge: balance > 0 ? `${balance} coins` : null },
+        { icon: MessageSquare, label: 'My Haggles', to: '/app/haggle' },
+      ],
+    },
   ]
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-8">
-      {/* Hero header */}
-      <div className="bg-brand-purple pt-12 pb-16 px-4 text-center">
-        <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-white text-3xl font-bold mx-auto border-2 border-white/40">
-          {user?.name?.[0]?.toUpperCase() || '?'}
+    <div className="max-w-3xl mx-auto">
+      {/* Profile header */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 mb-6">
+        <div className="flex items-center gap-5">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-purple-dark flex items-center justify-center text-white text-3xl font-bold flex-shrink-0">
+            {user?.name?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900">{user?.name || 'User'}</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{user?.phone || user?.email || ''}</p>
+            {user?.created_at && (
+              <p className="text-xs text-gray-400 mt-1">Member since {new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
+            )}
+          </div>
         </div>
-        <h1 className="text-xl font-bold text-white mt-3">{user?.name || 'User'}</h1>
-        <p className="text-white/70 text-sm mt-1">{user?.phone || user?.email || ''}</p>
 
-        {/* Stats row */}
+        {/* Stats */}
         {!loading && (
-          <div className="flex justify-center gap-8 mt-4">
+          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
             {[
-              { label: 'Orders', value: stats.orders },
-              { label: 'Coins', value: stats.coins },
-              { label: 'Badges', value: stats.reviews },
+              { icon: ShoppingBag, label: 'Orders', value: 0, color: 'text-brand-purple' },
+              { icon: Coins, label: 'Coins', value: balance, color: 'text-brand-amber' },
+              { icon: Award, label: 'Badges', value: badges.length, color: 'text-brand-green' },
             ].map(s => (
               <div key={s.label} className="text-center">
-                <div className="text-xl font-bold text-white">{s.value || 0}</div>
-                <div className="text-white/60 text-xs">{s.label}</div>
+                <s.icon className={`w-5 h-5 mx-auto mb-1 ${s.color}`} />
+                <p className="text-xl font-extrabold text-gray-900">{s.value}</p>
+                <p className="text-xs text-gray-400 font-medium">{s.label}</p>
               </div>
             ))}
           </div>
         )}
+      </div>
 
-        {loading && (
-          <div className="mt-4 flex justify-center">
-            <LoadingSpinner size="sm" />
+      {/* Menu sections */}
+      {menuSections.map(section => (
+        <div key={section.title} className="mb-6">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">{section.title}</h2>
+          <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
+            {section.items.map(item => (
+              <button key={item.label} onClick={() => navigate(item.to)}
+                className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition text-left">
+                <div className="w-9 h-9 rounded-lg bg-brand-purple-light flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-4 h-4 text-brand-purple" />
+                </div>
+                <span className="flex-1 text-sm font-medium text-gray-800">{item.label}</span>
+                {item.badge && <span className="text-xs text-brand-amber font-semibold bg-brand-amber-light px-2 py-0.5 rounded-full">{item.badge}</span>}
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      ))}
 
-      {/* Menu card */}
-      <div className="mx-4 -mt-4 bg-white rounded-2xl shadow-card divide-y divide-gray-50">
-        {menuItems.map(item => (
-          <button key={item.label} onClick={item.action}
-            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-50 transition-colors text-left first:rounded-t-2xl last:rounded-b-2xl">
-            <span className="text-xl">{item.icon}</span>
-            <span className="flex-1 text-sm font-medium text-gray-700">{item.label}</span>
-            <span className="text-gray-300">›</span>
+      {/* Business + Logout */}
+      <div className="mb-6">
+        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Shop</h2>
+        <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
+          <button onClick={handleSwitchRole} disabled={switchingRole}
+            className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition text-left">
+            <div className="w-9 h-9 rounded-lg bg-brand-green-light flex items-center justify-center"><Repeat className="w-4 h-4 text-brand-green" /></div>
+            <span className="flex-1 text-sm font-medium text-gray-800">{switchingRole ? 'Switching...' : 'Switch to Business Mode'}</span>
+            <ChevronRight className="w-4 h-4 text-gray-300" />
           </button>
-        ))}
+        </div>
       </div>
 
-      {/* Switch role button */}
-      <button
-        onClick={handleSwitchRole}
-        disabled={switchingRole}
-        className="mx-4 mt-4 w-full h-12 border-2 border-brand-amber text-brand-amber rounded-xl font-semibold text-sm hover:bg-brand-amber-light transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        🏪 {switchingRole ? 'Switching...' : user?.active_role === 'business' ? 'Switch to Customer Mode' : 'Switch to Business Mode'}
-      </button>
+      <div className="bg-white rounded-xl border border-gray-100">
+        <button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-red-50 transition text-left">
+          <div className="w-9 h-9 rounded-lg bg-brand-red-light flex items-center justify-center"><LogOut className="w-4 h-4 text-brand-red" /></div>
+          <span className="flex-1 text-sm font-medium text-brand-red">Sign Out</span>
+        </button>
+      </div>
 
-      {/* Logout */}
-      <button onClick={handleLogout} className="mx-4 mt-3 w-full h-12 text-brand-red text-sm font-medium hover:bg-brand-red-light rounded-xl transition-colors">
-        Sign Out
-      </button>
+      <p className="text-center text-xs text-gray-300 mt-6">NearShop v1.0.0</p>
     </div>
   )
 }

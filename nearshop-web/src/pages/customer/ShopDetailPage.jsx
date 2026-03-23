@@ -266,7 +266,7 @@ export default function ShopDetailPage() {
                 <p className="text-sm text-gray-400 mt-1">This shop hasn't listed any products.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                 {products.map(product => {
                   const discount = product.compare_price > product.price
                     ? Math.round((1 - product.price / product.compare_price) * 100)

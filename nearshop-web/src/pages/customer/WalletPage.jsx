@@ -72,7 +72,7 @@ export default function WalletPage() {
   const currentStreak = streak?.current_streak || 0
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-6">
+    <div className="">
       {/* Balance card */}
       <div className="mx-4 mt-4 rounded-3xl p-6 text-white" style={{background: 'linear-gradient(135deg, #EF9F27, #D85A30)'}}>
         <p className="text-white/70 text-sm font-medium">ShopCoins Balance</p>

@@ -1,152 +1,182 @@
-import { useState } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, ShoppingBag, BarChart2, MoreHorizontal, X,
-  Settings, Users, Star, CreditCard, Tag, BookOpen, MessageSquare, Receipt, Send, DollarSign,
-  Warehouse, FileText, Sparkles, Megaphone, PartyPopper } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom'
+import { LayoutDashboard, Package, ShoppingBag, BarChart2, Settings, Menu, X, Bell,
+  Tag, BookOpen, MessageSquare, Receipt, Send, DollarSign, Warehouse, FileText,
+  Sparkles, Megaphone, PartyPopper, Users, Star, CreditCard, Repeat,
+  ChevronRight, Home, Box } from 'lucide-react'
 import NotificationBell from '../components/NotificationBell'
 import useMyShop from '../hooks/useMyShop'
 import { useAuthStore } from '../store/authStore'
+import client from '../api/client'
 
-const NAV = [
-  { to: '/biz/dashboard', icon: LayoutDashboard, label: 'Home' },
+const NAV_MAIN = [
+  { to: '/biz/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/biz/catalog',   icon: Package,         label: 'Products' },
   { to: '/biz/orders',    icon: ShoppingBag,     label: 'Orders' },
-  { to: '/biz/analytics', icon: BarChart2,       label: 'Insights' },
+  { to: '/biz/billing',   icon: Receipt,         label: 'Billing' },
+]
+const NAV_MARKETING = [
+  { to: '/biz/deals',      icon: Tag,           label: 'Deals & Offers' },
+  { to: '/biz/stories',    icon: BookOpen,       label: 'Stories' },
+  { to: '/biz/marketing',  icon: Send,           label: 'WhatsApp Studio' },
+  { to: '/biz/broadcast',  icon: Megaphone,      label: 'Broadcasts' },
+  { to: '/biz/festivals',  icon: PartyPopper,    label: 'Festivals' },
+]
+const NAV_INSIGHTS = [
+  { to: '/biz/analytics',  icon: BarChart2,      label: 'Analytics' },
+  { to: '/biz/advisor',    icon: Sparkles,       label: 'AI Advisor' },
+  { to: '/biz/inventory',  icon: Warehouse,      label: 'Inventory' },
+  { to: '/biz/expenses',   icon: DollarSign,     label: 'Expenses & P&L' },
+  { to: '/biz/reports',    icon: FileText,       label: 'Daily Reports' },
+]
+const NAV_CUSTOMERS = [
+  { to: '/biz/customers',  icon: Users,          label: 'Customers' },
+  { to: '/biz/reviews',    icon: Star,           label: 'Reviews' },
+  { to: '/biz/udhaar',     icon: CreditCard,     label: 'Udhaar / Credit' },
+  { to: '/biz/haggle',     icon: MessageSquare,  label: 'Haggles' },
 ]
 
-const MORE_ITEMS = [
-  { to: '/biz/billing',   icon: Receipt,        label: 'Billing',        desc: 'Generate invoices & bills' },
-  { to: '/biz/inventory', icon: Warehouse,      label: 'Inventory',      desc: 'Stock levels & margins' },
-  { to: '/biz/expenses',  icon: DollarSign,     label: 'Expenses & P&L', desc: 'Track costs, see profit' },
-  { to: '/biz/reports',   icon: FileText,       label: 'Daily Reports',  desc: 'EOD summary & share' },
-  { to: '/biz/advisor',   icon: Sparkles,       label: 'AI Advisor',     desc: 'Smart suggestions' },
-  { to: '/biz/broadcast', icon: Megaphone,      label: 'Broadcast',      desc: 'Message your customers' },
-  { to: '/biz/marketing', icon: Send,           label: 'Marketing',      desc: 'WhatsApp catalogs & promos' },
-  { to: '/biz/festivals', icon: PartyPopper,    label: 'Festivals',      desc: 'Seasonal promotions' },
-  { to: '/biz/deals',     icon: Tag,            label: 'Deals & Offers', desc: 'Create promotions' },
-  { to: '/biz/haggle',    icon: MessageSquare,  label: 'Haggle Inbox',   desc: 'Customer offers' },
-  { to: '/biz/reviews',   icon: Star,           label: 'Reviews',        desc: 'Customer feedback' },
-  { to: '/biz/customers', icon: Users,          label: 'Customers',      desc: 'Order history' },
-  { to: '/biz/udhaar',    icon: CreditCard,     label: 'Udhaar',         desc: 'Credit management' },
-  { to: '/biz/stories',   icon: BookOpen,       label: 'Stories',        desc: 'Post updates' },
-  { to: '/biz/settings',  icon: Settings,       label: 'Shop Settings',  desc: 'Hours, delivery, contact' },
-]
+function SidebarLink({ to, icon: Icon, label }) {
+  return (
+    <NavLink to={to}
+      className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
+        isActive ? 'bg-brand-green-light text-[#1D9E75] font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+      }`}>
+      <Icon className="w-4 h-4 flex-shrink-0" />
+      <span>{label}</span>
+    </NavLink>
+  )
+}
+
+function SidebarSection({ title, items }) {
+  return (
+    <>
+      <div className="pt-5 pb-1.5 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{title}</div>
+      {items.map(item => <SidebarLink key={item.to} {...item} />)}
+    </>
+  )
+}
+
+function SidebarContent({ shop, onSwitchCustomer }) {
+  return (
+    <>
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1D9E75] to-[#2DB88A] flex items-center justify-center text-white font-bold text-sm">
+            {shop?.name?.[0] || 'S'}
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">{shop?.name || 'My Shop'}</p>
+            <p className="text-xs text-gray-400">NearShop Business</p>
+          </div>
+        </div>
+      </div>
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+        {NAV_MAIN.map(item => <SidebarLink key={item.to} {...item} />)}
+        <SidebarSection title="Marketing" items={NAV_MARKETING} />
+        <SidebarSection title="Insights" items={NAV_INSIGHTS} />
+        <SidebarSection title="Customers" items={NAV_CUSTOMERS} />
+      </nav>
+      <div className="p-2 border-t border-gray-100 space-y-0.5">
+        <SidebarLink to="/biz/settings" icon={Settings} label="Settings" />
+        <button onClick={onSwitchCustomer}
+          className="flex items-center gap-3 w-full px-3 py-2 text-sm text-[#1D9E75] hover:bg-brand-green-light rounded-lg transition">
+          <Repeat className="w-4 h-4" /> Switch to Customer
+        </button>
+      </div>
+    </>
+  )
+}
 
 export default function BusinessLayout() {
-  const { user } = useAuthStore()
-  const { shop } = useMyShop()
   const navigate = useNavigate()
-  const [showMore, setShowMore] = useState(false)
-  const initial = shop?.name?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || 'B'
+  const { user, switchRole } = useAuthStore()
+  const { shop } = useMyShop()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const location = useLocation()
+
+  useEffect(() => { setMobileOpen(false) }, [location.pathname])
+
+  const handleSwitchCustomer = async () => {
+    try { await client.post('/auth/switch-role', { role: 'customer' }) } catch {}
+    switchRole('customer')
+    navigate('/app/home')
+  }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 max-w-lg mx-auto">
-      {/* Top header — shop owner's brand */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-100" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="flex items-center justify-between px-4 py-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-[#1D9E75] to-[#5DCAA5] rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm">
-              {shop?.logo_url ? (
-                <img src={shop.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
-              ) : initial}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-900 truncate max-w-[180px]">{shop?.name || 'My Shop'}</p>
-              <div className="flex items-center gap-1.5">
-                {shop?.is_active !== false ? (
-                  <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">Open</span>
-                ) : (
-                  <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">Closed</span>
-                )}
-                {shop?.avg_rating > 0 && (
-                  <span className="text-[10px] text-gray-400">⭐ {Number(shop.avg_rating).toFixed(1)}</span>
-                )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-100 z-40">
+        <SidebarContent shop={shop} onSwitchCustomer={handleSwitchCustomer} />
+      </aside>
+
+      {/* Main content */}
+      <div className="lg:ml-64 min-h-screen flex flex-col">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+          <div className="flex items-center h-14 px-4 lg:px-6">
+            <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 -ml-2 mr-2 text-gray-500">
+              <Menu className="w-5 h-5" />
+            </button>
+            {/* Mobile logo */}
+            <Link to="/biz/dashboard" className="lg:hidden flex items-center gap-2 mr-3">
+              <div className="w-7 h-7 bg-gradient-to-br from-[#1D9E75] to-[#2DB88A] rounded-lg flex items-center justify-center text-white text-xs font-bold">
+                {shop?.name?.[0] || 'S'}
+              </div>
+            </Link>
+            <div className="ml-auto flex items-center gap-2">
+              <span className={`hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${shop?.is_active !== false ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${shop?.is_active !== false ? 'bg-green-500' : 'bg-red-500'}`} />
+                {shop?.is_active !== false ? 'Open' : 'Closed'}
+              </span>
+              <NotificationBell />
+              <div className="w-8 h-8 bg-gradient-to-br from-[#1D9E75] to-[#2DB88A] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                {user?.name?.[0]?.toUpperCase() || 'B'}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <NotificationBell />
-            <button
-              onClick={() => navigate('/biz/settings')}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-            >
-              <Settings className="w-4 h-4 text-gray-500" />
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <main className="flex-1 pb-20 overflow-auto">
-        <Outlet />
-      </main>
+        {/* Page content */}
+        <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
+          <Outlet />
+        </main>
+      </div>
 
-      {/* Bottom nav — 4 tabs + More */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 max-w-lg mx-auto">
-        <div className="bg-white border-t border-gray-100 shadow-2xl" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-          <div className="flex items-center justify-around px-1 py-1.5">
-            {NAV.map(({ to, icon: Icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[52px] transition-all duration-200 ${
-                    isActive
-                      ? 'bg-[#1D9E75]/10 text-[#1D9E75]'
-                      : 'text-gray-400 hover:text-gray-600'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
-                    <span className={`text-[9px] font-semibold ${isActive ? 'text-[#1D9E75]' : ''}`}>{label}</span>
-                  </>
-                )}
-              </NavLink>
-            ))}
-            {/* More button */}
-            <button
-              onClick={() => setShowMore(true)}
-              className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[52px] text-gray-400 hover:text-gray-600 transition-all"
-            >
-              <MoreHorizontal className="w-5 h-5 stroke-[1.8]" />
-              <span className="text-[9px] font-semibold">More</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* More menu overlay */}
-      {showMore && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowMore(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-t-3xl shadow-2xl animate-slide-up pb-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
-            <div className="flex items-center justify-between px-5 pt-4 pb-2">
-              <h3 className="text-lg font-bold text-gray-900">More</h3>
-              <button onClick={() => setShowMore(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100">
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setMobileOpen(false)} />
+          <aside className="relative w-72 bg-white shadow-xl flex flex-col h-full">
+            <div className="flex items-center justify-end p-2">
+              <button onClick={() => setMobileOpen(false)} className="p-2 text-gray-400"><X className="w-5 h-5" /></button>
             </div>
-            <div className="px-3 space-y-0.5">
-              {MORE_ITEMS.map(({ to, icon: Icon, label, desc }) => (
-                <button
-                  key={to}
-                  onClick={() => { setShowMore(false); navigate(to) }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#1D9E75]/8 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-[#1D9E75]" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{label}</p>
-                    <p className="text-xs text-gray-400">{desc}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+            <SidebarContent shop={shop} onSwitchCustomer={handleSwitchCustomer} />
+          </aside>
         </div>
       )}
+
+      {/* Mobile bottom nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-lg z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+        <div className="flex justify-around py-1.5">
+          {[
+            { to: '/biz/dashboard', icon: Home, label: 'Home' },
+            { to: '/biz/catalog', icon: Box, label: 'Products' },
+            { to: '/biz/orders', icon: ShoppingBag, label: 'Orders' },
+            { to: '/biz/analytics', icon: BarChart2, label: 'Insights' },
+          ].map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to}
+              className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[48px] transition ${isActive ? 'text-[#1D9E75]' : 'text-gray-400'}`}>
+              {({ isActive }) => (
+                <>
+                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+                  <span className="text-[10px] font-semibold">{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }
