@@ -77,7 +77,7 @@ export default function ProductDetailPage() {
 
   const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
   const shop = product.shop || {}
-  const discountPct = product.compare_price > product.price ? Math.round((1 - product.price / product.compare_price) * 100) : null
+  const discountPct = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
 
   return (
     <div>

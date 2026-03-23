@@ -112,7 +112,7 @@ export default function OrdersScreen() {
   // Handle Android hardware back → go back to profile, not home
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.back();
+      router.navigate('/(customer)/profile');
       return true;
     });
     return () => handler.remove();
@@ -178,8 +178,14 @@ export default function OrdersScreen() {
   }, [fetchOrders]);
 
   const handleCardPress = useCallback((order) => {
-    router.push(`/(customer)/order-detail/${order.id}`);
-  }, [router]);
+    // Show order details inline since order-detail screen doesn't exist
+    const items = order.items?.map(i => `  ${i.quantity}x ${i.name} — ₹${i.total || (i.price * i.quantity)}`).join('\n') || 'No item details';
+    Alert.alert(
+      `Order #${(order.order_number || order.id?.toString()).slice(-8)}`,
+      `Shop: ${order.shop_name || 'N/A'}\n\n${items}\n\nTotal: ₹${order.total_amount || order.total}\nStatus: ${order.status}`,
+      [{ text: 'Close' }]
+    );
+  }, []);
 
   const renderOrder = useCallback(({ item }) => (
     <OrderCard
@@ -246,7 +252,7 @@ export default function OrdersScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => router.back()}
+          onPress={() => router.navigate('/(customer)/profile')}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >

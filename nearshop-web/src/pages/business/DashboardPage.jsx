@@ -51,8 +51,9 @@ export default function DashboardPage() {
     setToggling(true)
     try {
       const res = await client.post(`/shops/${shopId}/toggle-status`)
-      setShopOpen(res.data.is_active)
-      toast.success(res.data.message)
+      const isActive = res.data?.is_active ?? !shopOpen
+      setShopOpen(isActive)
+      toast.success(res.data?.message || (isActive ? 'Shop opened' : 'Shop closed'))
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Failed to toggle')
     } finally { setToggling(false) }

@@ -4,6 +4,7 @@ import { Home, Search, Tag, Heart, User, MapPin, ChevronDown, Bell, ShoppingBag,
 import NotificationBell from '../components/NotificationBell'
 import { useAuthStore } from '../store/authStore'
 import { useLocationStore } from '../store/locationStore'
+import client from '../api/client'
 
 export default function CustomerLayout() {
   const navigate = useNavigate()
@@ -22,10 +23,7 @@ export default function CustomerLayout() {
 
   const handleSwitchBiz = async () => {
     try {
-      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/auth/switch-role`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user?.token || ''}` },
-        body: JSON.stringify({ role: 'business' }),
-      })
+      await client.post('/auth/switch-role', { role: 'business' })
     } catch {}
     switchRole('business')
     navigate('/biz/dashboard')

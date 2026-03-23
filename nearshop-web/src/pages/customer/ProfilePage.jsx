@@ -64,7 +64,7 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-bold text-gray-900">{user?.name || 'User'}</h1>
             <p className="text-sm text-gray-500 mt-0.5">{user?.phone || user?.email || ''}</p>
             {user?.created_at && (
-              <p className="text-xs text-gray-400 mt-1">Member since {new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
+              <p className="text-xs text-gray-400 mt-1">Member since {user.created_at ? new Date(user.created_at).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : ''}</p>
             )}
           </div>
         </div>

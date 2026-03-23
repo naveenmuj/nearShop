@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
@@ -27,6 +28,11 @@ export default function SelectRoleScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
+        {/* Back button */}
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+
         <Text style={styles.title}>How do you want to{'\n'}use NearShop?</Text>
         <Text style={styles.subtitle}>You can always switch later in settings</Text>
 
@@ -57,10 +63,9 @@ export default function SelectRoleScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   inner: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  title: {
-    fontSize: 28, fontWeight: '700', color: COLORS.gray900,
-    marginBottom: 8, lineHeight: 36,
-  },
+  backBtn: { position: 'absolute', top: 16, left: 0, paddingVertical: 8 },
+  backText: { fontSize: 16, fontWeight: '600', color: COLORS.primary },
+  title: { fontSize: 28, fontWeight: '700', color: COLORS.gray900, marginBottom: 8, lineHeight: 36 },
   subtitle: { fontSize: 14, color: COLORS.gray500, marginBottom: 32 },
   cards: { gap: 16 },
   roleCard: {

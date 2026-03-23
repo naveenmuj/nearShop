@@ -45,7 +45,7 @@ export default function NotificationsPage() {
         >
           <p className="text-sm">{n.message || n.title}</p>
           <p className="text-xs text-gray-400 mt-1">
-            {new Date(n.created_at).toLocaleDateString()}
+            {n.created_at ? new Date(n.created_at).toLocaleDateString() : ""}
           </p>
         </div>
       ))}

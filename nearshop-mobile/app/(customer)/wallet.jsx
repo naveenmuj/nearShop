@@ -185,7 +185,7 @@ export default function WalletScreen() {
 
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.back();
+      router.navigate('/(customer)/profile');
       return true;
     });
     return () => handler.remove();

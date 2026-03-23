@@ -147,7 +147,7 @@ export default function HomeScreen() {
           </View>
           <Pressable
             style={({ pressed }) => [styles.notifBtn, pressed && styles.notifBtnPressed]}
-            onPress={() => router.push('/notifications')}
+            onPress={() => router.push('/(customer)/profile')}
             accessibilityLabel="Notifications"
           >
             <Text style={styles.notifIcon}>🔔</Text>

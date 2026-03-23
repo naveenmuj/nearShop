@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, SafeAreaView, StyleSheet,
+  ScrollView, StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { completeProfile } from '../../lib/auth';
 import { createShop } from '../../lib/shops';
 import useAuthStore from '../../store/authStore';
+import useLocationStore from '../../store/locationStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const INTERESTS = [
@@ -29,6 +31,7 @@ export default function OnboardScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { updateUser } = useAuthStore();
+  const { lat, lng } = useLocationStore();
 
   const toggleInterest = (item) => {
     setInterests((prev) =>
@@ -57,7 +60,13 @@ export default function OnboardScreen() {
       await updateUser(user);
 
       if (role === 'business') {
-        await createShop({ name: shopName.trim(), category: shopCat });
+        // latitude & longitude are required by the backend schema
+        await createShop({
+          name: shopName.trim(),
+          category: shopCat,
+          latitude: lat ?? 12.9352,   // fallback: Koramangala, Bangalore
+          longitude: lng ?? 77.6245,
+        });
       }
 
       Toast.show({
@@ -92,6 +101,11 @@ export default function OnboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Back button */}
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text style={styles.backText}>← Back</Text>
+      </TouchableOpacity>
+
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>
           {role === 'customer' ? 'Tell us about yourself' : 'Set up your shop'}
@@ -171,6 +185,8 @@ export default function OnboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
+  backBtn: { paddingHorizontal: 24, paddingTop: 12, paddingBottom: 4 },
+  backText: { fontSize: 16, fontWeight: '600', color: COLORS.primary },
   scroll: { padding: 24, paddingBottom: 48 },
   title: { fontSize: 26, fontWeight: '700', color: COLORS.gray900, marginBottom: 8, lineHeight: 34 },
   subtitle: { fontSize: 14, color: COLORS.gray500, lineHeight: 20, marginBottom: 28 },

@@ -172,7 +172,7 @@ export default function CommunityPage() {
                   <MessageCircle className="h-3.5 w-3.5" />
                   {post.answer_count || 0} answers
                 </span>
-                <span className="ml-auto">{new Date(post.created_at).toLocaleDateString()}</span>
+                <span className="ml-auto">{post.created_at ? new Date(post.created_at).toLocaleDateString() : '—'}</span>
               </div>
             </div>
           ))}

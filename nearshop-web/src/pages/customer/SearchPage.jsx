@@ -212,7 +212,7 @@ export default function SearchPage() {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
                   {products.map(product => {
-                    const discount = product.compare_price > product.price ? Math.round((1 - product.price / product.compare_price) * 100) : null
+                    const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
                     return (
                       <button key={product.id} onClick={() => navigate(`/app/product/${product.id}`)}
                         className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group">

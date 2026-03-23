@@ -183,7 +183,7 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4">
             {products.map(product => {
-              const discount = product.compare_price > product.price ? Math.round((1 - product.price / product.compare_price) * 100) : null
+              const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
               return (
                 <button key={product.id} onClick={() => navigate(`/app/product/${product.id}`)}
                   className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
@@ -201,7 +201,7 @@ export default function HomePage() {
                     <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{product.name}</p>
                     <div className="flex items-baseline gap-1.5 mt-1.5">
                       <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
-                      {product.compare_price > product.price && (
+                      {product.compare_price && product.price && Number(product.compare_price) > Number(product.price) && (
                         <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>
                       )}
                     </div>

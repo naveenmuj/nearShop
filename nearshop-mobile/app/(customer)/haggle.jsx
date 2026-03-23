@@ -75,7 +75,7 @@ const timeAgo = (dateStr) => {
 export default function HaggleScreen() {
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.back();
+      router.navigate('/(customer)/profile');
       return true;
     });
     return () => handler.remove();
@@ -222,7 +222,7 @@ export default function HaggleScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.navigate('/(customer)/profile')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />

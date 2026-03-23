@@ -169,7 +169,7 @@ export default function ShopDetailPage() {
           {shop.followers_count != null && (
             <div className="flex items-center gap-1.5 text-gray-500">
               <Users className="w-3.5 h-3.5 text-[#5B2BE7]" />
-              <span className="text-sm font-medium">{shop.followers_count.toLocaleString()} followers</span>
+              <span className="text-sm font-medium">{Number(shop.followers_count || 0).toLocaleString()} followers</span>
             </div>
           )}
         </div>
@@ -268,8 +268,8 @@ export default function ShopDetailPage() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                 {products.map(product => {
-                  const discount = product.compare_price > product.price
-                    ? Math.round((1 - product.price / product.compare_price) * 100)
+                  const discount = product.compare_price && product.price && product.compare_price > product.price
+                    ? Math.round((1 - Number(product.price) / Number(product.compare_price)) * 100)
                     : null
                   return (
                     <button
@@ -296,7 +296,7 @@ export default function ShopDetailPage() {
                         <div className="flex items-baseline justify-between mt-2">
                           <div className="flex items-baseline gap-1.5">
                             <span className="text-base font-bold text-gray-900">₹{product.price}</span>
-                            {product.compare_price > product.price && (
+                            {product.compare_price && product.price && Number(product.compare_price) > Number(product.price) && (
                               <span className="text-xs text-gray-400 line-through">₹{product.compare_price}</span>
                             )}
                           </div>
@@ -404,7 +404,7 @@ export default function ShopDetailPage() {
               shop.address && { icon: '📍', label: 'Address', value: shop.address },
               (shop.phone || shop.whatsapp) && { icon: '📞', label: 'Contact', value: shop.whatsapp || shop.phone },
               shop.opening_hours && { icon: '🕐', label: 'Hours', value: shop.opening_hours },
-              shop.followers_count != null && { icon: '👥', label: 'Followers', value: `${shop.followers_count.toLocaleString()} followers` },
+              shop.followers_count != null && { icon: '👥', label: 'Followers', value: `${Number(shop.followers_count || 0).toLocaleString()} followers` },
             ].filter(Boolean).map(({ icon, label, value }) => (
               <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
                 <div className="w-9 h-9 bg-[#5B2BE7]/8 rounded-xl flex items-center justify-center text-lg flex-shrink-0">

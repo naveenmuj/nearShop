@@ -59,7 +59,7 @@ export default function WishlistPage() {
             const product = item.product || item
             const pid = item.product_id || item.id
             const drop = isPriceDrop(item)
-            const discount = product.compare_price > product.price ? Math.round((1 - product.price / product.compare_price) * 100) : null
+            const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
             return (
               <div key={pid} className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all group relative">
                 {/* Remove button */}
