@@ -21,7 +21,13 @@ export default function CustomerLayout() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const hasBusiness = Array.isArray(user?.roles) && user.roles.includes('business')
+
   const handleSwitchBiz = async () => {
+    if (!hasBusiness) {
+      navigate('/auth/onboard/business')
+      return
+    }
     try {
       await client.post('/auth/switch-role', { role: 'business' })
     } catch {}
@@ -117,7 +123,8 @@ export default function CustomerLayout() {
                     <div className="border-t border-gray-100 mt-1 pt-1">
                       <button onClick={handleSwitchBiz}
                         className="flex items-center gap-3 px-4 py-2 w-full text-sm text-brand-purple hover:bg-brand-purple-light transition">
-                        <Repeat className="w-4 h-4" /> Switch to Business
+                        {hasBusiness ? <Repeat className="w-4 h-4" /> : <span className="text-sm">🚀</span>}
+                        {hasBusiness ? 'Switch to Business' : 'Register Business'}
                       </button>
                       <button onClick={() => { logout(); navigate('/auth/login') }}
                         className="flex items-center gap-3 px-4 py-2 w-full text-sm text-brand-red hover:bg-brand-red-light transition">

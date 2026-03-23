@@ -54,3 +54,10 @@ class RefreshTokenRequest(BaseModel):
 class FirebaseSignInRequest(BaseModel):
     firebase_token: Optional[str] = None
     id_token: Optional[str] = None
+
+
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
+    interests: Optional[list[str]] = None

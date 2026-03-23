@@ -28,7 +28,14 @@ export default function ProfilePage() {
     fetchStats()
   }, [])
 
+  const hasBusiness = Array.isArray(user?.roles) && user.roles.includes('business')
+
   const handleSwitchRole = async () => {
+    if (!hasBusiness) {
+      // Not registered as business yet → go to business registration
+      navigate('/auth/onboard/business')
+      return
+    }
     setSwitchingRole(true)
     try {
       const newRole = user?.active_role === 'business' ? 'customer' : 'business'
@@ -109,12 +116,18 @@ export default function ProfilePage() {
 
       {/* Business + Logout */}
       <div className="mb-6">
-        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Shop</h2>
+        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">
+          {hasBusiness ? 'Business' : 'Grow with NearShop'}
+        </h2>
         <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
           <button onClick={handleSwitchRole} disabled={switchingRole}
             className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition text-left">
-            <div className="w-9 h-9 rounded-lg bg-brand-green-light flex items-center justify-center"><Repeat className="w-4 h-4 text-brand-green" /></div>
-            <span className="flex-1 text-sm font-medium text-gray-800">{switchingRole ? 'Switching...' : 'Switch to Business Mode'}</span>
+            <div className="w-9 h-9 rounded-lg bg-brand-green-light flex items-center justify-center">
+              {hasBusiness ? <Repeat className="w-4 h-4 text-brand-green" /> : <span className="text-base">🚀</span>}
+            </div>
+            <span className="flex-1 text-sm font-medium text-gray-800">
+              {switchingRole ? 'Switching...' : hasBusiness ? 'Switch to Business Mode' : 'Register Your Business'}
+            </span>
             <ChevronRight className="w-4 h-4 text-gray-300" />
           </button>
         </div>

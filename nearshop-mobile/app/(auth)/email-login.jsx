@@ -23,8 +23,10 @@ export default function EmailLoginScreen() {
 
   const navigateAfterAuth = (data) => {
     login({ access_token: data.access_token, refresh_token: data.refresh_token }, data.user);
-    if (data.is_new_user || !data.user?.name) {
-      router.replace('/(auth)/select-role');
+    const needsProfile = data.is_new_user || !data.user?.name || !data.user.name.trim();
+    if (needsProfile) {
+      // New user or no name set — collect profile details first
+      router.replace('/(auth)/customer-profile');
     } else if (data.user?.active_role === 'business') {
       router.replace('/(business)/dashboard');
     } else {

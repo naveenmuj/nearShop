@@ -10,6 +10,7 @@ from app.auth.schemas import (
     FirebaseSignInRequest,
     SendOTPRequest,
     SwitchRoleRequest,
+    UpdateProfileRequest,
     UserResponse,
     VerifyOTPRequest,
 )
@@ -64,6 +65,16 @@ async def get_me(
     current_user: User = Depends(get_current_user),
 ):
     return UserResponse.model_validate(current_user)
+
+
+@router.patch("/profile", response_model=UserResponse)
+async def update_profile(
+    body: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await AuthService.update_profile(db, current_user.id, body)
+    return UserResponse.model_validate(user)
 
 
 @router.post("/firebase-signin")

@@ -90,13 +90,22 @@ export default function ProfileScreen() {
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
+  // 'business' is added to roles array only after completing business onboarding
+  const hasBusiness = Array.isArray(user?.roles) && user.roles.includes('business');
+
   const handleSwitchToBusiness = async () => {
-    try {
-      await apiSwitchRole('business');  // Update server-side role
-      await switchRole('business');     // Update local store
-      router.replace('/(business)/dashboard');
-    } catch {
-      Alert.alert('Error', 'Could not switch to business mode');
+    if (hasBusiness) {
+      // User already has a shop — just switch active role
+      try {
+        await apiSwitchRole('business');
+        await switchRole('business');
+        router.replace('/(business)/dashboard');
+      } catch {
+        Alert.alert('Error', 'Could not switch to business mode');
+      }
+    } else {
+      // Not a business yet — send to registration
+      router.push({ pathname: '/(auth)/onboard', params: { role: 'business' } });
     }
   };
 
@@ -209,11 +218,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Shop ─────────────────────────────────────────────────── */}
-        <SectionHeader title="Shop" />
+        <SectionHeader title={hasBusiness ? 'Business' : 'Grow with NearShop'} />
         <View style={styles.menuCard}>
           <MenuRow
-            icon="🏪"
-            label="Switch to Business Mode"
+            icon={hasBusiness ? '🏪' : '🚀'}
+            label={hasBusiness ? 'Switch to Business Mode' : 'Register Your Business'}
             onPress={handleSwitchToBusiness}
             right={<Chevron />}
             isLast

@@ -194,6 +194,24 @@ class AuthService:
         return user
 
     @staticmethod
+    async def update_profile(db: AsyncSession, user_id: UUID, data) -> User:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise NotFoundError("User not found")
+        if data.name is not None:
+            user.name = data.name.strip()
+        if data.phone is not None and data.phone.strip() and not user.phone:
+            user.phone = data.phone.strip()
+        if data.avatar_url is not None:
+            user.avatar_url = data.avatar_url
+        if data.interests is not None:
+            user.interests = data.interests
+        await db.flush()
+        await db.refresh(user)
+        return user
+
+    @staticmethod
     async def get_user(db: AsyncSession, user_id: UUID) -> User:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
