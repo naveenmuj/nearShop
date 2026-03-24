@@ -24,16 +24,31 @@ export default function EmailLoginScreen() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
 
-  const navigateAfterAuth = (data) => {
-    login({ access_token: data.access_token, refresh_token: data.refresh_token }, data.user);
-    const needsProfile = data.is_new_user || !data.user?.name || !data.user.name.trim();
-    if (needsProfile) {
-      // New user or no name set — collect profile details first
-      router.replace('/(auth)/customer-profile');
-    } else if (data.user?.active_role === 'business') {
-      router.replace('/(business)/dashboard');
-    } else {
-      router.replace('/(customer)/home');
+  const navigateAfterAuth = async (data) => {
+    try {
+      // Ensure login completes before navigating
+      await login({ access_token: data.access_token, refresh_token: data.refresh_token }, data.user);
+
+      // Add delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const needsProfile = data.is_new_user || !data.user?.name || !data.user.name.trim();
+      if (needsProfile) {
+        router.replace('/(auth)/customer-profile');
+      } else if (data.user?.active_role === 'business') {
+        router.replace('/(business)/dashboard');
+      } else {
+        router.replace('/(customer)/home');
+      }
+    } catch (err) {
+      console.error('Navigation after auth failed:', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Setup failed',
+        text2: 'Could not save login. Please try again.'
+      });
+      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 

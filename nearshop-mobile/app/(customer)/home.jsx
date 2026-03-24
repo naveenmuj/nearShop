@@ -49,16 +49,29 @@ export default function HomeScreen() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const loadData = useCallback(async () => {
+    setError(null);
     const [storiesRes, dealsRes, shopsRes, productsRes] = await Promise.allSettled([
       getStoriesFeed(),
       getNearbyDeals(lat, lng),
       getNearbyShops(lat, lng, { radius: 5000 }),
       searchProducts({ sort: 'newest', limit: 20 }),
     ]);
+
+    // Check if all failed
+    const allFailed = storiesRes.status === 'rejected' &&
+                      dealsRes.status === 'rejected' &&
+                      shopsRes.status === 'rejected' &&
+                      productsRes.status === 'rejected';
+
+    if (allFailed) {
+      setError('Failed to load content. Check your internet connection.');
+      return;
+    }
 
     if (storiesRes.status === 'fulfilled') {
       const raw = storiesRes.value?.data?.items ?? [];
@@ -110,7 +123,7 @@ export default function HomeScreen() {
     );
   }
 
-  const firstName = user?.name?.split(' ')[0] || 'there';
+  const firstName = user?.name ? String(user.name).split(' ')[0] : 'there';
   const locality = address || 'Locating…';
 
   return (
@@ -153,6 +166,13 @@ export default function HomeScreen() {
             <Text style={styles.notifIcon}>🔔</Text>
           </Pressable>
         </View>
+
+        {/* ── Error Message ──────────────────────────────────────── */}
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
         {/* ── Stories ────────────────────────────────────────────── */}
         {stories.length > 0 && (
@@ -480,5 +500,21 @@ const styles = StyleSheet.create({
 
   bottomSpacing: {
     height: 32,
+  },
+
+  // Error handling
+  errorBox: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#DC2626',
+    fontWeight: '500',
   },
 });

@@ -11,11 +11,23 @@ const useAuthStore = create((set, get) => ({
       const token = await SecureStore.getItemAsync('access_token');
       const userData = await SecureStore.getItemAsync('user_data');
       if (token && userData) {
-        set({ user: JSON.parse(userData), isAuthenticated: true, isLoading: false });
-      } else {
-        set({ isLoading: false });
+        try {
+          const user = JSON.parse(userData);
+          if (user && typeof user === 'object') {
+            set({ user, isAuthenticated: true, isLoading: false });
+            return;
+          }
+        } catch (parseErr) {
+          // Corrupted user data - clear it
+          console.warn('Corrupted user data, clearing storage:', parseErr.message);
+          await SecureStore.deleteItemAsync('user_data');
+          await SecureStore.deleteItemAsync('access_token');
+          await SecureStore.deleteItemAsync('refresh_token');
+        }
       }
-    } catch {
+      set({ isLoading: false });
+    } catch (err) {
+      console.error('Auth initialization error:', err);
       set({ isLoading: false });
     }
   },

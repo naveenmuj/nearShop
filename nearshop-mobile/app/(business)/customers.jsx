@@ -20,25 +20,25 @@ export default function CustomersScreen() {
     setLoading(true); setError(null);
     try {
       const oRes = await client.get(`/orders/shop/${shopId}`, { params: { per_page: 500 } });
-      const orders = oRes.data?.items ?? oRes.data?.orders ?? [];
+      const orders = Array.isArray(oRes.data?.items) ? oRes.data.items : Array.isArray(oRes.data?.orders) ? oRes.data.orders : Array.isArray(oRes.data) ? oRes.data : [];
       const map = {};
       orders.forEach(o => {
-        if (!o) return;
-        const cName = o.customer_name || '';
-        const cPhone = o.customer_phone || '';
-        const key = cPhone || String(o.customer_id || 'unknown');
+        if (!o || typeof o !== 'object') return;
+        const cName = o?.customer_name || '';
+        const cPhone = o?.customer_phone || '';
+        const key = cPhone || String(o?.customer_id || 'unknown');
         if (!map[key]) {
           map[key] = {
             name: cName || 'Customer',
             phone: cPhone,
             orders: 0,
             total: 0,
-            lastOrder: o.created_at || '',
+            lastOrder: o?.created_at || '',
           };
         }
         map[key].orders += 1;
-        map[key].total += Number(o.total) || 0;
-        if (o.created_at && o.created_at > (map[key].lastOrder || '')) {
+        map[key].total += Number(o?.total) || 0;
+        if (o?.created_at && o.created_at > (map[key].lastOrder || '')) {
           map[key].lastOrder = o.created_at;
         }
       });
@@ -81,12 +81,12 @@ export default function CustomersScreen() {
         {!loading && !error && (
           <>
             <View style={s.statsRow}>
-              <View style={s.statCard}><Text style={s.statVal}>{customers.length}</Text><Text style={s.statLabel}>Total Customers</Text></View>
-              <View style={s.statCard}><Text style={s.statVal}>{formatPrice(customers.reduce((s, c) => s + c.total, 0))}</Text><Text style={s.statLabel}>Total Revenue</Text></View>
+              <View style={s.statCard}><Text style={s.statVal}>{Array.isArray(customers) ? customers.length : 0}</Text><Text style={s.statLabel}>Total Customers</Text></View>
+              <View style={s.statCard}><Text style={s.statVal}>{formatPrice(Array.isArray(customers) ? customers.reduce((s, c) => s + (Number(c?.total) || 0), 0) : 0)}</Text><Text style={s.statLabel}>Total Revenue</Text></View>
             </View>
 
             {filtered.length === 0 && <Text style={s.empty}>No customers found</Text>}
-            {filtered.map((c, i) => (
+            {Array.isArray(filtered) && filtered.map((c, i) => (
               <View key={i} style={s.card}>
                 <View style={s.cardRow}>
                   <View style={s.avatar}><Text style={s.avatarText}>{(c.name || '?').charAt(0).toUpperCase()}</Text></View>

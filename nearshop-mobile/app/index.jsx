@@ -15,6 +15,9 @@ export default function Index() {
   }
 
   if (!isAuthenticated) return <Redirect href="/(auth)/login" />;
-  if (user?.active_role === 'business') return <Redirect href="/(business)/dashboard" />;
+
+  // Default to customer role if active_role is missing
+  const role = user?.active_role || 'customer';
+  if (role === 'business') return <Redirect href="/(business)/dashboard" />;
   return <Redirect href="/(customer)/home" />;
 }

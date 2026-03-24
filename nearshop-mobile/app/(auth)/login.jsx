@@ -18,14 +18,29 @@ export default function LoginScreen() {
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
 
-  const navigateAfterAuth = (data) => {
-    login({ access_token: data.access_token, refresh_token: data.refresh_token }, data.user);
-    if (data.is_new_user || !data.user?.name) {
-      router.replace('/(auth)/select-role');
-    } else if (data.user?.active_role === 'business') {
-      router.replace('/(business)/dashboard');
-    } else {
-      router.replace('/(customer)/home');
+  const navigateAfterAuth = async (data) => {
+    try {
+      // Ensure login completes before navigating
+      await login({ access_token: data.access_token, refresh_token: data.refresh_token }, data.user);
+
+      // Add small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (data.is_new_user || !data.user?.name) {
+        router.replace('/(auth)/select-role');
+      } else if (data.user?.active_role === 'business') {
+        router.replace('/(business)/dashboard');
+      } else {
+        router.replace('/(customer)/home');
+      }
+    } catch (err) {
+      console.error('Navigation after auth failed:', err);
+      Toast.show({
+        type: 'error',
+        text1: 'Setup failed',
+        text2: 'Could not save login. Please try again.'
+      });
+      setLoadingProvider(null);
     }
   };
 

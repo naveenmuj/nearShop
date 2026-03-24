@@ -51,10 +51,11 @@ export default function DealsScreen() {
 
   const handleCreate = async () => {
     if (!selectedProduct) { Alert.alert('Error', 'Select a product'); return; }
+    if (!shopId) { Alert.alert('Error', 'Shop not found. Please refresh.'); return; }
     if (!discountPct || Number(discountPct) <= 0 || Number(discountPct) > 99) { Alert.alert('Error', 'Enter a valid discount (1-99%)'); return; }
     setCreating(true);
     try {
-      await client.post('/deals', {
+      await client.post(`/deals?shop_id=${shopId}`, {
         product_id: selectedProduct.id,
         discount_percentage: Number(discountPct),
         duration_days: duration,
@@ -65,8 +66,8 @@ export default function DealsScreen() {
     finally { setCreating(false); }
   };
 
-  const filtered = search ? products.filter(p => p.name?.toLowerCase().includes(search.toLowerCase())) : [];
-  const discountedPrice = selectedProduct ? Number(selectedProduct.price) * (1 - (Number(discountPct) || 0) / 100) : 0;
+  const filtered = search ? products.filter(p => p?.name?.toLowerCase().includes(search.toLowerCase())) : [];
+  const discountedPrice = selectedProduct?.price ? Number(selectedProduct.price) * (1 - (Number(discountPct) || 0) / 100) : 0;
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>

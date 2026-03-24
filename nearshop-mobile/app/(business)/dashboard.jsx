@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
   ActivityIndicator, RefreshControl, StatusBar, Alert,
@@ -20,6 +20,14 @@ export default function BizDashboardScreen() {
   const [pendingOrders, setPendingOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!shopId) { setLoading(false); return; }
@@ -46,12 +54,49 @@ export default function BizDashboardScreen() {
   };
 
   const handleSwitchToCustomer = async () => {
+    if (switching) return; // Prevent multiple clicks
+
+    setSwitching(true);
     try {
+      // First clear the shop data to avoid stale state
+      setRefreshing(false);
+      setPendingOrders([]);
+      setStats(null);
+
+      // Switch role on backend
       await switchRole('customer');
-      storeSwitchRole('customer');
-      router.replace('/(customer)/home');
-    } catch {
-      Alert.alert('Error', 'Could not switch role');
+
+      // Update local state with explicit error handling
+      try {
+        await storeSwitchRole('customer');
+      } catch (storeErr) {
+        console.warn('Store update warning:', storeErr);
+        // Continue even if store update has issues
+      }
+
+      // Navigate with delay to ensure state updates are processed
+      setTimeout(() => {
+        if (!isMountedRef.current) return; // Component unmounted
+        try {
+          router.replace('/(customer)/home');
+        } catch (navErr) {
+          console.error('Navigation error:', navErr);
+          // Last resort: try push instead of replace
+          try {
+            router.push('/(customer)/home');
+          } catch (pushErr) {
+            console.error('Push navigation failed:', pushErr);
+            if (isMountedRef.current) {
+              Alert.alert('Navigation Error', 'Could not navigate to customer mode');
+              setSwitching(false);
+            }
+          }
+        }
+      }, 100);
+    } catch (err) {
+      setSwitching(false);
+      console.error('Switch role error:', err);
+      Alert.alert('Error', err?.response?.data?.detail || err?.message || 'Could not switch to customer mode');
     }
   };
 
@@ -141,11 +186,11 @@ export default function BizDashboardScreen() {
             { icon: '📸', label: 'Add Product', onPress: () => router.push('/(business)/snap-list') },
             { icon: '📦', label: 'Catalog', onPress: () => router.push('/(business)/catalog') },
             { icon: '📊', label: 'Analytics', onPress: () => router.push('/(business)/analytics') },
-            { icon: '👤', label: 'Customer', onPress: handleSwitchToCustomer },
+            { icon: '👤', label: 'Customer', onPress: handleSwitchToCustomer, disabled: switching },
           ].map((a) => (
-            <Pressable key={a.label} style={styles.quickBtn} onPress={a.onPress}>
+            <Pressable key={a.label} style={[styles.quickBtn, a.disabled && styles.quickBtnDisabled]} onPress={a.onPress} disabled={a.disabled}>
               <Text style={styles.quickIcon}>{a.icon}</Text>
-              <Text style={styles.quickLabel}>{a.label}</Text>
+              <Text style={[styles.quickLabel, a.disabled && styles.quickLabelDisabled]}>{switching && a.label === 'Customer' ? 'Loading…' : a.label}</Text>
             </Pressable>
           ))}
         </View>
@@ -238,8 +283,10 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: COLORS.white, borderRadius: 16,
     paddingVertical: 14, alignItems: 'center', gap: 6, ...SHADOWS.card,
   },
+  quickBtnDisabled: { opacity: 0.6 },
   quickIcon: { fontSize: 24 },
   quickLabel: { fontSize: 10, fontWeight: '600', color: COLORS.gray500, textAlign: 'center' },
+  quickLabelDisabled: { color: COLORS.gray400 },
   pendingSection: { paddingHorizontal: 16 },
   pendingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   viewAll: { fontSize: 13, fontWeight: '600', color: COLORS.primary },

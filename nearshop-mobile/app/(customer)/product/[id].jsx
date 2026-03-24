@@ -227,6 +227,10 @@ export default function ProductDetailScreen() {
 
   const handleOrder = async () => {
     if (!product) return;
+    if (!product.shop_id) {
+      Alert.alert('Error', 'Shop information is missing. Please try again.');
+      return;
+    }
     setOrdering(true);
     try {
       await createOrder({
@@ -361,7 +365,7 @@ export default function ProductDetailScreen() {
           ) : null}
 
           {/* Specs / attributes */}
-          {product.attributes && Object.keys(product.attributes).length > 0 ? (
+          {product.attributes && typeof product.attributes === 'object' && Object.keys(product.attributes).length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Specifications</Text>
               {Object.entries(product.attributes).map(([k, v]) => (

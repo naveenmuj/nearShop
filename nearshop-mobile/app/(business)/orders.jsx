@@ -140,7 +140,7 @@ export default function BizOrdersScreen() {
   const handleReject = (order) => {
     Alert.alert(
       'Reject Order',
-      `Reject order #${order.id.slice(-6).toUpperCase()}?`,
+      `Reject order #${String(order.id || '').slice(-6).toUpperCase()}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

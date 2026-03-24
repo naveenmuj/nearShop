@@ -56,10 +56,16 @@ export default function VerifyScreen() {
     try {
       const data = await verifyFirebaseOtp(code);
       // data = { user, access_token, refresh_token, is_new_user }
+
+      // Ensure login completes before navigating
       await login(
         { access_token: data.access_token, refresh_token: data.refresh_token },
         data.user,
       );
+
+      // Add small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       if (data.is_new_user || !data.user?.name) {
         router.replace('/(auth)/select-role');
       } else if (data.user?.active_role === 'business') {
@@ -68,6 +74,7 @@ export default function VerifyScreen() {
         router.replace('/(customer)/home');
       }
     } catch (err) {
+      console.error('OTP verification error:', err);
       Toast.show({
         type: 'error',
         text1: 'Invalid OTP',

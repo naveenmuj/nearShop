@@ -85,6 +85,51 @@ for %%A in ("%APK_OUT%") do (
 echo   Saved: %BUILD_DIR%
 echo.
 
+:: ── Firebase App Distribution ─────────────────
+echo [FIREBASE] Checking for firebase-tools...
+where firebase >nul 2>&1
+if ERRORLEVEL 1 (
+    echo [WARN] firebase-tools not found. Installing globally...
+    call npm install -g firebase-tools
+    if ERRORLEVEL 1 (
+        echo [ERROR] Failed to install firebase-tools
+        echo         Install manually: npm install -g firebase-tools
+        goto skip_firebase
+    )
+)
+
+echo [FIREBASE] Uploading APK to Firebase App Distribution...
+echo.
+
+:: Set Firebase Project ID (from google-services.json project_id)
+set "FIREBASE_PROJECT=nearshop-af6a5"
+set "APP_ID=1:880214447785:android:26481ac4a25cdf21a17bb8"
+set "TEST_GROUP=dev-test"
+set "RELEASE_NOTES=Build %TIMESTAMP% - Automated APK distribution"
+
+:: Distribute to Firebase
+call firebase appdistribution:distribute "%APK_OUT%" ^
+    --app=%APP_ID% ^
+    --release-notes="%RELEASE_NOTES%" ^
+    --test-groups=%TEST_GROUP% ^
+    --project=%FIREBASE_PROJECT%
+
+if ERRORLEVEL 1 (
+    echo.
+    echo [WARN] Firebase distribution failed. Check authentication:
+    echo        Run: firebase login
+    echo        Then upload manually or re-run this script.
+    echo.
+) else (
+    echo.
+    echo [OK] APK uploaded to Firebase App Distribution!
+    echo     Group: %TEST_GROUP%
+    echo     Testers will receive a download link.
+    echo.
+)
+
+:skip_firebase
+
 :: ── Auto-install if ADB device connected ──────
 echo [ADB] Checking for connected devices...
 adb kill-server >nul 2>&1

@@ -16,14 +16,19 @@ const useLocationStore = create((set) => ({
     try {
       const saved = await SecureStore.getItemAsync(STORE_KEY);
       if (saved) {
-        const { lat, lng, address } = JSON.parse(saved);
-        if (lat && lng) {
-          set({ lat, lng, address: address || null });
-          return;
+        try {
+          const { lat, lng, address } = JSON.parse(saved);
+          if (lat && lng) {
+            set({ lat, lng, address: address || null });
+            return;
+          }
+        } catch (parseErr) {
+          console.warn('Corrupted location data, clearing:', parseErr.message);
+          await SecureStore.deleteItemAsync(STORE_KEY);
         }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Location initialization error:', err);
     }
   },
 

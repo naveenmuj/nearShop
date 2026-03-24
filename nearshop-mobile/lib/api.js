@@ -37,26 +37,48 @@ client.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    // Prevent infinite retry loop - max 1 retry per request
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._alreadyRefreshed) {
       originalRequest._retry = true;
+      originalRequest._alreadyRefreshed = true;
+
       try {
         const refreshToken = await SecureStore.getItemAsync('refresh_token');
-        if (refreshToken) {
-          const { data } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-          await SecureStore.setItemAsync('access_token', data.access_token);
-          if (data.refresh_token) {
-            await SecureStore.setItemAsync('refresh_token', data.refresh_token);
-          }
-          originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-          return client(originalRequest);
+        if (!refreshToken) {
+          // No refresh token, clear auth and reject
+          await SecureStore.deleteItemAsync('access_token');
+          await SecureStore.deleteItemAsync('refresh_token');
+          return Promise.reject(error);
         }
+
+        const { data } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {
+          refresh_token: refreshToken,
+        });
+
+        if (!data.access_token) {
+          // Refresh failed - clear tokens and reject
+          await SecureStore.deleteItemAsync('access_token');
+          await SecureStore.deleteItemAsync('refresh_token');
+          return Promise.reject(error);
+        }
+
+        await SecureStore.setItemAsync('access_token', data.access_token);
+        if (data.refresh_token) {
+          await SecureStore.setItemAsync('refresh_token', data.refresh_token);
+        }
+        originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+        return client(originalRequest);
       } catch (refreshError) {
+        if (__DEV__) {
+          console.error('[API] Token refresh failed:', refreshError.message);
+        }
         await SecureStore.deleteItemAsync('access_token');
         await SecureStore.deleteItemAsync('refresh_token');
+        return Promise.reject(refreshError);
       }
     }
+
     if (__DEV__) {
       const ms = Date.now() - (error.config?._startTime || 0);
       console.log(`[API ❌] ${error.response?.status ?? 'ERR'} ${error.config?.method?.toUpperCase()} ${error.config?.url} (${ms}ms)`, error.response?.data || error.message);

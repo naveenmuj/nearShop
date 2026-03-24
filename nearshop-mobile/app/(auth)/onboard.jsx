@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ScrollView, StyleSheet, Image, Alert,
@@ -47,13 +47,23 @@ export default function OnboardScreen() {
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
-  const [shopAddress, setShopAddress] = useState(locationAddress || '');
+  const [shopAddress, setShopAddress] = useState('');
   const [logoUri, setLogoUri] = useState(null);
   const [deliveryOption, setDeliveryOption] = useState('pickup');
+  const [deliveryFree, setDeliveryFree] = useState(true);
+  const [deliveryRadius, setDeliveryRadius] = useState('5');
+  const [deliveryFee, setDeliveryFee] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [step, setStep] = useState(1); // Business: 2 steps
+  const [step, setStep] = useState(1); // Business: 3 steps now
+
+  // Initialize shop address from location
+  useEffect(() => {
+    if (role === 'business' && locationAddress && !shopAddress) {
+      setShopAddress(locationAddress);
+    }
+  }, [locationAddress, role, shopAddress]);
 
   const toggleInterest = (item) => {
     setInterests((prev) =>
@@ -80,7 +90,7 @@ export default function OnboardScreen() {
 
   const handleGenerateDescription = async () => {
     if (!shopName.trim()) {
-      Alert.alert('Info', 'Enter your shop name first so AI can generate a description.');
+      Toast.show({ type: 'info', text1: 'Enter shop name first' });
       return;
     }
     setAiLoading(true);
@@ -90,11 +100,13 @@ export default function OnboardScreen() {
         category: shopCat,
         keywords: description.trim(),
       });
-      if (data.description) {
+      if (data?.description) {
         setDescription(data.description);
+        Toast.show({ type: 'success', text1: 'Description generated!' });
       }
     } catch (err) {
-      Alert.alert('AI Error', 'Could not generate description. You can type one manually.');
+      // Graceful fallback - don't show alert, just disable AI
+      Toast.show({ type: 'info', text1: 'Type your description manually' });
     } finally {
       setAiLoading(false);
     }
@@ -124,8 +136,14 @@ export default function OnboardScreen() {
         role,
         interests: role === 'customer' ? interests : [],
       });
-      const user = data.user || data;
-      await updateUser(user);
+
+      // Handle multiple response formats from backend
+      const user = data?.user || data?.data?.user || data;
+
+      // Only update if user object exists and is valid
+      if (user && typeof user === 'object' && Object.keys(user).length > 0) {
+        await updateUser(user);
+      }
 
       if (role === 'business') {
         // Upload logo if picked
@@ -136,6 +154,7 @@ export default function OnboardScreen() {
             logoUrl = uploadRes?.data?.url || uploadRes?.data?.file_url || null;
           } catch {
             // Logo upload failed — continue without it
+            console.warn('Logo upload failed, continuing without it');
           }
         }
 
@@ -162,10 +181,13 @@ export default function OnboardScreen() {
       });
       router.replace(role === 'business' ? '/(business)/dashboard' : '/(customer)/home');
     } catch (err) {
+      console.error('Profile completion error:', err);
+      // Better error message extraction
+      const errorMsg = err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error || err.message || 'Unknown error';
       Toast.show({
         type: 'error',
         text1: 'Setup failed',
-        text2: err.response?.data?.detail || err.message,
+        text2: String(errorMsg).substring(0, 100),
       });
     } finally {
       setLoading(false);
@@ -257,8 +279,9 @@ export default function OnboardScreen() {
     );
   }
 
-  // Business mode — Step 2: Additional Details
+  // Business mode — Step 2: Additional Details & Delivery
   const canSubmit = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length > 0 && phone.trim().length >= 10;
+  const showDeliveryOptions = deliveryOption === 'delivery' || deliveryOption === 'both';
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -311,16 +334,118 @@ export default function OnboardScreen() {
           ))}
         </View>
 
-        <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
+        {/* Delivery Configuration */}
+        {showDeliveryOptions && (
+          <View style={styles.deliveryCard}>
+            <Text style={styles.deliveryTitle}>💬 Delivery Details</Text>
+
+            <Text style={styles.label}>Is delivery free?</Text>
+            <View style={styles.chips}>
+              {[true, false].map((isFree) => (
+                <Chip
+                  key={String(isFree)}
+                  label={isFree ? 'Free Delivery' : 'Paid Delivery'}
+                  selected={deliveryFree === isFree}
+                  onPress={() => { setDeliveryFree(isFree); if (isFree) setDeliveryFee(''); }}
+                />
+              ))}
+            </View>
+
+            {!deliveryFree && (
+              <>
+                <Text style={styles.label}>Delivery fee (₹)</Text>
+                <TextInput
+                  value={deliveryFee}
+                  onChangeText={setDeliveryFee}
+                  placeholder="e.g. 40"
+                  placeholderTextColor={COLORS.gray400}
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+              </>
+            )}
+
+            <Text style={styles.label}>Coverage radius (km)</Text>
+            <View style={styles.radiusContainer}>
+              <TextInput
+                value={deliveryRadius}
+                onChangeText={setDeliveryRadius}
+                placeholder="e.g. 5"
+                placeholderTextColor={COLORS.gray400}
+                style={[styles.input, styles.radiusInput]}
+                keyboardType="numeric"
+              />
+              <Text style={styles.radiusLabel}>km from your shop</Text>
+            </View>
+
+            <Text style={styles.label}>Delivery available</Text>
+            <View style={styles.chips}>
+              {['All day', 'Peak hours only', 'Specific hours'].map((option) => (
+                <Chip key={option} label={option} selected={false} onPress={() => {}} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity onPress={() => setStep(3)} disabled={!canSubmit} activeOpacity={0.85}
           style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>
           <Text style={[styles.btnText, { color: canSubmit ? COLORS.white : COLORS.gray400 }]}>
-            {loading ? 'Creating shop…' : 'Create My Shop 🏪'}
+            Next: Add Products →
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+
+  // Business mode — Step 3: Bulk Product Upload
+  return (
+    <SafeAreaView style={styles.container}>
+      <TouchableOpacity onPress={() => setStep(2)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text style={styles.backText}>← Back</Text>
+      </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <Text style={styles.title}>Add your products</Text>
+        <Text style={styles.subtitle}>You can add items individually or upload in bulk</Text>
+
+        {/* Bulk Upload Card */}
+        <View style={styles.bulkCard}>
+          <Text style={styles.bulkIcon}>📊</Text>
+          <Text style={styles.bulkTitle}>Bulk Upload</Text>
+          <Text style={styles.bulkDesc}>Import CSV file with multiple products</Text>
+          <TouchableOpacity style={styles.uploadBtn} activeOpacity={0.8}>
+            <Text style={styles.uploadBtnText}>📤 Choose CSV File</Text>
+          </TouchableOpacity>
+          <Text style={styles.csvHint}>Format: Product Name, Description, Price, Stock</Text>
+        </View>
+
+        {/* Quick Add */}
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.divider} />
+
+        <View style={styles.quickAddCard}>
+          <Text style={styles.quickAddTitle}>Add First Product</Text>
+          <TextInput placeholder="Product name" placeholderTextColor={COLORS.gray400} style={styles.input} />
+          <TextInput placeholder="Price (₹)" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="numeric" />
+          <TextInput placeholder="Stock quantity" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="numeric" />
+          <TouchableOpacity style={[styles.btn, { backgroundColor: COLORS.gray200 }]}>
+            <Text style={[styles.btnText, { color: COLORS.gray600 }]}>+ Add Product</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Submit Buttons */}
+        <TouchableOpacity onPress={handleComplete} disabled={loading} activeOpacity={0.85}
+          style={[styles.btn, { backgroundColor: COLORS.primary, marginTop: 24 }]}>
+          <Text style={[styles.btnText, { color: COLORS.white }]}>
+            {loading ? 'Creating…' : 'Create My Shop 🏪'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleComplete} disabled={loading} style={styles.skipBtn}>
-          <Text style={styles.skipText}>Skip details for now</Text>
+          <Text style={styles.skipText}>Skip & create shop now</Text>
         </TouchableOpacity>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -373,4 +498,31 @@ const styles = StyleSheet.create({
   logoPlaceholderText: { fontSize: 11, color: COLORS.gray400 },
   skipBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
   skipText: { fontSize: 14, color: COLORS.gray400, textDecorationLine: 'underline' },
+  deliveryCard: {
+    backgroundColor: '#F3E8FF', borderRadius: 16, padding: 16,
+    marginBottom: 24, borderWidth: 1, borderColor: '#E9D5FF',
+  },
+  deliveryTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray900, marginBottom: 12 },
+  radiusContainer: { position: 'relative', marginBottom: 20 },
+  radiusInput: { paddingRight: 140 },
+  radiusLabel: { position: 'absolute', right: 16, top: 16, fontSize: 13, color: COLORS.gray500, fontWeight: '500' },
+  bulkCard: {
+    backgroundColor: '#F0F9FF', borderRadius: 16, padding: 20,
+    alignItems: 'center', marginBottom: 20, borderWidth: 1.5, borderColor: '#BFE7FF', borderStyle: 'dashed',
+  },
+  bulkIcon: { fontSize: 36, marginBottom: 8 },
+  bulkTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray900, marginBottom: 4 },
+  bulkDesc: { fontSize: 12, color: COLORS.gray500, marginBottom: 12, textAlign: 'center' },
+  uploadBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12,
+    marginBottom: 8,
+  },
+  uploadBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14, textAlign: 'center' },
+  csvHint: { fontSize: 11, color: COLORS.gray400, fontStyle: 'italic', textAlign: 'center' },
+  divider: { height: 1, backgroundColor: COLORS.gray200, marginVertical: 16 },
+  dividerText: { textAlign: 'center', color: COLORS.gray400, fontSize: 12, fontWeight: '600', marginVertical: -8 },
+  quickAddCard: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.gray200,
+  },
+  quickAddTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray900, marginBottom: 12 },
 });

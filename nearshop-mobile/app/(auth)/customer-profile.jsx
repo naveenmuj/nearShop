@@ -53,6 +53,10 @@ export default function CustomerProfileScreen() {
       quality: 0.7,
     });
     if (result.canceled) return;
+    if (!result.assets?.length) {
+      Toast.show({ type: 'error', text1: 'No image selected' });
+      return;
+    }
     const asset = result.assets[0];
 
     // Upload to backend

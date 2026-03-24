@@ -88,11 +88,22 @@ export default function RootLayout() {
   const requestLocation = useLocationStore((s) => s.requestLocation);
 
   useEffect(() => {
-    initialize();
-    initLocation().then(() => {
-      const { lat } = useLocationStore.getState();
-      if (!lat) requestLocation();
-    });
+    const init = async () => {
+      try {
+        // Initialize auth first
+        await initialize();
+        // Then initialize location
+        await initLocation();
+        // Finally check if location needs requesting
+        const { lat } = useLocationStore.getState();
+        if (!lat) {
+          await requestLocation();
+        }
+      } catch (err) {
+        console.error('Initialization error:', err);
+      }
+    };
+    init();
   }, []);
 
   return (

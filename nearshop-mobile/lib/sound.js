@@ -3,14 +3,14 @@
  * Uses AsyncStorage for preference; actual audio via expo-av when enabled.
  * Default: OFF (user must opt in).
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
-const STORAGE_KEY = '@nearshop_sound_enabled';
+const STORAGE_KEY = 'nearshop_sound_enabled';
 let _enabled = false;
 
 export async function initSound() {
   try {
-    const val = await AsyncStorage.getItem(STORAGE_KEY);
+    const val = await SecureStore.getItemAsync(STORAGE_KEY);
     _enabled = val === 'true';
   } catch {}
 }
@@ -22,7 +22,7 @@ export function isSoundEnabled() {
 export async function setSoundEnabled(val) {
   _enabled = Boolean(val);
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, _enabled ? 'true' : 'false');
+    await SecureStore.setItemAsync(STORAGE_KEY, _enabled ? 'true' : 'false');
   } catch {}
 }
 
