@@ -8,14 +8,18 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ShopCreate(BaseModel):
     name: str = Field(..., max_length=200)
+    description: Optional[str] = None
     category: Optional[str] = Field(None, max_length=50)
     subcategories: Optional[list[str]] = None
     phone: Optional[str] = Field(None, max_length=15)
     whatsapp: Optional[str] = Field(None, max_length=15)
+    email: Optional[str] = Field(None, max_length=255)
     address: Optional[str] = None
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     opening_hours: Optional[dict[str, Any]] = None
+    cover_image: Optional[str] = None
+    logo_url: Optional[str] = None
     delivery_options: Optional[list[str]] = None
     delivery_radius: Optional[int] = None
     delivery_fee: Optional[Decimal] = Field(None, ge=0, decimal_places=2)

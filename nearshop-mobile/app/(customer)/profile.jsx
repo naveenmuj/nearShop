@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
 import { switchRole as apiSwitchRole } from '../../lib/auth';
+import { isSoundEnabled, setSoundEnabled, initSound } from '../../lib/sound';
 import { COLORS, SHADOWS, formatDate } from '../../constants/theme';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -85,8 +86,18 @@ export default function ProfileScreen() {
   const { address } = useLocationStore();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [soundOn, setSoundOn] = useState(false);
 
   const locality = address || 'Location not set';
+
+  useEffect(() => {
+    initSound().then(() => setSoundOn(isSoundEnabled()));
+  }, []);
+
+  const handleSoundToggle = async (val) => {
+    setSoundOn(val);
+    await setSoundEnabled(val);
+  };
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -213,6 +224,18 @@ export default function ProfileScreen() {
             label="My Haggles"
             onPress={() => router.push('/(customer)/haggle')}
             right={<Chevron />}
+          />
+          <MenuRow
+            icon="🏆"
+            label="Achievements"
+            onPress={() => router.push('/(customer)/achievements')}
+            right={<Chevron />}
+          />
+          <MenuRow
+            icon="🎰"
+            label="Daily Spin"
+            onPress={() => router.push('/(customer)/spin')}
+            right={<Chevron />}
             isLast
           />
         </View>
@@ -249,6 +272,12 @@ export default function ProfileScreen() {
             label="Notifications"
             value={notificationsEnabled}
             onValueChange={setNotificationsEnabled}
+          />
+          <MenuRowSwitch
+            icon="🔊"
+            label="Sound Effects"
+            value={soundOn}
+            onValueChange={handleSoundToggle}
           />
           <MenuRow
             icon="📍"

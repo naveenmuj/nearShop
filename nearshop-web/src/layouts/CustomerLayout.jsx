@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom'
-import { Home, Search, Tag, Heart, User, MapPin, ChevronDown, Bell, ShoppingBag, LogOut, Settings, Repeat, Wallet, MessageSquare, Users } from 'lucide-react'
+import { Home, Search, Tag, Heart, User, MapPin, ChevronDown, Bell, ShoppingBag, LogOut, Settings, Repeat, Wallet, MessageSquare, Users, Trophy, Gift } from 'lucide-react'
 import NotificationBell from '../components/NotificationBell'
+import BackToTop from '../components/ui/BackToTop'
+import SearchSuggestions from '../components/SearchSuggestions'
 import { useAuthStore } from '../store/authStore'
 import { useLocationStore } from '../store/locationStore'
 import client from '../api/client'
@@ -56,24 +58,17 @@ export default function CustomerLayout() {
               <ChevronDown className="w-3 h-3 flex-shrink-0" />
             </button>
 
-            {/* Search bar (desktop) */}
+            {/* Search bar with suggestions (desktop) */}
             <div className="hidden md:flex flex-1 max-w-xl">
-              <div className="relative w-full" onClick={() => navigate('/app/search')}>
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  readOnly
-                  placeholder="Search products, shops, categories..."
-                  className="w-full h-10 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm cursor-pointer hover:border-brand-purple/30 focus:outline-none transition"
-                  onFocus={() => navigate('/app/search')}
-                />
-              </div>
+              <SearchSuggestions className="w-full" />
             </div>
 
             {/* Desktop nav links */}
             <nav className="hidden lg:flex items-center gap-1">
               {[
-                { to: '/app/home', label: 'Home' },
-                { to: '/app/deals', label: 'Deals' },
+                { to: '/app/home',    label: 'Home' },
+                { to: '/app/deals',   label: 'Deals' },
+                { to: '/app/spin',    label: '🎰 Spin' },
                 { to: '/app/community', label: 'Community' },
               ].map(n => (
                 <NavLink key={n.to} to={n.to}
@@ -108,12 +103,14 @@ export default function CustomerLayout() {
                       <p className="text-xs text-gray-400">{user?.phone || user?.email}</p>
                     </div>
                     {[
-                      { to: '/app/orders', icon: ShoppingBag, label: 'My Orders' },
-                      { to: '/app/wishlist', icon: Heart, label: 'Wishlist' },
-                      { to: '/app/wallet', icon: Wallet, label: 'Wallet & Coins' },
-                      { to: '/app/haggle', icon: MessageSquare, label: 'My Haggles' },
-                      { to: '/app/community', icon: Users, label: 'Community' },
-                      { to: '/app/profile', icon: Settings, label: 'Settings' },
+                      { to: '/app/orders',       icon: ShoppingBag,  label: 'My Orders' },
+                      { to: '/app/wishlist',      icon: Heart,        label: 'Wishlist' },
+                      { to: '/app/wallet',        icon: Wallet,       label: 'Wallet & Coins' },
+                      { to: '/app/achievements',  icon: Trophy,       label: 'Achievements' },
+                      { to: '/app/spin',          icon: Gift,         label: 'Daily Spin' },
+                      { to: '/app/haggle',        icon: MessageSquare, label: 'My Haggles' },
+                      { to: '/app/community',     icon: Users,        label: 'Community' },
+                      { to: '/app/profile',       icon: Settings,     label: 'Settings' },
                     ].map(item => (
                       <Link key={item.to} to={item.to} onClick={() => setProfileOpen(false)}
                         className="flex items-center gap-3 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition">
@@ -199,11 +196,11 @@ export default function CustomerLayout() {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex justify-around py-1.5">
           {[
-            { to: '/app/home', icon: Home, label: 'Home' },
-            { to: '/app/search', icon: Search, label: 'Search' },
-            { to: '/app/deals', icon: Tag, label: 'Deals' },
+            { to: '/app/home',    icon: Home,   label: 'Home' },
+            { to: '/app/search',  icon: Search, label: 'Search' },
+            { to: '/app/deals',   icon: Tag,    label: 'Deals' },
             { to: '/app/wishlist', icon: Heart, label: 'Wishlist' },
-            { to: '/app/profile', icon: User, label: 'Profile' },
+            { to: '/app/profile', icon: User,   label: 'Profile' },
           ].map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to}
               className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[48px] transition ${isActive ? 'text-brand-purple' : 'text-gray-400'}`}>
@@ -219,6 +216,9 @@ export default function CustomerLayout() {
       </nav>
       {/* Spacer for mobile bottom nav */}
       <div className="md:hidden h-16" />
+
+      {/* ── FLOATING UI ──────────────────────────────────────── */}
+      <BackToTop />
     </div>
   )
 }

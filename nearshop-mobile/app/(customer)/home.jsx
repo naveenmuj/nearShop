@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  TextInput,
   RefreshControl,
   ActivityIndicator,
   StatusBar,
@@ -26,6 +25,7 @@ import ShopCard from '../../components/ShopCard';
 import ProductCard from '../../components/ProductCard';
 import DealCard from '../../components/DealCard';
 import LocationPicker from '../../components/LocationPicker';
+import RecentlyViewed from '../../components/RecentlyViewed';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const CATEGORIES = [
@@ -270,6 +270,9 @@ export default function HomeScreen() {
             />
           </View>
         )}
+
+        {/* ── Recently Viewed ─────────────────────────────────────── */}
+        <RecentlyViewed />
 
         <View style={styles.bottomSpacing} />
       </ScrollView>

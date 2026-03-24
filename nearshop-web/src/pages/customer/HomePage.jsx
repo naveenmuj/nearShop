@@ -10,6 +10,8 @@ import { getCategories } from '../../api/categories'
 import { searchProducts } from '../../api/products'
 import StoryCircle from '../../components/StoryCircle'
 import EmptyState from '../../components/ui/EmptyState'
+import ScrollReveal from '../../components/ui/ScrollReveal'
+import RecentlyViewed from '../../components/RecentlyViewed'
 
 const CATEGORY_ICONS = {
   food: '🍔', grocery: '🛒', pharmacy: '💊', electronics: '📱',
@@ -61,11 +63,13 @@ export default function HomePage() {
   return (
     <div className="space-y-8">
       {/* Hero / Greeting */}
-      <div className="bg-gradient-to-r from-brand-purple to-[#38BDF8] rounded-2xl p-6 lg:p-8 text-white">
-        <p className="text-sm opacity-80">{greeting()},</p>
-        <h1 className="text-2xl lg:text-3xl font-extrabold mt-1">{firstName} 👋</h1>
-        <p className="text-sm opacity-70 mt-2 max-w-md">Discover amazing products and shops near you</p>
-      </div>
+      <ScrollReveal direction="up">
+        <div className="bg-gradient-to-r from-brand-purple to-[#38BDF8] rounded-2xl p-6 lg:p-8 text-white">
+          <p className="text-sm opacity-80">{greeting()},</p>
+          <h1 className="text-2xl lg:text-3xl font-extrabold mt-1">{firstName} 👋</h1>
+          <p className="text-sm opacity-70 mt-2 max-w-md">Discover amazing products and shops near you</p>
+        </div>
+      </ScrollReveal>
 
       {/* Stories (if any) */}
       {isAuthenticated && stories.length > 0 && (
@@ -81,137 +85,152 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* Recently Viewed */}
+      {isAuthenticated && <RecentlyViewed />}
+
       {/* Categories — desktop: row of cards, mobile: scroll */}
       {categories.length > 0 && (
-        <section>
-          <h2 className="text-lg font-bold text-gray-900 mb-3">Browse Categories</h2>
-          <div className="flex gap-2 lg:gap-3 overflow-x-auto lg:overflow-visible lg:flex-wrap pb-1">
-            {categories.map(cat => {
-              const icon = CATEGORY_ICONS[String(cat.name).toLowerCase()] ?? CATEGORY_ICONS.default
-              return (
-                <button key={cat.slug ?? cat.id} onClick={() => navigate(`/app/search?category=${cat.slug ?? cat.id}`)}
-                  className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand-purple hover:text-brand-purple hover:shadow-sm transition">
-                  <span className="text-lg">{icon}</span> {cat.name}
-                </button>
-              )
-            })}
-          </div>
-        </section>
+        <ScrollReveal direction="up" delay={50}>
+          <section>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Browse Categories</h2>
+            <div className="flex gap-2 lg:gap-3 overflow-x-auto lg:overflow-visible lg:flex-wrap pb-1">
+              {categories.map(cat => {
+                const icon = CATEGORY_ICONS[String(cat.name).toLowerCase()] ?? CATEGORY_ICONS.default
+                return (
+                  <button key={cat.slug ?? cat.id} onClick={() => navigate(`/app/search?category=${cat.slug ?? cat.id}`)}
+                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand-purple hover:text-brand-purple hover:shadow-sm transition">
+                    <span className="text-lg">{icon}</span> {cat.name}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        </ScrollReveal>
       )}
 
       {/* Live Deals */}
       {deals.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-brand-red fill-brand-red" />
-              <h2 className="text-lg font-bold text-gray-900">Live Deals</h2>
-              <span className="w-2 h-2 bg-brand-red rounded-full animate-pulse" />
-            </div>
-            <button onClick={() => navigate('/app/deals')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
-              View all <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {deals.map(deal => (
-              <button key={deal.id} onClick={() => navigate('/app/deals')}
-                className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-left group">
-                <div className="bg-gradient-to-br from-brand-red to-brand-coral p-3 lg:p-4">
-                  <span className="text-white text-lg lg:text-xl font-extrabold">
-                    {deal.discount_percent ? `${deal.discount_percent}% OFF` : '🔥 Deal'}
-                  </span>
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-semibold text-gray-800 line-clamp-2">{deal.title ?? deal.name}</p>
-                  <p className="text-xs text-gray-400 mt-1 truncate">{deal.shop_name ?? ''}</p>
-                </div>
+        <ScrollReveal direction="up" delay={100}>
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-brand-red fill-brand-red" />
+                <h2 className="text-lg font-bold text-gray-900">Live Deals</h2>
+                <span className="w-2 h-2 bg-brand-red rounded-full animate-pulse" />
+              </div>
+              <button onClick={() => navigate('/app/deals')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
+                View all <ChevronRight className="w-4 h-4" />
               </button>
-            ))}
-          </div>
-        </section>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {deals.map(deal => (
+                <button key={deal.id} onClick={() => navigate('/app/deals')}
+                  className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all text-left group">
+                  <div className="bg-gradient-to-br from-brand-red to-brand-coral p-3 lg:p-4">
+                    <span className="text-white text-lg lg:text-xl font-extrabold">
+                      {deal.discount_percent ? `${deal.discount_percent}% OFF` : '🔥 Deal'}
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-gray-800 line-clamp-2">{deal.title ?? deal.name}</p>
+                    <p className="text-xs text-gray-400 mt-1 truncate">{deal.shop_name ?? ''}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </ScrollReveal>
       )}
 
       {/* Nearby Shops */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-900">Nearby Shops</h2>
-          <button onClick={() => navigate('/app/shops/map')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
-            Map view <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-        {loading && <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{Array.from({length:8}).map((_,i) => <div key={i} className="bg-white rounded-xl h-48 animate-pulse" />)}</div>}
-        {!loading && shops.length === 0 && <EmptyState icon={Store} title="No shops nearby" message="There are no shops in your area yet." />}
-        {!loading && shops.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-            {shops.map(shop => (
-              <button key={shop.id} onClick={() => navigate(`/app/shop/${shop.id}`)}
-                className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
-                <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-                  {(shop.image || shop.cover_image) ? (
-                    <img src={shop.image ?? shop.cover_image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl text-gray-200">🏪</div>
-                  )}
-                  {shop.avg_rating > 0 && (
-                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-lg">
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <span className="text-xs font-bold text-gray-800">{Number(shop.avg_rating).toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{shop.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{shop.category}</p>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
-                    {shop.total_products > 0 && <span>{shop.total_products} products</span>}
-                  </div>
-                </div>
-              </button>
-            ))}
+      <ScrollReveal direction="up" delay={150}>
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">Nearby Shops</h2>
+            <button onClick={() => navigate('/app/shops/map')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
+              Map view <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-        )}
-      </section>
+          {loading && <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{Array.from({length:8}).map((_,i) => <div key={i} className="bg-white rounded-xl h-48 skeleton-shimmer" />)}</div>}
+          {!loading && shops.length === 0 && <EmptyState icon={Store} title="No shops nearby" message="There are no shops in your area yet." />}
+          {!loading && shops.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+              {shops.map((shop, i) => (
+                <ScrollReveal key={shop.id} direction="up" delay={i * 40}>
+                  <button onClick={() => navigate(`/app/shop/${shop.id}`)}
+                    className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
+                    <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
+                      {(shop.image || shop.cover_image) ? (
+                        <img src={shop.image ?? shop.cover_image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl text-gray-200">🏪</div>
+                      )}
+                      {shop.avg_rating > 0 && (
+                        <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-lg">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span className="text-xs font-bold text-gray-800">{Number(shop.avg_rating).toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{shop.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{shop.category}</p>
+                      <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
+                        {shop.total_products > 0 && <span>{shop.total_products} products</span>}
+                      </div>
+                    </div>
+                  </button>
+                </ScrollReveal>
+              ))}
+            </div>
+          )}
+        </section>
+      </ScrollReveal>
 
       {/* Trending Products */}
       {products.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-gray-900">Trending Products</h2>
-            <button onClick={() => navigate('/app/search')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
-              Browse all <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4">
-            {products.map(product => {
-              const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
-              return (
-                <button key={product.id} onClick={() => navigate(`/app/product/${product.id}`)}
-                  className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
-                  <div className="aspect-square bg-gray-50 relative overflow-hidden">
-                    {product.images?.[0] ? (
-                      <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-200" /></div>
-                    )}
-                    {discount && (
-                      <span className="absolute top-2 left-2 bg-brand-red text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{discount}% OFF</span>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{product.name}</p>
-                    <div className="flex items-baseline gap-1.5 mt-1.5">
-                      <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
-                      {product.compare_price && product.price && Number(product.compare_price) > Number(product.price) && (
-                        <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>
-                      )}
-                    </div>
-                    {product.shop_name && <p className="text-xs text-gray-400 mt-1 truncate">🏪 {product.shop_name}</p>}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </section>
+        <ScrollReveal direction="up" delay={200}>
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900">Trending Products</h2>
+              <button onClick={() => navigate('/app/search')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
+                Browse all <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4">
+              {products.map((product, i) => {
+                const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
+                return (
+                  <ScrollReveal key={product.id} direction="up" delay={i * 30}>
+                    <button onClick={() => navigate(`/app/product/${product.id}`)}
+                      className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
+                      <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                        {product.images?.[0] ? (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-200" /></div>
+                        )}
+                        {discount && (
+                          <span className="absolute top-2 left-2 bg-brand-red text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{discount}% OFF</span>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{product.name}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1.5">
+                          <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
+                          {product.compare_price && product.price && Number(product.compare_price) > Number(product.price) && (
+                            <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>
+                          )}
+                        </div>
+                        {product.shop_name && <p className="text-xs text-gray-400 mt-1 truncate">🏪 {product.shop_name}</p>}
+                      </div>
+                    </button>
+                  </ScrollReveal>
+                )
+              })}
+            </div>
+          </section>
+        </ScrollReveal>
       )}
     </div>
   )

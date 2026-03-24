@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,10 @@ from app.auth.service import AuthService
 from app.core.exceptions import BadRequestError
 from app.core.firebase import verify_firebase_token
 from app.core.security import create_access_token
+
+
+class UserSettingsRequest(BaseModel):
+    sound_enabled: bool
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -75,6 +80,19 @@ async def update_profile(
 ):
     user = await AuthService.update_profile(db, current_user.id, body)
     return UserResponse.model_validate(user)
+
+
+@router.patch("/settings", response_model=UserResponse)
+async def update_settings(
+    body: UserSettingsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update user settings (e.g. sound_enabled)."""
+    current_user.sound_enabled = body.sound_enabled
+    await db.flush()
+    await db.refresh(current_user)
+    return UserResponse.model_validate(current_user)
 
 
 @router.post("/firebase-signin")

@@ -1,7 +1,8 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, formatPrice } from '../constants/theme';
+import WishlistHeart from './WishlistHeart';
+import DealCountdown from './DealCountdown';
 
 const PLACEHOLDER = 'https://placehold.co/200x200/eee/999?text=📦';
 
@@ -31,17 +32,12 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
           </View>
         )}
         {onWishlistToggle && (
-          <TouchableOpacity
-            onPress={() => onWishlistToggle(product.id)}
+          <WishlistHeart
+            isWishlisted={!!isWishlisted}
+            onToggle={() => onWishlistToggle(product.id)}
+            size={32}
             style={styles.wishlistBtn}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Ionicons
-              name={isWishlisted ? 'heart' : 'heart-outline'}
-              size={18}
-              color={isWishlisted ? COLORS.red : COLORS.gray400}
-            />
-          </TouchableOpacity>
+          />
         )}
       </View>
       <View style={styles.info}>
@@ -57,6 +53,9 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
             {product.shop_name}
             {product.distance ? ` · ${product.distance}` : ''}
           </Text>
+        )}
+        {product.deal_ends_at && (
+          <DealCountdown dealEndsAt={product.deal_ends_at} compact />
         )}
       </View>
     </TouchableOpacity>

@@ -8,7 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice, formatDate } from '../../../constants/theme';
 import { getProduct, getSimilarProducts } from '../../../lib/products';
+import DealCountdown from '../../../components/DealCountdown';
 import { addToWishlist, removeFromWishlist } from '../../../lib/wishlists';
+import { trackView } from '../../../lib/engagement';
 import { startHaggle } from '../../../lib/haggle';
 import { createOrder } from '../../../lib/orders';
 import useAuthStore from '../../../store/authStore';
@@ -201,6 +203,8 @@ export default function ProductDetailScreen() {
         ]);
         if (pRes.status === 'fulfilled') setProduct(pRes.value.data);
         if (sRes.status === 'fulfilled') setSimilar(sRes.value.data?.items ?? sRes.value.data ?? []);
+        // Track this product view for recently viewed
+        trackView(id).catch(() => {});
       } finally {
         setIsLoading(false);
       }
@@ -227,7 +231,7 @@ export default function ProductDetailScreen() {
     try {
       await createOrder({
         shop_id: product.shop_id,
-        items: [{ product_id: product.id, quantity: 1 }],
+        items: [{ product_id: product.id, quantity: 1, price: product.price }],
       });
       Alert.alert('Order placed!', 'Your order has been sent to the shop.', [
         { text: 'View Orders', onPress: () => router.push('/(customer)/orders') },
@@ -323,6 +327,13 @@ export default function ProductDetailScreen() {
               </>
             ) : null}
           </View>
+
+          {/* Deal Countdown */}
+          {product.deal_ends_at ? (
+            <View style={styles.dealCountdownWrap}>
+              <DealCountdown dealEndsAt={product.deal_ends_at} compact={false} />
+            </View>
+          ) : null}
 
           {/* Shop info */}
           <Pressable
@@ -515,6 +526,9 @@ const styles = StyleSheet.create({
   },
   simName: { fontSize: 12, fontWeight: '600', color: COLORS.gray800, marginBottom: 4, lineHeight: 16 },
   simPrice: { fontSize: 13, fontWeight: '700', color: COLORS.green },
+  dealCountdownWrap: {
+    marginBottom: 16,
+  },
   stickyBar: {
     backgroundColor: COLORS.white, borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.gray200,

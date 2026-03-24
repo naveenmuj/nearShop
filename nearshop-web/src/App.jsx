@@ -30,7 +30,9 @@ const WalletPage = lazy(() => import('./pages/customer/WalletPage'))
 const HagglePage = lazy(() => import('./pages/customer/HagglePage'))
 const ShopsMapPage = lazy(() => import('./pages/customer/ShopsMapPage'))
 const CategoriesPage = lazy(() => import('./pages/customer/CategoriesPage'))
-const NotificationsPage = lazy(() => import('./pages/customer/NotificationsPage'))
+const NotificationsPage  = lazy(() => import('./pages/customer/NotificationsPage'))
+const AchievementsPage  = lazy(() => import('./pages/customer/AchievementsPage'))
+const SpinWheelPage     = lazy(() => import('./pages/customer/SpinWheelPage'))
 
 // Admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
@@ -145,7 +147,9 @@ export default function App() {
           <Route path="haggle" element={<HagglePage />} />
           <Route path="shops/map" element={<ShopsMapPage />} />
           <Route path="categories" element={<CategoriesPage />} />
-          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="notifications"  element={<NotificationsPage />} />
+          <Route path="achievements"   element={<AchievementsPage />} />
+          <Route path="spin"           element={<SpinWheelPage />} />
         </Route>
 
         {/* Business */}

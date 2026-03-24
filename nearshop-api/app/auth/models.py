@@ -6,6 +6,7 @@ from sqlalchemy import (
     Float,
     Text,
     DateTime,
+    Date,
     ForeignKey,
     text,
     ARRAY,
@@ -41,6 +42,10 @@ class User(Base):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
     is_active = Column(Boolean, server_default=text("true"), nullable=False)
+    # Added by migration a1b2c3d4e5f6 (Features 15 & 16)
+    daily_spin_streak = Column(Integer, server_default=text("0"), nullable=True)
+    last_spin_date = Column(Date, nullable=True)
+    sound_enabled = Column(Boolean, server_default=text("false"), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -136,6 +141,8 @@ class SearchLog(Base):
     longitude = Column(Float, nullable=True)
     results_count = Column(Integer, nullable=True)
     clicked_ids = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+    # Added by migration a1b2c3d4e5f6 (Feature 5) — short-form query field
+    query = Column(String(255), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ShoppingBag, Heart, Share2, Lock, MessageSquare, ChevronRight, Star, MapPin, Store } from 'lucide-react'
+import { ShoppingBag, Share2, Lock, MessageSquare, ChevronRight, Star, MapPin, Store } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getProduct, getSimilarProducts } from '../../api/products'
-import { addToWishlist, removeFromWishlist } from '../../api/wishlists'
 import { createReservation } from '../../api/reservations'
 import { startHaggle } from '../../api/haggle'
 import { trackEvent } from '../../api/analytics'
+import { trackView } from '../../api/engagement'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
+import WishlistHeart from '../../components/WishlistHeart'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
@@ -20,7 +21,6 @@ export default function ProductDetailPage() {
   const [similar, setSimilar] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [isWishlisted, setIsWishlisted] = useState(false)
   const [isHeld, setIsHeld] = useState(false)
   const [haggleSession, setHaggleSession] = useState(null)
   const [showHaggleModal, setShowHaggleModal] = useState(false)
@@ -34,6 +34,7 @@ export default function ProductDetailPage() {
       const { data } = await getProduct(productId)
       setProduct(data)
       trackEvent({ event_type: 'view', entity_type: 'product', entity_id: productId }).catch(() => {})
+      trackView(productId).catch(() => {})
       try { const { data: simData } = await getSimilarProducts(productId); setSimilar(simData.items || simData || []) } catch {}
     } catch (err) { setError(err.message || 'Failed to load product') } finally { setLoading(false) }
   }
@@ -57,13 +58,6 @@ export default function ProductDetailPage() {
     if (!offerAmount || isNaN(parseFloat(offerAmount))) { toast.error('Enter a valid offer amount'); return }
     try { const { data } = await startHaggle({ product_id: product.id, offer_amount: parseFloat(offerAmount) }); toast.success('Offer sent!'); setHaggleSession(data); setShowHaggleModal(false) }
     catch (err) { toast.error(err.response?.data?.detail || 'Failed to send offer') }
-  }
-
-  const handleWishlistToggle = async () => {
-    try {
-      if (isWishlisted) { await removeFromWishlist(product.id); setIsWishlisted(false); toast.success('Removed') }
-      else { await addToWishlist(product.id); setIsWishlisted(true); toast.success('Added to wishlist') }
-    } catch { toast.error('Failed to update wishlist') }
   }
 
   const handleShare = () => {
@@ -192,10 +186,14 @@ export default function ProductDetailPage() {
                 </button>
               </div>
               <div className="flex gap-2">
-                <button onClick={handleWishlistToggle}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition ${isWishlisted ? 'bg-red-50 border-red-200 text-brand-red' : 'border-gray-200 text-gray-600 hover:border-brand-purple hover:text-brand-purple'}`}>
-                  <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} /> {isWishlisted ? 'Saved' : 'Wishlist'}
-                </button>
+                <div className="flex-1 flex items-center justify-center border border-gray-200 rounded-xl py-2.5">
+                  <WishlistHeart
+                    productId={product.id}
+                    initialWishlisted={product.is_wishlisted ?? false}
+                    size="md"
+                  />
+                  <span className="text-sm font-medium text-gray-600 ml-1">Wishlist</span>
+                </div>
                 <button onClick={handleShare}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-purple hover:text-brand-purple transition">
                   <Share2 className="w-4 h-4" /> Share

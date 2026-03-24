@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class OrderItemSchema(BaseModel):
     product_id: UUID
     quantity: int
-    price: float
+    price: Optional[float] = None
 
 
 class OrderCreate(BaseModel):
@@ -29,6 +29,8 @@ class OrderResponse(BaseModel):
     id: UUID
     order_number: str
     customer_id: UUID
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
     shop_id: UUID
     items: list[dict]
     subtotal: Optional[Decimal] = None

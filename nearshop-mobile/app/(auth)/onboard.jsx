@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet,
+  ScrollView, StyleSheet, Image, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
-import { completeProfile } from '../../lib/auth';
+import { completeProfile, uploadFile } from '../../lib/auth';
 import { createShop } from '../../lib/shops';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
@@ -22,16 +23,35 @@ const SHOP_CATEGORIES = [
   'Electronics', 'Clothing', 'Grocery', 'Food', 'Home', 'Beauty', 'Other',
 ];
 
+const DELIVERY_OPTIONS = [
+  { label: 'Pickup', value: 'pickup' },
+  { label: 'Home Delivery', value: 'delivery' },
+  { label: 'Both', value: 'both' },
+];
+
 export default function OnboardScreen() {
   const { role } = useLocalSearchParams();
-  const [name, setName] = useState('');
-  const [interests, setInterests] = useState([]);
-  const [shopName, setShopName] = useState('');
-  const [shopCat, setShopCat] = useState('');
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { updateUser } = useAuthStore();
-  const { lat, lng } = useLocationStore();
+  const { lat, lng, address: locationAddress } = useLocationStore();
+
+  // Customer fields
+  const [name, setName] = useState('');
+  const [interests, setInterests] = useState([]);
+
+  // Business fields
+  const [ownerName, setOwnerName] = useState('');
+  const [shopName, setShopName] = useState('');
+  const [shopCat, setShopCat] = useState('');
+  const [description, setDescription] = useState('');
+  const [phone, setPhone] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [shopAddress, setShopAddress] = useState(locationAddress || '');
+  const [logoUri, setLogoUri] = useState(null);
+  const [deliveryOption, setDeliveryOption] = useState('pickup');
+
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState(1); // Business: 2 steps
 
   const toggleInterest = (item) => {
     setInterests((prev) =>
@@ -39,20 +59,44 @@ export default function OnboardScreen() {
     );
   };
 
+  const pickLogo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow photo access to upload a shop logo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setLogoUri(result.assets[0].uri);
+    }
+  };
+
   const handleComplete = async () => {
     if (role === 'customer' && (!name.trim() || interests.length < 3)) {
       Toast.show({ type: 'error', text1: 'Add your name and pick at least 3 interests' });
       return;
     }
-    if (role === 'business' && (!shopName.trim() || !shopCat)) {
-      Toast.show({ type: 'error', text1: 'Enter shop name and pick a category' });
-      return;
+    if (role === 'business') {
+      if (!ownerName.trim() || !shopName.trim() || !shopCat) {
+        Toast.show({ type: 'error', text1: 'Please fill all required fields' });
+        return;
+      }
+      if (!phone.trim()) {
+        Toast.show({ type: 'error', text1: 'Phone number is required for business' });
+        return;
+      }
     }
 
     setLoading(true);
     try {
+      const profileName = role === 'customer' ? name.trim() : ownerName.trim();
       const { data } = await completeProfile({
-        name: role === 'customer' ? name.trim() : shopName.trim(),
+        name: profileName,
         role,
         interests: role === 'customer' ? interests : [],
       });
@@ -60,18 +104,37 @@ export default function OnboardScreen() {
       await updateUser(user);
 
       if (role === 'business') {
-        // latitude & longitude are required by the backend schema
+        // Upload logo if picked
+        let logoUrl = null;
+        if (logoUri) {
+          try {
+            const uploadRes = await uploadFile(logoUri, 'shops');
+            logoUrl = uploadRes?.data?.url || uploadRes?.data?.file_url || null;
+          } catch {
+            // Logo upload failed — continue without it
+          }
+        }
+
+        const deliveryOpts =
+          deliveryOption === 'both' ? ['pickup', 'delivery'] : [deliveryOption];
+
         await createShop({
           name: shopName.trim(),
           category: shopCat,
-          latitude: lat ?? 12.9352,   // fallback: Koramangala, Bangalore
+          description: description.trim() || undefined,
+          phone: phone.trim(),
+          whatsapp: whatsapp.trim() || undefined,
+          address: shopAddress.trim() || undefined,
+          logo_url: logoUrl || undefined,
+          delivery_options: deliveryOpts,
+          latitude: lat ?? 12.9352,
           longitude: lng ?? 77.6245,
         });
       }
 
       Toast.show({
         type: 'success',
-        text1: role === 'customer' ? '🎉 Welcome to NearShop!' : '🏪 Shop created!',
+        text1: role === 'customer' ? 'Welcome to NearShop!' : 'Shop created successfully!',
       });
       router.replace(role === 'business' ? '/(business)/dashboard' : '/(customer)/home');
     } catch (err) {
@@ -95,88 +158,127 @@ export default function OnboardScreen() {
     </TouchableOpacity>
   );
 
-  const canSubmit = role === 'customer'
-    ? name.trim().length > 0 && interests.length >= 3
-    : shopName.trim().length > 0 && shopCat.length > 0;
+  // Customer mode
+  if (role === 'customer') {
+    const canSubmit = name.trim().length > 0 && interests.length >= 3;
+    return (
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Tell us about yourself</Text>
+          <Text style={styles.subtitle}>Personalize your experience by sharing your interests</Text>
 
+          <Text style={styles.label}>Your name</Text>
+          <TextInput value={name} onChangeText={setName} placeholder="e.g. Priya Sharma" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
+
+          <Text style={styles.label}>What do you love? <Text style={styles.hint}>(pick 3+)</Text></Text>
+          <View style={styles.chips}>
+            {INTERESTS.map((item) => (
+              <Chip key={item} label={item} selected={interests.includes(item)} onPress={() => toggleInterest(item)} />
+            ))}
+          </View>
+
+          <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
+            style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>
+            <Text style={[styles.btnText, { color: canSubmit ? COLORS.white : COLORS.gray400 }]}>
+              {loading ? 'Setting up…' : 'Start Exploring'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Business mode — Step 1: Basic Info
+  if (step === 1) {
+    const canNext = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length > 0 && phone.trim().length >= 10;
+    return (
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Set up your shop</Text>
+          <Text style={styles.subtitle}>Get online in under 2 minutes</Text>
+
+          <Text style={styles.label}>Your name *</Text>
+          <TextInput value={ownerName} onChangeText={setOwnerName} placeholder="e.g. Ramesh Kumar" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
+
+          <Text style={styles.label}>Shop name *</Text>
+          <TextInput value={shopName} onChangeText={setShopName} placeholder="e.g. Ramesh Electronics" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
+
+          <Text style={styles.label}>Category *</Text>
+          <View style={styles.chips}>
+            {SHOP_CATEGORIES.map((cat) => (
+              <Chip key={cat} label={cat} selected={shopCat === cat} onPress={() => setShopCat(cat)} />
+            ))}
+          </View>
+
+          <Text style={styles.label}>Phone number *</Text>
+          <TextInput value={phone} onChangeText={setPhone} placeholder="e.g. 9876543210" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="phone-pad" maxLength={15} />
+
+          <Text style={styles.label}>WhatsApp number <Text style={styles.hint}>(optional)</Text></Text>
+          <TextInput value={whatsapp} onChangeText={setWhatsapp} placeholder="Same as phone or different" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="phone-pad" maxLength={15} />
+
+          <TouchableOpacity onPress={() => setStep(2)} disabled={!canNext} activeOpacity={0.85}
+            style={[styles.btn, { backgroundColor: canNext ? COLORS.primary : COLORS.gray200 }]}>
+            <Text style={[styles.btnText, { color: canNext ? COLORS.white : COLORS.gray400 }]}>
+              Next: Shop Details →
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Business mode — Step 2: Additional Details
+  const canSubmit = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length > 0 && phone.trim().length >= 10;
   return (
     <SafeAreaView style={styles.container}>
-      {/* Back button */}
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Text style={styles.backText}>← Back</Text>
       </TouchableOpacity>
-
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>
-          {role === 'customer' ? 'Tell us about yourself' : 'Set up your shop'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {role === 'customer'
-            ? 'Personalize your experience by sharing your interests'
-            : 'Get online in under 2 minutes'}
-        </Text>
+        <Text style={styles.title}>Almost done!</Text>
+        <Text style={styles.subtitle}>Add more details to help customers find you</Text>
 
-        {role === 'customer' ? (
-          <>
-            <Text style={styles.label}>Your name</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Priya Sharma"
-              placeholderTextColor={COLORS.gray400}
-              style={styles.input}
-              autoCapitalize="words"
-            />
-
-            <Text style={styles.label}>
-              What do you love? <Text style={styles.hint}>(pick 3+)</Text>
-            </Text>
-            <View style={styles.chips}>
-              {INTERESTS.map((item) => (
-                <Chip
-                  key={item} label={item}
-                  selected={interests.includes(item)}
-                  onPress={() => toggleInterest(item)}
-                />
-              ))}
+        {/* Logo upload */}
+        <Text style={styles.label}>Shop logo <Text style={styles.hint}>(optional)</Text></Text>
+        <TouchableOpacity style={styles.logoUpload} onPress={pickLogo} activeOpacity={0.8}>
+          {logoUri ? (
+            <Image source={{ uri: logoUri }} style={styles.logoImage} />
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <Text style={styles.logoPlaceholderIcon}>📷</Text>
+              <Text style={styles.logoPlaceholderText}>Tap to upload</Text>
             </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.label}>Shop name</Text>
-            <TextInput
-              value={shopName}
-              onChangeText={setShopName}
-              placeholder="e.g. Ramesh Electronics"
-              placeholderTextColor={COLORS.gray400}
-              style={styles.input}
-              autoCapitalize="words"
-            />
+          )}
+        </TouchableOpacity>
 
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.chips}>
-              {SHOP_CATEGORIES.map((cat) => (
-                <Chip
-                  key={cat} label={cat}
-                  selected={shopCat === cat}
-                  onPress={() => setShopCat(cat)}
-                />
-              ))}
-            </View>
-          </>
-        )}
+        <Text style={styles.label}>Shop description <Text style={styles.hint}>(optional)</Text></Text>
+        <TextInput value={description} onChangeText={setDescription} placeholder="What does your shop sell? Tell customers about your speciality..." placeholderTextColor={COLORS.gray400} style={[styles.input, styles.textarea]} multiline textAlignVertical="top" />
 
-        <TouchableOpacity
-          onPress={handleComplete}
-          disabled={loading || !canSubmit}
-          activeOpacity={0.85}
-          style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}
-        >
+        <Text style={styles.label}>Shop address <Text style={styles.hint}>(optional)</Text></Text>
+        <TextInput value={shopAddress} onChangeText={setShopAddress} placeholder="e.g. 42, MG Road, Bangalore" placeholderTextColor={COLORS.gray400} style={styles.input} />
+
+        <Text style={styles.label}>Delivery options</Text>
+        <View style={styles.chips}>
+          {DELIVERY_OPTIONS.map((opt) => (
+            <Chip key={opt.value} label={opt.label} selected={deliveryOption === opt.value} onPress={() => setDeliveryOption(opt.value)} />
+          ))}
+        </View>
+
+        <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
+          style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>
           <Text style={[styles.btnText, { color: canSubmit ? COLORS.white : COLORS.gray400 }]}>
-            {loading
-              ? 'Setting up…'
-              : role === 'customer' ? 'Start Exploring 🎉' : 'Create My Shop 🏪'}
+            {loading ? 'Creating shop…' : 'Create My Shop 🏪'}
           </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleComplete} disabled={loading} style={styles.skipBtn}>
+          <Text style={styles.skipText}>Skip details for now</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -195,9 +297,10 @@ const styles = StyleSheet.create({
   input: {
     height: 52, paddingHorizontal: 16, fontSize: 16, color: COLORS.gray900,
     backgroundColor: COLORS.white, borderRadius: 14, borderWidth: 1,
-    borderColor: COLORS.gray200, marginBottom: 24,
+    borderColor: COLORS.gray200, marginBottom: 20,
   },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 32 },
+  textarea: { height: 100, paddingTop: 14, textAlignVertical: 'top' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24,
     backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.gray200,
@@ -210,4 +313,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 8,
   },
   btnText: { fontSize: 16, fontWeight: '700' },
+  logoUpload: {
+    width: 100, height: 100, borderRadius: 16, borderWidth: 2, borderStyle: 'dashed',
+    borderColor: COLORS.gray300, backgroundColor: COLORS.white, overflow: 'hidden',
+    marginBottom: 24, justifyContent: 'center', alignItems: 'center',
+  },
+  logoImage: { width: '100%', height: '100%' },
+  logoPlaceholder: { alignItems: 'center' },
+  logoPlaceholderIcon: { fontSize: 28, marginBottom: 4 },
+  logoPlaceholderText: { fontSize: 11, color: COLORS.gray400 },
+  skipBtn: { marginTop: 16, alignItems: 'center', paddingVertical: 12 },
+  skipText: { fontSize: 14, color: COLORS.gray400, textDecorationLine: 'underline' },
 });

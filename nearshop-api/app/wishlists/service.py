@@ -125,7 +125,7 @@ async def check_price_drops(
     db: AsyncSession,
     user_id: UUID,
 ) -> list[dict]:
-    """Return wishlist items where the current price dropped >= 5% or >= 50 compared to price_at_save."""
+    """Return wishlist items where the current price dropped >= 5% or >= Rs.50 compared to price_at_save."""
     result = await db.execute(
         select(Wishlist, Product)
         .join(Product, Wishlist.product_id == Product.id)
@@ -139,7 +139,9 @@ async def check_price_drops(
     )
     rows = result.all()
 
-    drops = []
+    # Collect products with price drops
+    drop_candidates = []
+    shop_ids = set()
     for wishlist_entry, product in rows:
         saved_price = float(wishlist_entry.price_at_save)
         current_price = float(product.price)
@@ -150,15 +152,28 @@ async def check_price_drops(
         drop_percentage = (drop_amount / saved_price) * 100
 
         if drop_amount >= 50 or drop_percentage >= 5:
-            drops.append({
-                "product_id": product.id,
-                "name": product.name,
-                "images": product.images or [],
-                "saved_price": saved_price,
-                "current_price": current_price,
-                "drop_amount": round(drop_amount, 2),
-                "drop_percentage": round(drop_percentage, 2),
-                "shop_id": product.shop_id,
-            })
+            shop_ids.add(product.shop_id)
+            drop_candidates.append((product, saved_price, current_price, drop_amount, drop_percentage))
+
+    # Batch fetch shop names
+    shops_map = {}
+    if shop_ids:
+        shops_result = await db.execute(select(Shop).where(Shop.id.in_(list(shop_ids))))
+        shops_map = {s.id: s for s in shops_result.scalars().all()}
+
+    drops = []
+    for product, saved_price, current_price, drop_amount, drop_percentage in drop_candidates:
+        shop = shops_map.get(product.shop_id)
+        drops.append({
+            "product_id": product.id,
+            "product_name": product.name,
+            "image": (product.images or [None])[0],
+            "old_price": saved_price,
+            "price": current_price,
+            "drop_amount": round(drop_amount, 2),
+            "drop_percentage": round(drop_percentage, 2),
+            "shop_id": product.shop_id,
+            "shop_name": shop.name if shop else "",
+        })
 
     return drops

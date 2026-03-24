@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NETWORK_LOGGER_ENABLED } from '../constants/debugConfig';
 import useAuthStore from '../store/authStore';
 import useLocationStore from '../store/locationStore';
+import { ToastProvider } from '../components/ui/Toast';
+import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogProvider';
 
 if (NETWORK_LOGGER_ENABLED) {
   startNetworkLogging();
@@ -94,17 +96,19 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(customer)" />
-        <Stack.Screen name="(business)" />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
-      </Stack>
-      <Toast />
-      <NetworkLoggerOverlay />
-    </>
+    <ToastProvider>
+      <ConfirmDialogProvider>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(customer)" />
+          <Stack.Screen name="(business)" />
+          <Stack.Screen name="admin" options={{ headerShown: false }} />
+        </Stack>
+        <Toast />
+        <NetworkLoggerOverlay />
+      </ConfirmDialogProvider>
+    </ToastProvider>
   );
 }

@@ -52,14 +52,16 @@ async def create_order(
     items_json = []
     for item in data.items:
         product = available_products[item.product_id]
-        line_total = Decimal(str(item.price)) * item.quantity
+        # Use client-provided price or fall back to product's current price
+        item_price = item.price if item.price is not None else float(product.price or 0)
+        line_total = Decimal(str(item_price)) * item.quantity
         subtotal += line_total
         items_json.append(
             {
                 "product_id": str(item.product_id),
                 "name": product.name,
                 "quantity": item.quantity,
-                "price": float(item.price),
+                "price": item_price,
                 "total": float(line_total),
             }
         )
@@ -275,6 +277,20 @@ async def get_shop_orders(
         .limit(per_page)
     )
     orders = list(result.scalars().all())
+
+    # Enrich orders with customer names and phones
+    if orders:
+        from app.auth.models import User
+        customer_ids = list({o.customer_id for o in orders})
+        users_result = await db.execute(
+            select(User).where(User.id.in_(customer_ids))
+        )
+        users_map = {u.id: u for u in users_result.scalars().all()}
+        for order in orders:
+            user = users_map.get(order.customer_id)
+            if user:
+                order.customer_name = getattr(user, 'name', None) or ''
+                order.customer_phone = getattr(user, 'phone', None) or ''
 
     return orders, total
 

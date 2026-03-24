@@ -16,27 +16,39 @@ export default function CustomersScreen() {
   useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
 
   const loadData = useCallback(async () => {
-    if (!shopId) return;
+    if (!shopId) { setLoading(false); return; }
     setLoading(true); setError(null);
     try {
-      const [oRes] = await Promise.allSettled([
-        client.get(`/orders/shop/${shopId}`, { params: { per_page: 500 } }),
-      ]);
-      if (oRes.status === 'fulfilled') {
-        const orders = oRes.value.data?.orders ?? oRes.value.data?.items ?? oRes.value.data ?? [];
-        const map = {};
-        orders.forEach(o => {
-          const key = o.customer_phone || o.customer_id || o.customer_name || 'unknown';
-          if (!map[key]) map[key] = { name: o.customer_name || 'Unknown', phone: o.customer_phone || '', orders: 0, total: 0, lastOrder: o.created_at };
-          map[key].orders += 1;
-          map[key].total += Number(o.total) || 0;
-          if (o.created_at > map[key].lastOrder) map[key].lastOrder = o.created_at;
-        });
-        const list = Object.values(map).sort((a, b) => b.total - a.total);
-        setCustomers(list);
-      } else { setError('Failed to load customer data'); }
-    } catch { setError('Failed to load data'); }
-    finally { setLoading(false); }
+      const oRes = await client.get(`/orders/shop/${shopId}`, { params: { per_page: 500 } });
+      const orders = oRes.data?.items ?? oRes.data?.orders ?? [];
+      const map = {};
+      orders.forEach(o => {
+        if (!o) return;
+        const cName = o.customer_name || '';
+        const cPhone = o.customer_phone || '';
+        const key = cPhone || String(o.customer_id || 'unknown');
+        if (!map[key]) {
+          map[key] = {
+            name: cName || 'Customer',
+            phone: cPhone,
+            orders: 0,
+            total: 0,
+            lastOrder: o.created_at || '',
+          };
+        }
+        map[key].orders += 1;
+        map[key].total += Number(o.total) || 0;
+        if (o.created_at && o.created_at > (map[key].lastOrder || '')) {
+          map[key].lastOrder = o.created_at;
+        }
+      });
+      const list = Object.values(map).sort((a, b) => b.total - a.total);
+      setCustomers(list);
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to load customer data');
+    } finally {
+      setLoading(false);
+    }
   }, [shopId]);
 
   useEffect(() => { loadData(); }, [loadData]);

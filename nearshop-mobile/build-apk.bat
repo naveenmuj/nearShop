@@ -11,6 +11,12 @@ set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
 set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
 set "PATH=%JAVA_HOME%\bin;%ANDROID_HOME%\platform-tools;%PATH%"
 
+:: Give Node.js (Metro bundler) more heap — prevents OOM during JS bundling
+set "NODE_OPTIONS=--max_old_space_size=4096"
+
+:: Give Gradle extra JVM memory on top of gradle.properties
+set "_JAVA_OPTIONS=-Xmx3072m -XX:MaxMetaspaceSize=512m"
+
 echo [INFO] JAVA_HOME = %JAVA_HOME%
 echo [INFO] ANDROID_HOME = %ANDROID_HOME%
 echo.
@@ -33,10 +39,11 @@ if ERRORLEVEL 1 (
 
 :: ── 3. Build RELEASE APK (standalone, no Metro needed) ──
 echo [BUILD] Running Gradle assembleRelease...
+echo         Architecture: arm64-v8a only (all modern Android phones)
 echo         Bundles JS + assets into APK. Works on any Android device.
 echo         First run: 5-10 min. Subsequent runs: ~2 min.
 echo.
-call gradlew.bat assembleRelease --no-daemon
+call gradlew.bat assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx3072m -XX:MaxMetaspaceSize=512m"
 
 :: ── 4. Check build result ─────────────────────
 if ERRORLEVEL 1 (

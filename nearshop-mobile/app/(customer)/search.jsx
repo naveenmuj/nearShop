@@ -14,6 +14,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { searchProducts, getSearchSuggestions } from '../../lib/products';
 import { searchShops } from '../../lib/shops';
+import {
+  logSearch,
+  getRecentSearches,
+  deleteRecentSearch,
+} from '../../lib/engagement';
 import ProductCard from '../../components/ProductCard';
 import ShopCard from '../../components/ShopCard';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -48,10 +53,20 @@ export default function SearchScreen() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [showRecentPanel, setShowRecentPanel] = useState(false);
 
   const inputRef = useRef(null);
   const debounceTimer = useRef(null);
   const suggestTimer = useRef(null);
+
+  // ─── Fetch recent searches on mount ──────────────────────────────────────────
+
+  useEffect(() => {
+    getRecentSearches()
+      .then((res) => setRecentSearches(res?.data?.items ?? res?.data ?? []))
+      .catch(() => {});
+  }, []);
 
   // ─── Fetch suggestions ────────────────────────────────────────────────────────
 
@@ -132,10 +147,13 @@ export default function SearchScreen() {
     suggestTimer.current = setTimeout(() => {
       if (query.length >= 2) {
         setShowSuggestions(true);
+        setShowRecentPanel(false);
         fetchSuggestions(query);
       } else {
         setSuggestions([]);
         setShowSuggestions(false);
+        // Show recent panel when focused but no typed query
+        setShowRecentPanel(query.length === 0);
       }
     }, 200);
     return () => { if (suggestTimer.current) clearTimeout(suggestTimer.current); };
@@ -152,19 +170,59 @@ export default function SearchScreen() {
   const handleQueryChange = (text) => {
     setQuery(text);
     setHasSearched(false);
-    if (!text.trim()) { setSuggestions([]); setShowSuggestions(false); }
+    if (!text.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setShowRecentPanel(inputFocused);
+    }
   };
+
+  const executeSearch = useCallback((term) => {
+    if (!term.trim()) return;
+    setQuery(term);
+    setShowSuggestions(false);
+    setShowRecentPanel(false);
+    Keyboard.dismiss();
+    logSearch(term).catch(() => {});
+    // Refresh recent searches list
+    getRecentSearches()
+      .then((res) => setRecentSearches(res?.data?.items ?? res?.data ?? []))
+      .catch(() => {});
+    setHasSearched(false);
+    scheduleSearch(term, selectedCategory, selectedSort, activeTab);
+  }, [selectedCategory, selectedSort, activeTab, scheduleSearch]);
 
   const handleSuggestionPress = (item) => {
     setQuery(item.name);
     setShowSuggestions(false);
+    setShowRecentPanel(false);
     Keyboard.dismiss();
+    logSearch(item.name).catch(() => {});
+    getRecentSearches()
+      .then((res) => setRecentSearches(res?.data?.items ?? res?.data ?? []))
+      .catch(() => {});
     if (item.type === 'shop') {
       router.push(`/(customer)/shop/${item.id}`);
     } else {
       setHasSearched(false);
       scheduleSearch(item.name, selectedCategory, selectedSort, 'products');
       setActiveTab('products');
+    }
+  };
+
+  const handleRecentPress = (term) => {
+    executeSearch(term);
+  };
+
+  const handleDeleteRecent = async (term) => {
+    try {
+      await deleteRecentSearch(term);
+      setRecentSearches((prev) => prev.filter((r) => {
+        const rTerm = typeof r === 'string' ? r : r.query || r.term || r;
+        return rTerm !== term;
+      }));
+    } catch {
+      // ignore
     }
   };
 
@@ -177,7 +235,28 @@ export default function SearchScreen() {
     setHasSearched(false);
     setSuggestions([]);
     setShowSuggestions(false);
+    setShowRecentPanel(true);
     inputRef.current?.focus();
+  };
+
+  const handleInputFocus = () => {
+    setInputFocused(true);
+    if (!query.trim()) setShowRecentPanel(true);
+  };
+
+  const handleInputBlur = () => {
+    setTimeout(() => {
+      setInputFocused(false);
+      setShowRecentPanel(false);
+    }, 150);
+  };
+
+  const handleSubmitEditing = () => {
+    if (query.trim()) {
+      executeSearch(query.trim());
+    }
+    setShowSuggestions(false);
+    setShowRecentPanel(false);
   };
 
   // ─── Render helpers ───────────────────────────────────────────────────────────
@@ -240,9 +319,9 @@ export default function SearchScreen() {
             autoCorrect={false}
             autoCapitalize="none"
             clearButtonMode={Platform.OS === 'ios' ? 'while-editing' : 'never'}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setTimeout(() => setInputFocused(false), 150)}
-            onSubmitEditing={() => setShowSuggestions(false)}
+            onFocus={handleInputFocus}
+            onBlur={handleInputBlur}
+            onSubmitEditing={handleSubmitEditing}
           />
           {Platform.OS === 'android' && query.length > 0 && (
             <TouchableOpacity onPress={handleClearInput} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
@@ -255,6 +334,48 @@ export default function SearchScreen() {
           <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── Recent searches + trending panel (shown on focus, no query) ────── */}
+      {showRecentPanel && !showSuggestions && (
+        <View style={styles.suggestionsBox}>
+          {recentSearches.length > 0 && (
+            <>
+              <View style={styles.panelSectionHeader}>
+                <Text style={styles.panelSectionTitle}>Recent Searches</Text>
+              </View>
+              {recentSearches.slice(0, 5).map((item, idx) => {
+                const term = typeof item === 'string' ? item : item.query || item.term || String(item);
+                return (
+                  <View
+                    key={`recent-${idx}`}
+                    style={[styles.suggestionRow, idx < Math.min(recentSearches.length, 5) - 1 && styles.suggestionBorder]}
+                  >
+                    <TouchableOpacity
+                      style={styles.recentRowLeft}
+                      onPress={() => handleRecentPress(term)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.suggestionTypeIcon}>🕐</Text>
+                      <Text style={styles.suggestionName} numberOfLines={1}>{term}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteRecent(term)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.recentDeleteBtn}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </>
+          )}
+          {recentSearches.length === 0 && (
+            <View style={styles.panelEmpty}>
+              <Text style={styles.panelEmptyText}>Start typing to search…</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* ── Amazon-style Suggestions dropdown ───────────────────────────────── */}
       {showSuggestions && suggestions.length > 0 && (
@@ -476,6 +597,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.primary,
     fontWeight: '700',
+  },
+
+  // Recent panel
+  panelSectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  panelSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  recentRowLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  recentDeleteBtn: {
+    fontSize: 12,
+    color: COLORS.gray400,
+    paddingLeft: 8,
+    fontWeight: '600',
+  },
+  panelEmpty: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  panelEmptyText: {
+    fontSize: 13,
+    color: COLORS.gray400,
   },
 
   // Tabs

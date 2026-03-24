@@ -49,6 +49,8 @@ class Product(Base):
     stock_unit = Column(String(20), server_default=text("'pieces'"))
     low_stock_threshold = Column(Integer, server_default=text("5"))
     purchase_price = Column(Numeric(10, 2), nullable=True)
+    # Added by migration a1b2c3d4e5f6 (Feature 12)
+    deal_ends_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

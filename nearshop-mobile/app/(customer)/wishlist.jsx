@@ -86,10 +86,16 @@ function SavedItemCard({ item, onRemove, onPress }) {
 }
 
 function PriceDropCard({ item, onRemove, onPress }) {
+  const name = item.product_name || item.name || 'Product';
+  const imageUri = item.image || (item.images && item.images[0]) || null;
+  const oldPrice = item.old_price ?? item.saved_price ?? 0;
+  const newPrice = item.price ?? item.current_price ?? 0;
+  const shopName = item.shop_name || '';
+
   const dropPercent =
-    item.old_price && item.old_price > item.price
-      ? Math.round(((item.old_price - item.price) / item.old_price) * 100)
-      : 0;
+    oldPrice && oldPrice > newPrice
+      ? Math.round(((oldPrice - newPrice) / oldPrice) * 100)
+      : item.drop_percentage ? Math.round(item.drop_percentage) : 0;
 
   return (
     <TouchableOpacity
@@ -97,10 +103,10 @@ function PriceDropCard({ item, onRemove, onPress }) {
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={`View ${item.product_name}, price dropped ${dropPercent}%`}
+      accessibilityLabel={`View ${name}, price dropped ${dropPercent}%`}
     >
       <ProductImage
-        uri={item.image}
+        uri={imageUri}
         onRemove={() => onRemove(item.product_id)}
         showRemove
       />
@@ -111,17 +117,19 @@ function PriceDropCard({ item, onRemove, onPress }) {
       )}
       <View style={styles.cardBody}>
         <Text style={styles.productName} numberOfLines={2}>
-          {item.product_name}
+          {name}
         </Text>
         <View style={styles.priceRow}>
-          {item.old_price && item.old_price > item.price && (
-            <Text style={styles.oldPrice}>{formatPrice(item.old_price)}</Text>
+          {oldPrice > newPrice && (
+            <Text style={styles.oldPrice}>{formatPrice(oldPrice)}</Text>
           )}
-          <Text style={styles.newPrice}>{formatPrice(item.price)}</Text>
+          <Text style={styles.newPrice}>{formatPrice(newPrice)}</Text>
         </View>
-        <Text style={styles.shopName} numberOfLines={1}>
-          {item.shop_name}
-        </Text>
+        {shopName ? (
+          <Text style={styles.shopName} numberOfLines={1}>
+            {shopName}
+          </Text>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
@@ -166,12 +174,16 @@ export default function WishlistScreen() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const [wishlistRes, priceDropsRes] = await Promise.all([
+      const [wishlistRes, priceDropsRes] = await Promise.allSettled([
         getWishlist(),
         getPriceDrops(),
       ]);
-      setSavedItems(wishlistRes?.data?.items ?? []);
-      setPriceDropItems(priceDropsRes?.data?.items ?? []);
+      if (wishlistRes.status === 'fulfilled') {
+        setSavedItems(wishlistRes.value?.data?.items ?? []);
+      }
+      if (priceDropsRes.status === 'fulfilled') {
+        setPriceDropItems(priceDropsRes.value?.data?.items ?? priceDropsRes.value?.data ?? []);
+      }
     } catch (err) {
       setError('Failed to load wishlist. Please try again.');
     } finally {

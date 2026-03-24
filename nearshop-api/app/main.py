@@ -79,6 +79,7 @@ def create_app() -> FastAPI:
     from app.inventory.router import router as inventory_router
     from app.broadcast.router import router as broadcast_router
     from app.advisor.router import router as advisor_router
+    from app.engagement.router import router as engagement_router
 
     app.include_router(auth_router)
     app.include_router(shops_router)
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(inventory_router)
     app.include_router(broadcast_router)
     app.include_router(advisor_router)
+    app.include_router(engagement_router)
 
     # Serve locally uploaded files (dev fallback when R2 is not configured)
     static_dir = Path(__file__).resolve().parents[1] / "static"

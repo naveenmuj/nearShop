@@ -11,6 +11,11 @@ set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
 set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
 set "PATH=%JAVA_HOME%\bin;%ANDROID_HOME%\platform-tools;%PATH%"
 
+:: Give Node.js (Metro bundler) more heap — prevents OOM during JS bundling
+set "NODE_OPTIONS=--max_old_space_size=4096"
+:: Give Gradle extra JVM memory
+set "_JAVA_OPTIONS=-Xmx3072m -XX:MaxMetaspaceSize=512m"
+
 set "ROOT_DIR=%~dp0"
 set "MOBILE_DIR=%ROOT_DIR%nearshop-mobile"
 set "APK_SOURCE=%MOBILE_DIR%\android\app\build\outputs\apk\release\app-release.apk"
