@@ -387,17 +387,17 @@ export default function OnboardScreen() {
           </View>
         )}
 
-        <TouchableOpacity onPress={() => setStep(3)} disabled={!canSubmit} activeOpacity={0.85}
+        <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
           style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>
           <Text style={[styles.btnText, { color: canSubmit ? COLORS.white : COLORS.gray400 }]}>
-            Next: Add Products →
+            {loading ? 'Creating…' : 'Create My Shop'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 
-  // Business mode — Step 3: Bulk Product Upload
+  // Business mode — Step 3: Bulk Product Upload (currently unused — kept for future)
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity onPress={() => setStep(2)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>

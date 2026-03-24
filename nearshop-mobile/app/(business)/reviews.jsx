@@ -29,9 +29,11 @@ export default function ReviewsScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1) : '0.0';
-  const distribution = STARS.map(star => ({ star, count: reviews.filter(r => Math.round(r.rating) === star).length }));
-  const maxCount = Math.max(...distribution.map(d => d.count), 1);
+  const safeReviews = Array.isArray(reviews) ? reviews : [];
+  const avgRating = safeReviews.length > 0 ? (safeReviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / safeReviews.length).toFixed(1) : '0.0';
+  const distribution = STARS.map(star => ({ star, count: safeReviews.filter(r => Math.round(Number(r.rating) || 0) === star).length }));
+  const counts = distribution.map(d => d.count);
+  const maxCount = counts.length > 0 ? Math.max(...counts, 1) : 1;
 
   const renderStars = (rating) => {
     const full = Math.floor(rating);

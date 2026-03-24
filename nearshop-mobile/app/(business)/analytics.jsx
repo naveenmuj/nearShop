@@ -80,8 +80,8 @@ export default function AnalyticsScreen() {
     setRefreshing(false);
   };
 
-  const conversionRate = stats && stats.total_views > 0
-    ? ((stats.total_orders / stats.total_views) * 100).toFixed(1)
+  const conversionRate = stats && Number(stats.total_views) > 0 && Number(stats.total_orders) >= 0
+    ? ((Number(stats.total_orders) / Number(stats.total_views)) * 100).toFixed(1)
     : '0';
 
   if (loading && !stats) {

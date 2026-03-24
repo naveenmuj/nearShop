@@ -32,7 +32,7 @@ export default function EmailLoginScreen() {
       // Add delay to ensure state is updated
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const needsProfile = data.is_new_user || !data.user?.name || !data.user.name.trim();
+      const needsProfile = data.is_new_user || !data.user?.name?.trim();
       if (needsProfile) {
         router.replace('/(auth)/customer-profile');
       } else if (data.user?.active_role === 'business') {
@@ -70,11 +70,10 @@ export default function EmailLoginScreen() {
       const data = isRegister
         ? await registerWithEmail(email, password)
         : await signInWithEmail(email, password);
-      navigateAfterAuth(data);
+      await navigateAfterAuth(data);
     } catch (err) {
-      const msg = friendlyError(err.code) || err.message;
+      const msg = friendlyError(err?.code) || err?.message || 'Please try again';
       Toast.show({ type: 'error', text1: isRegister ? 'Registration failed' : 'Sign-in failed', text2: msg });
-    } finally {
       setLoading(false);
     }
   };
@@ -83,12 +82,11 @@ export default function EmailLoginScreen() {
     setGoogleLoading(true);
     try {
       const data = await signInWithGoogle();
-      navigateAfterAuth(data);
+      await navigateAfterAuth(data);
     } catch (err) {
-      if (err.code !== 'SIGN_IN_CANCELLED') {
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err.message });
+      if (err?.code !== 'SIGN_IN_CANCELLED') {
+        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err?.message || 'Please try again' });
       }
-    } finally {
       setGoogleLoading(false);
     }
   };

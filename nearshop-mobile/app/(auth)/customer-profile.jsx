@@ -72,7 +72,8 @@ export default function CustomerProfileScreen() {
       const { data } = await client.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setAvatarUri(data.url);
+      const url = data?.url || data?.file_url;
+      if (url) setAvatarUri(url);
     } catch {
       Toast.show({ type: 'error', text1: 'Photo upload failed', text2: 'You can skip this and add later' });
     } finally {
@@ -98,9 +99,11 @@ export default function CustomerProfileScreen() {
         ...(showPhone && phone.trim() ? { phone: phone.trim() } : {}),
       };
       const { data } = await updateProfile(payload);
-      const updatedUser = data.user || data;
-      await updateUser(updatedUser);
-      Toast.show({ type: 'success', text1: '🎉 Profile set up!', text2: `Welcome, ${name.trim()}!` });
+      const updatedUser = data?.user || data;
+      if (updatedUser && typeof updatedUser === 'object') {
+        await updateUser(updatedUser);
+      }
+      Toast.show({ type: 'success', text1: 'Profile set up!', text2: `Welcome, ${name.trim()}!` });
       router.replace('/(customer)/home');
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Could not save profile', text2: err?.response?.data?.detail || err.message });

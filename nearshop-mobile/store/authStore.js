@@ -33,12 +33,16 @@ const useAuthStore = create((set, get) => ({
   },
 
   login: async (tokens, user) => {
+    if (!tokens?.access_token || typeof tokens.access_token !== 'string') {
+      throw new Error('Invalid access token');
+    }
     await SecureStore.setItemAsync('access_token', tokens.access_token);
-    if (tokens.refresh_token) {
+    if (tokens.refresh_token && typeof tokens.refresh_token === 'string') {
       await SecureStore.setItemAsync('refresh_token', tokens.refresh_token);
     }
-    await SecureStore.setItemAsync('user_data', JSON.stringify(user));
-    set({ user, isAuthenticated: true });
+    const safeUser = user && typeof user === 'object' ? user : {};
+    await SecureStore.setItemAsync('user_data', JSON.stringify(safeUser));
+    set({ user: safeUser, isAuthenticated: true });
   },
 
   logout: async () => {

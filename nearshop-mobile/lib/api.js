@@ -56,16 +56,16 @@ client.interceptors.response.use(
           refresh_token: refreshToken,
         });
 
-        if (!data.access_token) {
+        if (!data || !data.access_token) {
           // Refresh failed - clear tokens and reject
           await SecureStore.deleteItemAsync('access_token');
           await SecureStore.deleteItemAsync('refresh_token');
           return Promise.reject(error);
         }
 
-        await SecureStore.setItemAsync('access_token', data.access_token);
+        await SecureStore.setItemAsync('access_token', String(data.access_token));
         if (data.refresh_token) {
-          await SecureStore.setItemAsync('refresh_token', data.refresh_token);
+          await SecureStore.setItemAsync('refresh_token', String(data.refresh_token));
         }
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
         return client(originalRequest);

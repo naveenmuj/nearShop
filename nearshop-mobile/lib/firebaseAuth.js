@@ -96,5 +96,15 @@ export async function registerWithEmail(email, password) {
 // ---------------------------------------------------------------------------
 async function exchangeToken(firebaseToken) {
   const { data } = await client.post('/auth/firebase-signin', { firebase_token: firebaseToken });
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid response from server during sign-in.');
+  }
+  if (!data.access_token) {
+    throw new Error('Authentication failed — no access token received.');
+  }
+  // Ensure user object exists with safe defaults
+  if (!data.user || typeof data.user !== 'object') {
+    data.user = {};
+  }
   return data; // { user, access_token, refresh_token, is_new_user }
 }

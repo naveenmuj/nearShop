@@ -69,12 +69,11 @@ export default function LoginScreen() {
     setLoadingProvider('google');
     try {
       const data = await signInWithGoogle();
-      navigateAfterAuth(data);
+      await navigateAfterAuth(data);
     } catch (err) {
-      if (err.code !== 'SIGN_IN_CANCELLED' && err.code !== 'auth/popup-closed-by-user') {
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err.message });
+      if (err?.code !== 'SIGN_IN_CANCELLED' && err?.code !== 'auth/popup-closed-by-user') {
+        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err?.message || 'Please try again' });
       }
-    } finally {
       setLoadingProvider(null);
     }
   };
@@ -87,10 +86,9 @@ export default function LoginScreen() {
     setLoadingProvider('apple');
     try {
       const data = await signInWithApple();
-      navigateAfterAuth(data);
+      await navigateAfterAuth(data);
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Apple Sign-In failed', text2: err.message });
-    } finally {
+      Toast.show({ type: 'error', text1: 'Apple Sign-In failed', text2: err?.message || 'Please try again' });
       setLoadingProvider(null);
     }
   };

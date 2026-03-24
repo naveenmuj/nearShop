@@ -182,7 +182,7 @@ export default function BizOrdersScreen() {
           <Text style={styles.orderId}>#{(item.id || '').slice(-6).toUpperCase()}</Text>
           <View style={[styles.statusBadge, { backgroundColor: borderColor + '20' }]}>
             <Text style={[styles.statusBadgeText, { color: borderColor }]}>
-              {item.status?.charAt(0).toUpperCase() + item.status?.slice(1)}
+              {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Unknown'}
             </Text>
           </View>
         </View>

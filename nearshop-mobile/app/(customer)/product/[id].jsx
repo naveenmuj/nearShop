@@ -365,7 +365,7 @@ export default function ProductDetailScreen() {
           ) : null}
 
           {/* Specs / attributes */}
-          {product.attributes && typeof product.attributes === 'object' && Object.keys(product.attributes).length > 0 ? (
+          {product.attributes && typeof product.attributes === 'object' && !Array.isArray(product.attributes) && Object.keys(product.attributes).length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Specifications</Text>
               {Object.entries(product.attributes).map(([k, v]) => (

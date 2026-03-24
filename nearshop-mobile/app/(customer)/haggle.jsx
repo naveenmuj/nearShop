@@ -133,7 +133,7 @@ export default function HaggleScreen() {
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
             <Text style={[styles.statusText, { color: statusStyle.text }]}>
-              {item.status?.charAt(0).toUpperCase() + item.status?.slice(1)}
+              {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Pending'}
             </Text>
           </View>
         </View>

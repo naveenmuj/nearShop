@@ -15,7 +15,8 @@ export default function VerifyScreen() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(60);
-  const inputs = useRef([]);
+  // Pre-initialize ref array with 6 null slots
+  const inputs = useRef([null, null, null, null, null, null]);
   const router = useRouter();
   const login = useAuthStore((s) => s.login);
 
@@ -66,7 +67,7 @@ export default function VerifyScreen() {
       // Add small delay to ensure state is updated
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      if (data.is_new_user || !data.user?.name) {
+      if (data.is_new_user || !data.user?.name?.trim()) {
         router.replace('/(auth)/select-role');
       } else if (data.user?.active_role === 'business') {
         router.replace('/(business)/dashboard');
@@ -78,11 +79,10 @@ export default function VerifyScreen() {
       Toast.show({
         type: 'error',
         text1: 'Invalid OTP',
-        text2: err.message || 'Please try again',
+        text2: err?.message || 'Please try again',
       });
       setOtp(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
-    } finally {
       setLoading(false);
     }
   };

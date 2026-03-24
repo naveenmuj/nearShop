@@ -179,10 +179,14 @@ export default function OrdersScreen() {
 
   const handleCardPress = useCallback((order) => {
     // Show order details inline since order-detail screen doesn't exist
-    const items = order.items?.map(i => `  ${i.quantity}x ${i.name} — ₹${i.total || (i.price * i.quantity)}`).join('\n') || 'No item details';
+    const itemsList = Array.isArray(order.items) ? order.items : [];
+    const items = itemsList.length > 0
+      ? itemsList.map(i => `  ${i.quantity ?? 1}x ${i.name || 'Item'} — ₹${i.total || ((i.price || 0) * (i.quantity || 1))}`).join('\n')
+      : 'No item details';
+    const orderId = String(order.order_number || order.id || '').slice(-8);
     Alert.alert(
-      `Order #${(order.order_number || order.id?.toString()).slice(-8)}`,
-      `Shop: ${order.shop_name || 'N/A'}\n\n${items}\n\nTotal: ₹${order.total_amount || order.total}\nStatus: ${order.status}`,
+      `Order #${orderId}`,
+      `Shop: ${order.shop_name || 'N/A'}\n\n${items}\n\nTotal: ₹${order.total_amount ?? order.total ?? 0}\nStatus: ${order.status || 'Unknown'}`,
       [{ text: 'Close' }]
     );
   }, []);
@@ -271,7 +275,7 @@ export default function OrdersScreen() {
       ) : (
         <FlatList
           data={orders}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
           renderItem={renderOrder}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}

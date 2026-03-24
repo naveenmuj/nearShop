@@ -9,9 +9,10 @@ const PLACEHOLDER = 'https://placehold.co/200x200/eee/999?text=📦';
 export default function ProductCard({ product, onWishlistToggle, isWishlisted }) {
   const router = useRouter();
   const imageUri = product.images?.[0] || product.image_url || product.image || PLACEHOLDER;
-  const comparePrice = product.compare_price || product.original_price;
-  const discount = comparePrice && comparePrice > product.price
-    ? Math.round((1 - product.price / comparePrice) * 100)
+  const price = Number(product.price) || 0;
+  const comparePrice = Number(product.compare_price || product.original_price) || 0;
+  const discount = comparePrice > price && price > 0
+    ? Math.round((1 - price / comparePrice) * 100)
     : 0;
 
   return (
@@ -43,8 +44,8 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
       <View style={styles.info}>
         <Text numberOfLines={2} style={styles.name}>{product.name}</Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatPrice(product.price)}</Text>
-          {comparePrice > product.price && (
+          <Text style={styles.price}>{formatPrice(price)}</Text>
+          {comparePrice > price && (
             <Text style={styles.comparePrice}>{formatPrice(comparePrice)}</Text>
           )}
         </View>

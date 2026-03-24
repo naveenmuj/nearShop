@@ -37,8 +37,8 @@ export default function BillingScreen() {
     setLoading(true);
     try {
       const [bRes, sRes] = await Promise.allSettled([client.get('/billing', { params: { per_page: 30 } }), client.get('/billing/stats', { params: { period: '30d' } })]);
-      if (bRes.status === 'fulfilled') setBills(bRes.value.data?.bills ?? []);
-      if (sRes.status === 'fulfilled') setStats(sRes.value.data);
+      if (bRes.status === 'fulfilled') setBills(bRes.value?.data?.bills ?? bRes.value?.data?.items ?? []);
+      if (sRes.status === 'fulfilled') setStats(sRes.value?.data ?? null);
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -69,8 +69,8 @@ export default function BillingScreen() {
         gst_percentage: Number(gstPct) || 0, discount_amount: Number(discount) || 0,
         payment_method: payMethod, payment_status: payMethod === 'credit' ? 'unpaid' : 'paid',
       });
-      setCreatedBill(res.data);
-      Alert.alert('Success', `Bill ${res.data.bill_number} generated!`);
+      setCreatedBill(res?.data ?? null);
+      Alert.alert('Success', `Bill ${res?.data?.bill_number || ''} generated!`);
     } catch (e) { Alert.alert('Error', e.response?.data?.detail || 'Failed to generate bill'); }
     finally { setCreating(false); }
   };

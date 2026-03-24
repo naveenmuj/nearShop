@@ -92,7 +92,9 @@ export default function SnapListScreen() {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     });
-    return res.data.url;
+    const url = res?.data?.url || res?.data?.file_url;
+    if (!url) throw new Error('Upload succeeded but no URL returned');
+    return url;
   };
 
   // ── AI analysis using the backend endpoint ───────────────────────────────
