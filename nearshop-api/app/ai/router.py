@@ -1,6 +1,7 @@
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,7 +9,9 @@ from app.core.database import get_db
 from app.core.exceptions import BadRequestError
 from app.auth.models import User
 from app.auth.permissions import get_current_user, require_business, require_customer
+from app.config import get_settings
 
+from app.ai.client import get_openai_client
 from app.ai.cataloging import (
     analyze_product_image,
     analyze_product_image_bytes,
@@ -19,6 +22,8 @@ from app.ai.visual_search import generate_image_embedding, search_similar_produc
 from app.ai.smart_search import parse_search_query
 from app.ai.pricing import suggest_price
 from app.ai.recommendations import get_recommendations
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
@@ -43,6 +48,12 @@ class ConversationalSearchRequest(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
     longitude: float = Field(..., ge=-180, le=180)
     radius_km: float = Field(5.0, gt=0, le=50)
+
+
+class GenerateDescriptionRequest(BaseModel):
+    shop_name: str = Field(..., min_length=1, description="Name of the shop")
+    category: str = Field("", description="Shop category")
+    keywords: str = Field("", description="Additional keywords or info about the shop")
 
 
 # ── Cataloging endpoints ────────────────────────────────────────────────────
@@ -137,3 +148,50 @@ async def recommendations(
     """Get personalized product recommendations for the current user."""
     products = await get_recommendations(db, current_user.id, lat, lng, limit)
     return {"products": products, "count": len(products)}
+
+
+# ── Description generation endpoint ───────────────────────────────────────
+
+
+@router.post("/generate-description")
+async def generate_shop_description(
+    body: GenerateDescriptionRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a professional shop description using AI."""
+    settings = get_settings()
+
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="AI service not configured")
+
+    client = get_openai_client()
+
+    prompt = (
+        "Generate a professional, inviting shop description for a local business "
+        "with these details:\n"
+        f"- Shop name: {body.shop_name}\n"
+        f"- Category: {body.category}\n"
+        f"- Additional info: {body.keywords}\n\n"
+        "Write a 2-3 sentence description that:\n"
+        "1. Sounds professional yet warm and inviting\n"
+        "2. Highlights what makes this shop special\n"
+        "3. Mentions the type of products/services offered\n"
+        "4. Is suitable for a local marketplace listing\n"
+        "5. Uses natural, conversational language\n\n"
+        "Return ONLY the description text, nothing else."
+    )
+
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=200,
+            temperature=0.7,
+        )
+        description = response.choices[0].message.content.strip().strip('"')
+        return {"description": description}
+    except Exception as e:
+        logger.error("AI description generation failed: %s: %s", type(e).__name__, e)
+        raise HTTPException(
+            status_code=500, detail=f"AI generation failed: {str(e)}"
+        )

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform,
-  StyleSheet, ActivityIndicator, ScrollView,
+  StyleSheet, ActivityIndicator, ScrollView, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
+import auth from '@react-native-firebase/auth';
 import { signInWithEmail, registerWithEmail, signInWithGoogle } from '../../lib/firebaseAuth';
 import useAuthStore from '../../store/authStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -16,6 +17,8 @@ export default function EmailLoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
@@ -75,6 +78,19 @@ export default function EmailLoginScreen() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Enter your email address first');
+      return;
+    }
+    try {
+      await auth().sendPasswordResetEmail(email.trim());
+      Alert.alert('Email Sent', 'Check your inbox for the password reset link.');
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to send reset email');
+    }
+  };
+
   const isValid = email.includes('@') && password.length >= 6 &&
     (!isRegister || confirm === password);
   const anyLoading = loading || googleLoading;
@@ -123,26 +139,36 @@ export default function EmailLoginScreen() {
             />
 
             <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="At least 6 characters"
-              placeholderTextColor={COLORS.gray400}
-              secureTextEntry
-              style={styles.input}
-            />
+            <View style={styles.passwordWrap}>
+              <TextInput
+                style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="At least 6 characters"
+                placeholderTextColor={COLORS.gray400}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={styles.eyeBtn}>
+                <Text style={styles.eyeIcon}>{showPassword ? '\u{1F648}' : '\u{1F441}\u{FE0F}'}</Text>
+              </TouchableOpacity>
+            </View>
 
             {isRegister && (
               <>
                 <Text style={[styles.label, { marginTop: 14 }]}>Confirm password</Text>
-                <TextInput
-                  value={confirm}
-                  onChangeText={setConfirm}
-                  placeholder="Repeat your password"
-                  placeholderTextColor={COLORS.gray400}
-                  secureTextEntry
-                  style={[styles.input, confirm && confirm !== password ? styles.inputError : null]}
-                />
+                <View style={[styles.passwordWrap, confirm && confirm !== password ? styles.inputError : null]}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
+                    value={confirm}
+                    onChangeText={setConfirm}
+                    placeholder="Repeat your password"
+                    placeholderTextColor={COLORS.gray400}
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(v => !v)} style={styles.eyeBtn}>
+                    <Text style={styles.eyeIcon}>{showConfirmPassword ? '\u{1F648}' : '\u{1F441}\u{FE0F}'}</Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
 
@@ -160,6 +186,12 @@ export default function EmailLoginScreen() {
                 </Text>
               )}
             </TouchableOpacity>
+
+            {!isRegister && (
+              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotBtn}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Divider */}
@@ -239,6 +271,20 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200, color: COLORS.gray900,
   },
   inputError: { borderColor: '#ef4444' },
+  passwordWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+    paddingRight: 12,
+  },
+  eyeBtn: { padding: 8 },
+  eyeIcon: { fontSize: 18 },
+  forgotBtn: { marginTop: 12, alignSelf: 'center' },
+  forgotText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
   btn: { height: 52, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   btnText: { fontSize: 16, fontWeight: '700' },
   divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },

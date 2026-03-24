@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Camera, X, ChevronRight, Store } from 'lucide-react'
-import { updateProfile } from '../../api/auth'
+import { updateProfile, completeProfile } from '../../api/auth'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../api/client'
 
@@ -58,9 +58,18 @@ export default function CustomerOnboard() {
         ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         ...(showPhone && phone.trim() ? { phone: phone.trim() } : {}),
       }
-      const { data } = await updateProfile(payload)
-      updateUser(data)
-      toast.success(`Welcome to NearShop, ${name.trim()}! 🎉`)
+      let savedUser
+      try {
+        // Try PATCH /auth/profile first (requires latest backend deployment)
+        const { data } = await updateProfile(payload)
+        savedUser = data
+      } catch (profileErr) {
+        // Fallback: use completeProfile (always available on server)
+        const { data } = await completeProfile({ name: name.trim(), role: 'customer', interests })
+        savedUser = data.user || data
+      }
+      updateUser(savedUser)
+      toast.success(`Welcome to NearShop, ${name.trim()}!`)
       navigate('/app/home')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to save profile')
@@ -150,20 +159,23 @@ export default function CustomerOnboard() {
               What do you love? <span className="text-gray-400 font-normal">(optional — helps us personalise)</span>
             </label>
             <div className="flex flex-wrap gap-2">
-              {INTERESTS.map(item => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => toggleInterest(item)}
-                  className={`px-3.5 py-2 rounded-full text-sm font-medium transition border ${
-                    interests.includes(item)
-                      ? 'bg-brand-purple text-white border-brand-purple'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-brand-purple hover:text-brand-purple'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
+              {INTERESTS.map(item => {
+                const isSelected = interests.includes(item)
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => toggleInterest(item)}
+                    className={`px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border-2 ${
+                      isSelected
+                        ? 'bg-brand-purple text-white border-brand-purple shadow-md shadow-purple-200 scale-105'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-brand-purple/50 hover:text-brand-purple'
+                    }`}
+                  >
+                    {isSelected && '\u2713 '}{item}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

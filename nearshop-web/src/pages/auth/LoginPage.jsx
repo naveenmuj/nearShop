@@ -5,11 +5,14 @@ import {
   signInWithPhoneNumber,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   RecaptchaVerifier,
 } from 'firebase/auth'
 import { auth, googleProvider, appleProvider } from '../../config/firebase'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../api/client'
+import toast from 'react-hot-toast'
+import { Eye, EyeOff, KeyRound } from 'lucide-react'
 
 const FRIENDLY_ERRORS = {
   'auth/user-not-found': 'No account found with this email.',
@@ -27,6 +30,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
   const [loading, setLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState('')
@@ -83,6 +88,20 @@ export default function LoginPage() {
       await exchangeFirebaseToken(await result.user.getIdToken())
     } catch (err) {
       setError(FRIENDLY_ERRORS[err.code] || err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) { setError('Enter your email address first'); return }
+    setLoading(true); setError('')
+    try {
+      await sendPasswordResetEmail(auth, email.trim())
+      setError('')
+      toast?.success?.('Password reset email sent! Check your inbox.') || alert('Password reset email sent!')
+    } catch (err) {
+      setError(FRIENDLY_ERRORS[err.code] || 'Failed to send reset email')
     } finally {
       setLoading(false)
     }
@@ -215,19 +234,33 @@ export default function LoginPage() {
                     placeholder="you@example.com"
                     className="w-full px-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-[#5B2BE7] focus:ring-4 focus:ring-[#5B2BE7]/10 outline-none transition-all"
                     required />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                    placeholder="Password (min 6 chars)" minLength={6}
-                    className="w-full px-4 py-3 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-[#5B2BE7] focus:ring-4 focus:ring-[#5B2BE7]/10 outline-none transition-all"
-                    required />
-                  {isRegister && (
-                    <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm password"
-                      className={`w-full px-4 py-3 bg-gray-100 border rounded-xl focus:ring-4 outline-none transition-all ${
-                        confirmPassword && confirmPassword !== password
-                          ? 'border-red-400 focus:ring-red-100 bg-red-50'
-                          : 'border-transparent focus:bg-white focus:border-[#5B2BE7] focus:ring-[#5B2BE7]/10'
-                      }`}
+                  <div className="relative">
+                    <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder="Password (min 6 chars)" minLength={6}
+                      className="w-full px-4 py-3 pr-12 bg-gray-100 border border-transparent rounded-xl focus:bg-white focus:border-[#5B2BE7] focus:ring-4 focus:ring-[#5B2BE7]/10 outline-none transition-all"
                       required />
+                    <button type="button" onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                      tabIndex={-1}>
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {isRegister && (
+                    <div className="relative">
+                      <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        className={`w-full px-4 py-3 pr-12 bg-gray-100 border rounded-xl focus:ring-4 outline-none transition-all ${
+                          confirmPassword && confirmPassword !== password
+                            ? 'border-red-400 focus:ring-red-100 bg-red-50'
+                            : 'border-transparent focus:bg-white focus:border-[#5B2BE7] focus:ring-[#5B2BE7]/10'
+                        }`}
+                        required />
+                      <button type="button" onClick={() => setShowConfirmPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                        tabIndex={-1}>
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   )}
                 </div>
                 <button
@@ -239,6 +272,12 @@ export default function LoginPage() {
                     ? <SpinnerRow label={isRegister ? 'Creating account...' : 'Signing in...'} />
                     : isRegister ? 'Create Account →' : 'Sign In →'}
                 </button>
+                {!isRegister && (
+                  <button type="button" onClick={handleForgotPassword}
+                    className="w-full text-sm text-[#5B2BE7] font-medium mt-3 hover:underline transition">
+                    Forgot password?
+                  </button>
+                )}
               </form>
             )}
 

@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import { completeProfile, uploadFile } from '../../lib/auth';
 import { createShop } from '../../lib/shops';
+import client from '../../lib/api';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -51,6 +52,7 @@ export default function OnboardScreen() {
   const [deliveryOption, setDeliveryOption] = useState('pickup');
 
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [step, setStep] = useState(1); // Business: 2 steps
 
   const toggleInterest = (item) => {
@@ -73,6 +75,28 @@ export default function OnboardScreen() {
     });
     if (!result.canceled && result.assets?.[0]) {
       setLogoUri(result.assets[0].uri);
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!shopName.trim()) {
+      Alert.alert('Info', 'Enter your shop name first so AI can generate a description.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const { data } = await client.post('/ai/generate-description', {
+        shop_name: shopName.trim(),
+        category: shopCat,
+        keywords: description.trim(),
+      });
+      if (data.description) {
+        setDescription(data.description);
+      }
+    } catch (err) {
+      Alert.alert('AI Error', 'Could not generate description. You can type one manually.');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -258,7 +282,24 @@ export default function OnboardScreen() {
         </TouchableOpacity>
 
         <Text style={styles.label}>Shop description <Text style={styles.hint}>(optional)</Text></Text>
-        <TextInput value={description} onChangeText={setDescription} placeholder="What does your shop sell? Tell customers about your speciality..." placeholderTextColor={COLORS.gray400} style={[styles.input, styles.textarea]} multiline textAlignVertical="top" />
+        <View style={styles.descriptionWrap}>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="What does your shop sell? Tell customers about your speciality..."
+            placeholderTextColor={COLORS.gray400}
+            style={[styles.input, styles.textarea, { marginBottom: 0 }]}
+            multiline
+            textAlignVertical="top"
+          />
+          <TouchableOpacity
+            style={styles.aiBtn}
+            onPress={handleGenerateDescription}
+            disabled={aiLoading || !shopName.trim()}
+          >
+            <Text style={styles.aiBtnText}>{aiLoading ? '...' : '\u2728 AI'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.label}>Shop address <Text style={styles.hint}>(optional)</Text></Text>
         <TextInput value={shopAddress} onChangeText={setShopAddress} placeholder="e.g. 42, MG Road, Bangalore" placeholderTextColor={COLORS.gray400} style={styles.input} />
@@ -300,6 +341,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200, marginBottom: 20,
   },
   textarea: { height: 100, paddingTop: 14, textAlignVertical: 'top' },
+  descriptionWrap: { position: 'relative', marginBottom: 20 },
+  aiBtn: {
+    position: 'absolute', right: 8, top: 8,
+    backgroundColor: '#EEF2FF', borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderWidth: 1, borderColor: '#C7D2FE',
+  },
+  aiBtnText: { fontSize: 12, fontWeight: '700', color: '#6366F1' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   chip: {
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24,

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../../hooks/useAuth'
 import { useLocationStore } from '../../store/locationStore'
 import { create as createShop } from '../../api/shops'
+import api from '../../api/client'
 import { CATEGORIES } from '../../utils/constants'
 import { Store, ChevronRight, ChevronLeft, Camera, MapPin, Phone, User, FileText, Truck, Upload } from 'lucide-react'
 
@@ -50,41 +51,41 @@ export default function BusinessOnboard() {
       // Step 1: Complete user profile with business role
       await completeProfile({ name: form.name, role: 'business' })
 
-      // Step 2: Create the shop
+      // Step 2: Upload logo if present
+      let logoUrl = null
+      if (logoFile) {
+        try {
+          const formData = new FormData()
+          formData.append('file', logoFile)
+          formData.append('folder', 'shops')
+          const { data: uploadData } = await api.post('/media/upload', formData)
+          logoUrl = uploadData.url || uploadData.file_url || null
+        } catch {
+          // Logo upload failed — continue without it
+        }
+      }
+
+      // Step 3: Create shop with JSON payload
+      const deliveryOpts = form.delivery === 'both' ? ['pickup', 'delivery'] : [form.delivery]
       const shopPayload = {
         name: form.shopName,
         category: form.category,
         phone: form.phone,
+        latitude: latitude || 12.9352,
+        longitude: longitude || 77.6245,
         description: form.description || undefined,
         address: form.address || undefined,
         whatsapp: form.whatsapp || undefined,
-        delivery_option: form.delivery,
+        logo_url: logoUrl || undefined,
+        delivery_options: deliveryOpts,
       }
 
-      // Add location if available
-      if (latitude && longitude) {
-        shopPayload.latitude = latitude
-        shopPayload.longitude = longitude
-      }
-
-      // If logo file is present, send as FormData
-      let payload
-      if (logoFile) {
-        payload = new FormData()
-        Object.entries(shopPayload).forEach(([key, val]) => {
-          if (val !== undefined) payload.append(key, val)
-        })
-        payload.append('logo', logoFile)
-      } else {
-        payload = shopPayload
-      }
-
-      await createShop(payload)
+      await createShop(shopPayload)
       toast.success('Shop created successfully!')
       navigate('/biz')
     } catch (err) {
       const detail = err.response?.data?.detail
-      const message = typeof detail === 'string' ? detail : 'Failed to create shop'
+      const message = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg || 'Validation error' : 'Failed to create shop'
       toast.error(message)
     } finally {
       setLoading(false)
