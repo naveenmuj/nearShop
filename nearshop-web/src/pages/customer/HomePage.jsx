@@ -51,12 +51,19 @@ export default function HomePage() {
           getNearbyDeliverableShops(latitude, longitude, 5, 10),
         ]
         if (isAuthenticated) reqs.push(getStoriesFeed())
-        const [shopsRes, dealsRes, catsRes, prodsRes, deliveryRes, storiesRes] = await Promise.all(reqs)
-        setShops(shopsRes.data.items ?? shopsRes.data ?? [])
-        setDeals(dealsRes.data.items ?? dealsRes.data ?? [])
-        setCategories(catsRes.data.items ?? catsRes.data ?? [])
-        setProducts(prodsRes.data.items ?? prodsRes.data ?? [])
-        setDeliveryShops(deliveryRes.data.shops ?? [])
+        const results = await Promise.allSettled(reqs)
+        const val = (r) => r.status === 'fulfilled' ? r.value : null
+        const shopsRes = val(results[0])
+        const dealsRes = val(results[1])
+        const catsRes = val(results[2])
+        const prodsRes = val(results[3])
+        const deliveryRes = val(results[4])
+        const storiesRes = val(results[5])
+        if (shopsRes) setShops(shopsRes.data.items ?? shopsRes.data ?? [])
+        if (dealsRes) setDeals(dealsRes.data.items ?? dealsRes.data ?? [])
+        if (catsRes) setCategories(catsRes.data.items ?? catsRes.data ?? [])
+        if (prodsRes) setProducts(prodsRes.data.items ?? prodsRes.data ?? [])
+        if (deliveryRes) setDeliveryShops(deliveryRes.data.shops ?? [])
         if (storiesRes) setStories(storiesRes.data.items ?? storiesRes.data ?? [])
       } catch (err) { setError(err.message || 'Failed to load') } finally { setLoading(false) }
     }

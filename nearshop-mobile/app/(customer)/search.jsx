@@ -130,6 +130,10 @@ export default function SearchScreen() {
         setShowSuggestions(false);
         if (tab === 'products') fetchProducts(q, category, sort);
         else fetchShops(q);
+        // Log search query for analytics
+        if (q && q.trim().length >= 2) {
+          logSearch(q.trim()).catch(() => {});
+        }
       }, 450);
     },
     [fetchProducts, fetchShops],

@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom'
-import { Home, Search, Tag, Heart, User, MapPin, ChevronDown, Bell, ShoppingBag, LogOut, Settings, Repeat, Wallet, MessageSquare, Users, Trophy, Gift } from 'lucide-react'
+import { Home, Search, Tag, Heart, User, MapPin, ChevronDown, Bell, ShoppingBag, ShoppingCart, LogOut, Settings, Repeat, Wallet, MessageSquare, Users, Trophy, Gift } from 'lucide-react'
 import NotificationBell from '../components/NotificationBell'
+import CartSidebar from '../components/CartSidebar'
 import BackToTop from '../components/ui/BackToTop'
 import SearchSuggestions from '../components/SearchSuggestions'
 import { useAuthStore } from '../store/authStore'
+import { useCartStore } from '../store/cartStore'
 import { useLocationStore } from '../store/locationStore'
 import client from '../api/client'
 
@@ -13,6 +15,8 @@ export default function CustomerLayout() {
   const { user, logout, switchRole } = useAuthStore()
   const { address } = useLocationStore()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
+  const cartItemCount = useCartStore((s) => s.getItemCount)()
   const profileRef = useRef(null)
   const initial = user?.name?.charAt(0)?.toUpperCase() || '?'
   const locality = address?.split(',')[0] || 'Set location'
@@ -80,6 +84,14 @@ export default function CustomerLayout() {
 
             {/* Right side */}
             <div className="flex items-center gap-1 ml-auto">
+              <button onClick={() => setCartOpen(true)} className="hidden sm:flex relative p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple-light rounded-lg transition">
+                <ShoppingCart className="w-5 h-5" />
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-brand-red text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                    {cartItemCount > 99 ? '99+' : cartItemCount}
+                  </span>
+                )}
+              </button>
               <Link to="/app/wishlist" className="hidden sm:flex relative p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple-light rounded-lg transition">
                 <Heart className="w-5 h-5" />
               </Link>
@@ -219,6 +231,7 @@ export default function CustomerLayout() {
 
       {/* ── FLOATING UI ──────────────────────────────────────── */}
       <BackToTop />
+      <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
     </div>
   )
 }

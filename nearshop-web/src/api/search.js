@@ -1,6 +1,12 @@
 import client from './client'
 
 /**
+ * Search shops by query
+ */
+export const searchShops = (q, params = {}) =>
+  client.get('/shops/search', { params: { q, ...params } })
+
+/**
  * Unified search across products and shops
  */
 export const searchUnified = (q, lat = null, lng = null, params = {}) => {

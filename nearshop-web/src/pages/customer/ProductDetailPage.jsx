@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ShoppingBag, Share2, Lock, MessageSquare, ChevronRight, Star, MapPin, Store } from 'lucide-react'
+import { ShoppingBag, ShoppingCart, Share2, Lock, MessageSquare, ChevronRight, Star, MapPin, Store, Plus, Minus } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useCartStore } from '../../store/cartStore'
 import { getProduct, getSimilarProducts } from '../../api/products'
 import { createReservation } from '../../api/reservations'
 import { startHaggle } from '../../api/haggle'
@@ -12,6 +13,40 @@ import EmptyState from '../../components/ui/EmptyState'
 import WishlistHeart from '../../components/WishlistHeart'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
+
+function AddToCartButton({ product, shop }) {
+  const addItem = useCartStore((s) => s.addItem)
+  const updateQuantity = useCartStore((s) => s.updateQuantity)
+  const getItemById = useCartStore((s) => s.getItemById)
+  const cartItem = getItemById(product.id)
+
+  if (cartItem) {
+    return (
+      <div className="w-full flex items-center justify-between bg-brand-purple text-white py-2.5 px-4 rounded-xl">
+        <span className="text-sm font-bold flex items-center gap-2"><ShoppingCart className="w-4 h-4" /> In Cart</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => updateQuantity(product.id, cartItem.quantity - 1)}
+            className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30 transition">
+            <Minus className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-bold w-6 text-center">{cartItem.quantity}</span>
+          <button onClick={() => updateQuantity(product.id, cartItem.quantity + 1)}
+            className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30 transition">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => { addItem(product); toast.success('Added to cart!') }}
+      className="w-full flex items-center justify-center gap-2 bg-brand-purple text-white py-3 rounded-xl text-sm font-bold hover:bg-brand-purple-dark transition">
+      <ShoppingCart className="w-4 h-4" /> Add to Cart
+    </button>
+  )
+}
 
 export default function ProductDetailPage() {
   const { productId } = useParams()
@@ -172,6 +207,7 @@ export default function ProductDetailPage() {
 
             {/* Action buttons */}
             <div className="space-y-2">
+              <AddToCartButton product={product} shop={shop} />
               <button onClick={handleWhatsApp} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition">
                 <MessageSquare className="w-4 h-4" /> Chat on WhatsApp
               </button>

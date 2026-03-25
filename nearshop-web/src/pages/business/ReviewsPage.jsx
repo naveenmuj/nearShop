@@ -12,10 +12,26 @@ export default function ReviewsPage() {
   const [replyText, setReplyText] = useState({})
   const [replying, setReplying] = useState(null)
 
+  const handleReply = async (reviewId) => {
+    const text = replyText[reviewId]?.trim()
+    if (!text) { toast.error('Enter a reply'); return }
+    setReplying(reviewId)
+    try {
+      await client.post(`/reviews/${reviewId}/reply`, { reply: text })
+      toast.success('Reply posted!')
+      setReplyText(prev => ({ ...prev, [reviewId]: '' }))
+      load()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to reply')
+    } finally {
+      setReplying(null)
+    }
+  }
+
   const load = useCallback(async () => {
     if (!shopId) return
     try {
-      const res = await client.get(`/shops/${shopId}/reviews`)
+      const res = await client.get(`/reviews/shop/${shopId}`)
       const d = res.data
       setReviews(Array.isArray(d) ? d : d?.items ?? d?.reviews ?? [])
     } catch {} finally { setLoading(false) }
@@ -96,10 +112,28 @@ export default function ReviewsPage() {
               </span>
             </div>
             {review.comment && <p className="text-sm text-gray-600 mt-2.5 leading-relaxed">{review.comment}</p>}
-            {review.reply && (
+            {(review.reply || review.shop_reply) ? (
               <div className="mt-2.5 bg-gray-50 rounded-lg p-3 border-l-2 border-[#1D9E75]">
                 <p className="text-xs font-semibold text-[#1D9E75] mb-1">Your reply</p>
-                <p className="text-xs text-gray-600">{review.reply}</p>
+                <p className="text-xs text-gray-600">{review.reply || review.shop_reply}</p>
+              </div>
+            ) : (
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={replyText[review.id] || ''}
+                  onChange={(e) => setReplyText(prev => ({ ...prev, [review.id]: e.target.value }))}
+                  placeholder="Write a reply..."
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-brand-purple focus:outline-none transition"
+                />
+                <button
+                  onClick={() => handleReply(review.id)}
+                  disabled={replying === review.id}
+                  className="px-4 py-2 bg-brand-purple text-white rounded-lg text-sm font-semibold hover:bg-brand-purple-dark transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  {replying === review.id ? '...' : 'Reply'}
+                </button>
               </div>
             )}
           </div>

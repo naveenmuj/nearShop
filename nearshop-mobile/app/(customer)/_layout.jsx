@@ -50,6 +50,8 @@ export default function CustomerTabs() {
       <Tabs.Screen name="order-tracking/[id]" options={{ href: null }} />
       <Tabs.Screen name="achievements" options={{ href: null }} />
       <Tabs.Screen name="spin" options={{ href: null }} />
+      <Tabs.Screen name="cart" options={{ href: null }} />
+      <Tabs.Screen name="checkout" options={{ href: null }} />
     </Tabs>
   );
 }

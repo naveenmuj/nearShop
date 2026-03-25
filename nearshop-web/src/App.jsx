@@ -33,6 +33,7 @@ const CategoriesPage = lazy(() => import('./pages/customer/CategoriesPage'))
 const NotificationsPage  = lazy(() => import('./pages/customer/NotificationsPage'))
 const AchievementsPage  = lazy(() => import('./pages/customer/AchievementsPage'))
 const SpinWheelPage     = lazy(() => import('./pages/customer/SpinWheelPage'))
+const CheckoutPage      = lazy(() => import('./pages/customer/CheckoutPage'))
 
 // Admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
@@ -150,6 +151,7 @@ export default function App() {
           <Route path="notifications"  element={<NotificationsPage />} />
           <Route path="achievements"   element={<AchievementsPage />} />
           <Route path="spin"           element={<SpinWheelPage />} />
+          <Route path="checkout"       element={<CheckoutPage />} />
         </Route>
 
         {/* Business */}

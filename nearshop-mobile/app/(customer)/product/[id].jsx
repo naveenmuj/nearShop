@@ -14,8 +14,61 @@ import { trackView } from '../../../lib/engagement';
 import { startHaggle } from '../../../lib/haggle';
 import { createOrder } from '../../../lib/orders';
 import useAuthStore from '../../../store/authStore';
+import useCartStore from '../../../store/cartStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+// ── Cart button ─────────────────────────────────────────────────────────────
+function CartButton({ product, isAvailable, hagglingEnabled }) {
+  const addItem = useCartStore((s) => s.addItem);
+  const getItemForProduct = useCartStore((s) => s.getItemForProduct);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const getItemCount = useCartStore((s) => s.getItemCount);
+  const cartItem = getItemForProduct(product?.id);
+  const totalItems = getItemCount();
+
+  if (!isAvailable) {
+    return (
+      <Pressable style={[styles.orderBtn, styles.orderBtnDisabled, !hagglingEnabled && { flex: 1 }]} disabled>
+        <Text style={styles.orderBtnText}>Out of Stock</Text>
+      </Pressable>
+    );
+  }
+
+  if (cartItem) {
+    return (
+      <View style={[styles.orderBtn, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }, !hagglingEnabled && { flex: 1 }]}>
+        <Pressable onPress={() => updateQuantity(product.id, cartItem.quantity - 1)} style={{ padding: 6, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 8 }}>
+          <Text style={{ color: COLORS.white, fontSize: 18, fontWeight: '700' }}>−</Text>
+        </Pressable>
+        <Text style={[styles.orderBtnText, { minWidth: 24, textAlign: 'center' }]}>{cartItem.quantity}</Text>
+        <Pressable onPress={() => updateQuantity(product.id, cartItem.quantity + 1)} style={{ padding: 6, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 8 }}>
+          <Text style={{ color: COLORS.white, fontSize: 18, fontWeight: '700' }}>+</Text>
+        </Pressable>
+        {totalItems > 0 && (
+          <Pressable onPress={() => router.push('/(customer)/cart')} style={{ marginLeft: 6, padding: 6, backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 8 }}>
+            <Text style={{ color: COLORS.white, fontSize: 12, fontWeight: '700' }}>Cart ({totalItems})</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      style={[styles.orderBtn, !hagglingEnabled && { flex: 1 }]}
+      onPress={() => {
+        addItem(product, { id: product.shop_id, name: product.shop_name || product.shop?.name });
+        Alert.alert('Added to Cart', `${product.name} added to your cart`, [
+          { text: 'Continue', style: 'cancel' },
+          { text: 'Go to Cart', onPress: () => router.push('/(customer)/cart') },
+        ]);
+      }}
+    >
+      <Text style={styles.orderBtnText}>🛒 Add to Cart</Text>
+    </Pressable>
+  );
+}
 
 // ── Image carousel ──────────────────────────────────────────────────────────
 function ImageCarousel({ images = [] }) {
@@ -425,23 +478,7 @@ export default function ProductDetailScreen() {
               <Text style={styles.haggleBtnText}>🤝 Haggle</Text>
             </Pressable>
           ) : null}
-          <Pressable
-            style={[
-              styles.orderBtn,
-              !isAvailable && styles.orderBtnDisabled,
-              !hagglingEnabled && { flex: 1 },
-            ]}
-            onPress={handleOrder}
-            disabled={!isAvailable || ordering}
-          >
-            {ordering ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <Text style={styles.orderBtnText}>
-                {isAvailable ? 'Place Order' : 'Out of Stock'}
-              </Text>
-            )}
-          </Pressable>
+          <CartButton product={product} isAvailable={isAvailable} hagglingEnabled={hagglingEnabled} />
         </View>
       </SafeAreaView>
 
