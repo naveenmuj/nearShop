@@ -42,6 +42,7 @@ export default function BusinessTabs() {
       <Tabs.Screen name="reviews" options={{ href: null }} />
       <Tabs.Screen name="customers" options={{ href: null }} />
       <Tabs.Screen name="deals" options={{ href: null }} />
+      <Tabs.Screen name="shop-profile" options={{ href: null }} />
     </Tabs>
   );
 }

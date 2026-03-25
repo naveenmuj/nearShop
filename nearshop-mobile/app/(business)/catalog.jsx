@@ -63,7 +63,7 @@ export default function CatalogScreen() {
     if (!shopId) return;
     setLoading(true);
     try {
-      const res = await getShopProducts(shopId, { per_page: 50 });
+      const res = await getShopProducts(shopId, { per_page: 100, include_hidden: true });
       const items = res?.data?.items ?? res?.data ?? [];
       setProducts(Array.isArray(items) ? items : []);
     } catch {
@@ -145,11 +145,19 @@ export default function CatalogScreen() {
           <Text style={styles.productCategory} numberOfLines={1}>{item.category}</Text>
         </View>
         <View style={styles.productActions}>
-          <View style={[styles.badge, isLive ? styles.badgeLive : styles.badgeOff]}>
-            <Text style={[styles.badgeText, isLive ? styles.badgeLiveText : styles.badgeOffText]}>
-              {isLive ? 'Live' : 'Off'}
-            </Text>
-          </View>
+          {!isLive ? (
+            <TouchableOpacity
+              style={styles.makeLiveBtn}
+              onPress={() => handleToggle(item)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.makeLiveText}>Make Live</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.badge, styles.badgeLive]}>
+              <Text style={[styles.badgeText, styles.badgeLiveText]}>Live</Text>
+            </View>
+          )}
           <TouchableOpacity
             style={styles.trashBtn}
             onPress={() => handleDelete(item)}
@@ -353,6 +361,17 @@ const styles = StyleSheet.create({
   },
   badgeOffText: {
     color: COLORS.gray500,
+  },
+  makeLiveBtn: {
+    backgroundColor: COLORS.green,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  makeLiveText: {
+    color: COLORS.white,
+    fontSize: 11,
+    fontWeight: '700',
   },
   trashBtn: {
     padding: 2,

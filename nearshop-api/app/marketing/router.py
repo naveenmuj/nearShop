@@ -50,5 +50,55 @@ async def get_catalog_data(
 
 
 @router.get("/festivals")
-async def get_festivals(user: User = Depends(get_current_user)):
-    return await service.get_festival_suggestions()
+async def get_festivals(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    shop_id = await _get_shop_id(user, db)
+    festivals = await service.get_festival_suggestions()
+
+    # Get shop's product categories to suggest festival-relevant products
+    from app.products.models import Product
+    from sqlalchemy import func, desc
+    products_result = await db.execute(
+        select(Product.name, Product.price, Product.category, Product.id)
+        .where(Product.shop_id == shop_id, Product.is_available == True)
+        .order_by(desc(Product.view_count))
+        .limit(20)
+    )
+    products = products_result.all()
+    categories = set(p[2] for p in products if p[2])
+
+    # Festival category mapping for suggestions
+    FESTIVAL_CATEGORIES = {
+        "Ugadi / Gudi Padwa": ["Food", "Grocery", "Home", "Beauty"],
+        "Ramadan / Eid": ["Food", "Clothing", "Beauty", "Grocery"],
+        "Akshaya Tritiya": ["Beauty", "Electronics", "Clothing"],
+        "Mother's Day": ["Beauty", "Clothing", "Home", "Food"],
+        "Independence Day": ["Clothing", "Food", "Electronics", "Home"],
+        "Raksha Bandhan": ["Beauty", "Clothing", "Food", "Grocery"],
+        "Ganesh Chaturthi": ["Grocery", "Food", "Home"],
+        "Navratri / Dussehra": ["Clothing", "Beauty", "Food"],
+        "Diwali": ["Electronics", "Clothing", "Home", "Beauty", "Food", "Grocery"],
+        "Christmas": ["Electronics", "Clothing", "Food", "Home", "Beauty"],
+    }
+
+    for fest in festivals:
+        relevant_cats = FESTIVAL_CATEGORIES.get(fest["name"], [])
+        matching_products = [
+            {"id": str(p[3]), "name": p[0], "price": float(p[1]), "category": p[2]}
+            for p in products if p[2] in relevant_cats
+        ][:5]
+
+        missing_cats = [c for c in relevant_cats if c not in categories]
+
+        fest["suggested_products"] = matching_products
+        fest["suggested_categories"] = relevant_cats
+        fest["missing_categories"] = missing_cats
+        fest["deal_suggestion"] = (
+            f"Create deals on your {', '.join(c for c in relevant_cats if c in categories)} products"
+            if any(c in categories for c in relevant_cats)
+            else f"Consider adding {', '.join(relevant_cats[:2])} products for {fest['name']}"
+        )
+
+    return {"festivals": festivals}

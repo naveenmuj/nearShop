@@ -111,10 +111,10 @@ export default function BizDashboardScreen() {
   }
 
   const statCards = [
-    { label: 'Total Orders', value: stats?.total_orders ?? 0, color: COLORS.primary, icon: '🛍️' },
-    { label: 'Revenue', value: formatPrice(stats?.total_revenue ?? 0), color: COLORS.green, icon: '💰' },
-    { label: 'Views', value: stats?.total_views ?? 0, color: COLORS.amber, icon: '👁️' },
-    { label: 'Visitors', value: stats?.unique_visitors ?? 0, color: COLORS.blue, icon: '👥' },
+    { label: 'Total Orders', value: stats?.total_orders ?? 0, color: COLORS.primary, icon: '🛍️', route: '/(business)/orders' },
+    { label: 'Revenue', value: formatPrice(stats?.total_revenue ?? 0), color: COLORS.green, icon: '💰', route: '/(business)/analytics' },
+    { label: 'Views', value: stats?.total_views ?? 0, color: COLORS.amber, icon: '👁️', route: '/(business)/analytics' },
+    { label: 'Visitors', value: stats?.unique_visitors ?? 0, color: COLORS.blue, icon: '👥', route: '/(business)/customers' },
   ];
 
   const insightMsg = stats
@@ -131,10 +131,11 @@ export default function BizDashboardScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
+          <Pressable style={{ flex: 1 }} onPress={() => router.push('/(business)/shop-profile')}>
             <Text style={styles.greeting}>Good day,</Text>
             <Text style={styles.shopName} numberOfLines={1}>{shop?.name || 'your shop'} 👋</Text>
-          </View>
+            <Text style={styles.shopDetailHint}>Tap to view shop details →</Text>
+          </Pressable>
           <View style={styles.headerRight}>
             <Pressable style={styles.notifBtn} onPress={() => router.push('/(business)/orders')}>
               <Ionicons name="notifications-outline" size={20} color={COLORS.gray600} />
@@ -161,12 +162,12 @@ export default function BizDashboardScreen() {
         {/* Stats 2x2 */}
         <View style={styles.statsGrid}>
           {statCards.map((s) => (
-            <View key={s.label} style={[styles.statCard, { borderLeftColor: s.color }]}>
+            <Pressable key={s.label} style={[styles.statCard, { borderLeftColor: s.color }]} onPress={() => router.push(s.route)}>
               <Text style={styles.statIcon}>{s.icon}</Text>
               <Text style={styles.statValue}>{s.value}</Text>
               <Text style={styles.statLabel}>{s.label}</Text>
-              <Text style={[styles.statPeriod, { color: COLORS.green }]}>This week</Text>
-            </View>
+              <Text style={[styles.statPeriod, { color: COLORS.green }]}>This week →</Text>
+            </Pressable>
           ))}
         </View>
 
@@ -238,6 +239,7 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: 12, color: COLORS.gray400, fontWeight: '500' },
   shopName: { fontSize: 20, fontWeight: '800', color: COLORS.primary, marginTop: 2 },
+  shopDetailHint: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   headerRight: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   notifBtn: {
     width: 42, height: 42, borderRadius: 21,

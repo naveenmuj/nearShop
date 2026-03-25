@@ -141,6 +141,30 @@ async def create_product_endpoint(
     return ProductResponse.model_validate(product)
 
 
+@router.post("/bulk")
+async def bulk_create_products(
+    products_data: list[ProductCreate],
+    shop_id: UUID = Query(...),
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create multiple products at once. Accepts a JSON array of products."""
+    created = []
+    errors = []
+    for i, body in enumerate(products_data):
+        try:
+            product = await create_product(db, shop_id, current_user.id, body)
+            created.append({"index": i, "id": str(product.id), "name": product.name})
+        except Exception as e:
+            errors.append({"index": i, "name": body.name, "error": str(e)})
+    return {
+        "created_count": len(created),
+        "error_count": len(errors),
+        "created": created,
+        "errors": errors,
+    }
+
+
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product_endpoint(
     product_id: UUID,

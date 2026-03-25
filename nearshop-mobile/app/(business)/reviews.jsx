@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, StatusBar, BackHandler, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import client from '../../lib/api';
+import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
@@ -11,23 +12,48 @@ const STARS = [5, 4, 3, 2, 1];
 export default function ReviewsScreen() {
   const { shopId } = useMyShop();
   const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [replyText, setReplyText] = useState({});
+  const [replyingId, setReplyingId] = useState(null);
 
   useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
 
-  const loadData = useCallback(async () => {
-    if (!shopId) return;
-    setLoading(true); setError(null);
+  const loadData = useCallback(async (silent = false) => {
+    if (!shopId) { setLoading(false); return; }
+    if (!silent) setLoading(true);
+    setError(null);
     try {
-      const [rRes] = await Promise.allSettled([client.get(`/shops/${shopId}/reviews`)]);
-      if (rRes.status === 'fulfilled') setReviews(rRes.value.data?.reviews ?? rRes.value.data ?? []);
-      else setError('Failed to load reviews');
-    } catch { setError('Failed to load data'); }
-    finally { setLoading(false); }
+      // Use correct endpoint
+      const res = await client.get(`/reviews/shop/${shopId}`);
+      const d = res.data;
+      setReviews(Array.isArray(d) ? d : d?.items ?? d?.reviews ?? []);
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to load reviews');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, [shopId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleReply = async (reviewId) => {
+    const text = replyText[reviewId]?.trim();
+    if (!text) return;
+    setReplyingId(reviewId);
+    try {
+      await client.post(`/reviews/${reviewId}/reply`, { reply: text });
+      toast.show({ type: 'success', text1: 'Reply posted!' });
+      setReplyText(prev => ({ ...prev, [reviewId]: '' }));
+      loadData(true);
+    } catch (err) {
+      toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to reply' });
+    } finally {
+      setReplyingId(null);
+    }
+  };
 
   const safeReviews = Array.isArray(reviews) ? reviews : [];
   const avgRating = safeReviews.length > 0 ? (safeReviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / safeReviews.length).toFixed(1) : '0.0';
@@ -49,16 +75,26 @@ export default function ReviewsScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={s.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(true); }} tintColor={COLORS.primary} />}
+      >
         {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} /> :
-         error ? <Text style={s.empty}>{error}</Text> : null}
+         error ? (
+          <View style={{ alignItems: 'center', marginTop: 40 }}>
+            <Text style={{ fontSize: 40, marginBottom: 8 }}>⭐</Text>
+            <Text style={s.empty}>{error}</Text>
+            <TouchableOpacity onPress={() => loadData()} style={s.retryBtn}><Text style={s.retryText}>Retry</Text></TouchableOpacity>
+          </View>
+        ) : null}
 
-        {!loading && reviews.length > 0 && (
+        {!loading && safeReviews.length > 0 && (
           <View style={s.summaryCard}>
             <View style={s.summaryLeft}>
               <Text style={s.avgRating}>{avgRating}</Text>
               <Text style={s.avgStars}>{renderStars(Number(avgRating))}</Text>
-              <Text style={s.reviewCount}>{reviews.length} review{reviews.length !== 1 ? 's' : ''}</Text>
+              <Text style={s.reviewCount}>{safeReviews.length} review{safeReviews.length !== 1 ? 's' : ''}</Text>
             </View>
             <View style={s.summaryRight}>
               {distribution.map(d => (
@@ -74,23 +110,57 @@ export default function ReviewsScreen() {
           </View>
         )}
 
-        {!loading && reviews.length === 0 && !error && (
-          <Text style={s.empty}>No reviews yet</Text>
+        {!loading && safeReviews.length === 0 && !error && (
+          <View style={{ alignItems: 'center', marginTop: 60 }}>
+            <Text style={{ fontSize: 52, marginBottom: 12 }}>⭐</Text>
+            <Text style={s.emptyTitle}>No reviews yet</Text>
+            <Text style={s.emptySub}>Reviews will appear here when customers leave feedback</Text>
+          </View>
         )}
 
-        {!loading && reviews.map((r, i) => (
+        {!loading && safeReviews.map((r, i) => (
           <View key={r.id || i} style={s.card}>
             <View style={s.cardTop}>
-              <View>
-                <Text style={s.reviewer}>{r.customer_name || r.user_name || 'Anonymous'}</Text>
-                <Text style={s.reviewDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</Text>
+              <View style={s.reviewerRow}>
+                <View style={s.avatar}>
+                  <Text style={s.avatarText}>{(r.customer_name || 'A')[0].toUpperCase()}</Text>
+                </View>
+                <View>
+                  <Text style={s.reviewer}>{r.customer_name || r.user_name || 'Customer'}</Text>
+                  <Text style={s.reviewDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</Text>
+                </View>
               </View>
               <View style={s.ratingBadge}>
-                <Text style={s.ratingText}>{r.rating?.toFixed(1) ?? '0'} {'\u2605'}</Text>
+                <Text style={s.ratingText}>{r.rating?.toFixed?.(1) ?? Number(r.rating || 0).toFixed(1)} {'\u2605'}</Text>
               </View>
             </View>
             {r.comment && <Text style={s.comment}>{r.comment}</Text>}
-            {r.product_name && <Text style={s.productTag}>Product: {r.product_name}</Text>}
+            {r.product_name && <Text style={s.productTag}>📦 {r.product_name}</Text>}
+
+            {/* Reply section */}
+            {(r.reply || r.shop_reply) ? (
+              <View style={s.replyBox}>
+                <Text style={s.replyLabel}>Your reply</Text>
+                <Text style={s.replyText}>{r.reply || r.shop_reply}</Text>
+              </View>
+            ) : (
+              <View style={s.replyInputRow}>
+                <TextInput
+                  style={s.replyInput}
+                  value={replyText[r.id] || ''}
+                  onChangeText={(t) => setReplyText(prev => ({ ...prev, [r.id]: t }))}
+                  placeholder="Write a reply..."
+                  placeholderTextColor={COLORS.gray400}
+                />
+                <TouchableOpacity
+                  onPress={() => handleReply(r.id)}
+                  disabled={replyingId === r.id}
+                  style={s.replyBtn}
+                >
+                  <Text style={s.replyBtnText}>{replyingId === r.id ? '...' : 'Reply'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -122,6 +192,20 @@ const s = StyleSheet.create({
   reviewDate: { fontSize: 11, color: COLORS.gray400, marginTop: 2 },
   ratingBadge: { backgroundColor: COLORS.amberLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   ratingText: { fontSize: 13, fontWeight: '700', color: COLORS.amber },
+  reviewerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  avatarText: { fontSize: 15, fontWeight: '700', color: COLORS.primary },
   comment: { fontSize: 14, color: COLORS.gray700, lineHeight: 20, marginBottom: 6 },
-  productTag: { fontSize: 12, color: COLORS.gray500, fontStyle: 'italic' },
+  productTag: { fontSize: 12, color: COLORS.gray500, marginBottom: 8 },
+  replyBox: { backgroundColor: COLORS.gray50, borderRadius: 10, padding: 12, borderLeftWidth: 3, borderLeftColor: COLORS.green, marginTop: 8 },
+  replyLabel: { fontSize: 11, fontWeight: '700', color: COLORS.green, marginBottom: 4 },
+  replyText: { fontSize: 13, color: COLORS.gray600, lineHeight: 18 },
+  replyInputRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  replyInput: { flex: 1, borderWidth: 1, borderColor: COLORS.gray200, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, fontSize: 13, color: COLORS.gray900 },
+  replyBtn: { backgroundColor: COLORS.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8, justifyContent: 'center' },
+  replyBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.primaryLight },
+  retryText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700, marginBottom: 6 },
+  emptySub: { fontSize: 14, color: COLORS.gray400, textAlign: 'center' },
 });
