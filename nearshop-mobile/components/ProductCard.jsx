@@ -49,12 +49,19 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
             <Text style={styles.comparePrice}>{formatPrice(comparePrice)}</Text>
           )}
         </View>
-        {product.shop_name && (
-          <Text numberOfLines={1} style={styles.shopMeta}>
-            {product.shop_name}
-            {product.distance ? ` · ${product.distance}` : ''}
-          </Text>
-        )}
+        <View style={styles.metaRow}>
+          {product.shop_name && (
+            <Text numberOfLines={1} style={styles.shopMeta}>
+              {product.shop_name}
+              {product.distance ? ` · ${product.distance}` : ''}
+            </Text>
+          )}
+          {(product.view_count > 0 || product.views > 0) && (
+            <Text style={styles.viewCount}>
+              👁 {product.view_count || product.views}
+            </Text>
+          )}
+        </View>
         {product.deal_ends_at && (
           <DealCountdown dealEndsAt={product.deal_ends_at} compact />
         )}
@@ -98,5 +105,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
   price: { fontSize: 15, fontWeight: '700', color: COLORS.gray900 },
   comparePrice: { fontSize: 12, color: COLORS.gray400, textDecorationLine: 'line-through' },
-  shopMeta: { fontSize: 11, color: COLORS.gray400 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  shopMeta: { fontSize: 11, color: COLORS.gray400, flex: 1 },
+  viewCount: { fontSize: 10, color: COLORS.gray400, fontWeight: '600' },
 });

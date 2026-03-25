@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
   StatusBar, FlatList, TextInput, KeyboardAvoidingView, Platform,
-  Modal, Dimensions, Alert,
+  Modal, Dimensions, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -13,6 +13,7 @@ import { addToWishlist, removeFromWishlist } from '../../../lib/wishlists';
 import { trackView } from '../../../lib/engagement';
 import { startHaggle } from '../../../lib/haggle';
 import { createOrder } from '../../../lib/orders';
+import { toast } from '../../../components/ui/Toast';
 import useAuthStore from '../../../store/authStore';
 import useCartStore from '../../../store/cartStore';
 
@@ -59,10 +60,7 @@ function CartButton({ product, isAvailable, hagglingEnabled }) {
       style={[styles.orderBtn, !hagglingEnabled && { flex: 1 }]}
       onPress={() => {
         addItem(product, { id: product.shop_id, name: product.shop_name || product.shop?.name });
-        Alert.alert('Added to Cart', `${product.name} added to your cart`, [
-          { text: 'Continue', style: 'cancel' },
-          { text: 'Go to Cart', onPress: () => router.push('/(customer)/cart') },
-        ]);
+        toast.show({ type: 'cart', text1: `${product.name} added to cart` });
       }}
     >
       <Text style={styles.orderBtnText}>🛒 Add to Cart</Text>
@@ -94,9 +92,11 @@ function ImageCarousel({ images = [] }) {
         {displayImages.map((uri, i) => (
           <View key={i} style={[carousel.slide, { width: SCREEN_W }]}>
             {uri ? (
-              <View style={[carousel.img, { backgroundColor: COLORS.gray100 }]}>
-                <Text style={{ fontSize: 40 }}>📷</Text>
-              </View>
+              <Image
+                source={{ uri }}
+                style={carousel.img}
+                resizeMode="cover"
+              />
             ) : (
               <View style={[carousel.img, { backgroundColor: COLORS.gray100, justifyContent: 'center', alignItems: 'center' }]}>
                 <Text style={{ fontSize: 56 }}>📦</Text>
@@ -368,6 +368,11 @@ export default function ProductDetailScreen() {
             {product.sku ? (
               <Text style={styles.sku}>SKU: {product.sku}</Text>
             ) : null}
+            {(product.view_count > 0 || product.views > 0) ? (
+              <View style={styles.viewBadge}>
+                <Text style={styles.viewBadgeText}>👁 {product.view_count || product.views} views</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Price */}
@@ -452,7 +457,11 @@ export default function ProductDetailScreen() {
                     onPress={() => router.push(`/(customer)/product/${p.id}`)}
                   >
                     <View style={styles.simImg}>
-                      <Text style={{ fontSize: 28 }}>📦</Text>
+                      {p.images?.[0] ? (
+                        <Image source={{ uri: p.images[0] }} style={{ width: '100%', height: '100%', borderRadius: 8 }} resizeMode="cover" />
+                      ) : (
+                        <Text style={{ fontSize: 28 }}>📦</Text>
+                      )}
                     </View>
                     <Text style={styles.simName} numberOfLines={2}>{p.name}</Text>
                     <Text style={styles.simPrice}>{formatPrice(p.price)}</Text>
@@ -525,6 +534,8 @@ const styles = StyleSheet.create({
   },
   catBadgeText: { fontSize: 12, fontWeight: '600', color: COLORS.primaryDark },
   sku: { fontSize: 12, color: COLORS.gray400 },
+  viewBadge: { backgroundColor: COLORS.gray100, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  viewBadgeText: { fontSize: 11, color: COLORS.gray500, fontWeight: '600' },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
   price: { fontSize: 24, fontWeight: '700', color: COLORS.green },
   originalPrice: { fontSize: 15, color: COLORS.gray400, textDecorationLine: 'line-through' },

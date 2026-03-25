@@ -1,44 +1,47 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator,
-  RefreshControl, ScrollView, StatusBar, Image, Animated,
+  RefreshControl, ScrollView, StatusBar, Image, Animated, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 import { getNearbyDeals, claimDeal } from '../../lib/deals';
+import { toast } from '../../components/ui/Toast';
 import useLocationStore from '../../store/locationStore';
 
+const { width: SCREEN_W } = Dimensions.get('window');
+
 const CATEGORIES = [
-  { key: 'All',         emoji: '🔥' },
-  { key: 'Electronics', emoji: '📱' },
-  { key: 'Clothing',   emoji: '👕' },
-  { key: 'Grocery',    emoji: '🛒' },
-  { key: 'Food',       emoji: '🍔' },
-  { key: 'Home',       emoji: '🏠' },
-  { key: 'Beauty',     emoji: '💄' },
+  { key: 'All', emoji: '🔥', color: '#EF4444' },
+  { key: 'Electronics', emoji: '📱', color: '#3B82F6' },
+  { key: 'Clothing', emoji: '👕', color: '#8B5CF6' },
+  { key: 'Grocery', emoji: '🛒', color: '#10B981' },
+  { key: 'Food', emoji: '🍔', color: '#F59E0B' },
+  { key: 'Home', emoji: '🏠', color: '#6366F1' },
+  { key: 'Beauty', emoji: '💄', color: '#EC4899' },
 ];
 
 // ── Countdown hook ────────────────────────────────────────────────────────────
 function useCountdown(expiresAt) {
-  const [remaining, setRemaining] = useState({ text: '', urgent: false });
+  const [remaining, setRemaining] = useState({ text: '', urgent: false, expired: false });
   const timerRef = useRef(null);
 
   useEffect(() => {
     const tick = () => {
       const diff = new Date(expiresAt) - Date.now();
       if (diff <= 0) {
-        setRemaining({ text: 'Expired', urgent: false });
+        setRemaining({ text: 'Expired', urgent: false, expired: true });
         clearInterval(timerRef.current);
         return;
       }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      const urgent = diff < 3600000; // < 1 hour
-      if (h > 0) setRemaining({ text: `${h}h ${m}m`, urgent: false });
-      else if (m > 0) setRemaining({ text: `${m}m ${s}s`, urgent });
-      else setRemaining({ text: `${s}s`, urgent: true });
+      const urgent = diff < 3600000;
+      if (h > 0) setRemaining({ text: `${h}h ${m}m left`, urgent: false, expired: false });
+      else if (m > 0) setRemaining({ text: `${m}m ${s}s left`, urgent, expired: false });
+      else setRemaining({ text: `${s}s left`, urgent: true, expired: false });
     };
     tick();
     timerRef.current = setInterval(tick, 1000);
@@ -48,146 +51,141 @@ function useCountdown(expiresAt) {
   return remaining;
 }
 
-// ── Deal card ─────────────────────────────────────────────────────────────────
-function DealCard({ deal, onClaim, claiming }) {
-  const { text: countdown, urgent } = useCountdown(deal.expires_at);
-  const expired = countdown === 'Expired';
+// ── Featured Deal (top banner) ────────────────────────────────────────────────
+function FeaturedDeal({ deal, onClaim, claiming }) {
+  const { text: countdown, urgent, expired } = useCountdown(deal.expires_at);
   const discount = deal.original_price && deal.original_price > deal.price
-    ? Math.round((1 - deal.price / deal.original_price) * 100)
-    : null;
-
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+    ? Math.round((1 - deal.price / deal.original_price) * 100) : 0;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (urgent && !expired) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.08, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.stopAnimation();
-      pulseAnim.setValue(1);
+      Animated.loop(Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.03, duration: 800, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])).start();
     }
   }, [urgent, expired]);
 
   return (
-    <Pressable
-      style={[styles.card, expired && styles.cardExpired]}
-      onPress={() => !expired && router.push(`/(customer)/product/${deal.product_id}`)}
-      android_ripple={{ color: 'rgba(127,119,221,0.08)' }}
-    >
-      {/* Image or gradient placeholder */}
-      <View style={styles.cardImageWrap}>
-        {deal.image_url ? (
-          <Image source={{ uri: deal.image_url }} style={styles.cardImage} resizeMode="cover" />
+    <Animated.View style={[styles.featuredCard, { transform: [{ scale: scaleAnim }] }]}>
+      <Pressable
+        style={styles.featuredInner}
+        onPress={() => router.push(`/(customer)/product/${deal.product_id}`)}
+      >
+        <View style={styles.featuredLeft}>
+          {discount > 0 && (
+            <View style={styles.featuredDiscountBadge}>
+              <Text style={styles.featuredDiscountText}>{discount}%</Text>
+              <Text style={styles.featuredDiscountSub}>OFF</Text>
+            </View>
+          )}
+          <View style={styles.featuredInfo}>
+            <Text style={styles.featuredShop} numberOfLines={1}>{deal.shop_name}</Text>
+            <Text style={styles.featuredName} numberOfLines={2}>{deal.product_name}</Text>
+            <View style={styles.featuredPriceRow}>
+              <Text style={styles.featuredPrice}>{formatPrice(deal.price)}</Text>
+              {deal.original_price > deal.price && (
+                <Text style={styles.featuredOriginal}>{formatPrice(deal.original_price)}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+        <View style={styles.featuredRight}>
+          {deal.image_url ? (
+            <Image source={{ uri: deal.image_url }} style={styles.featuredImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.featuredImagePlaceholder}>
+              <Text style={{ fontSize: 48 }}>🎁</Text>
+            </View>
+          )}
+          <View style={[styles.featuredTimer, urgent && styles.featuredTimerUrgent]}>
+            <Text style={styles.featuredTimerText}>{expired ? '⏰' : urgent ? '🔥' : '⏱'} {countdown}</Text>
+          </View>
+        </View>
+      </Pressable>
+      <Pressable
+        style={[styles.featuredClaimBtn, expired && styles.featuredClaimBtnDisabled]}
+        onPress={() => !expired && !claiming && onClaim(deal.id)}
+        disabled={expired || claiming}
+      >
+        {claiming ? (
+          <ActivityIndicator size="small" color="#fff" />
         ) : (
-          <View style={[styles.cardImagePlaceholder, expired && styles.cardImagePlaceholderExpired]}>
-            <Text style={styles.placeholderEmoji}>
+          <Text style={styles.featuredClaimText}>{expired ? 'Expired' : '🎉 Grab This Deal'}</Text>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ── Deal Card (grid item) ─────────────────────────────────────────────────────
+function DealCard({ deal, onClaim, claiming }) {
+  const { text: countdown, urgent, expired } = useCountdown(deal.expires_at);
+  const discount = deal.original_price && deal.original_price > deal.price
+    ? Math.round((1 - deal.price / deal.original_price) * 100) : 0;
+
+  return (
+    <Pressable
+      style={[styles.dealCard, expired && styles.dealCardExpired]}
+      onPress={() => !expired && router.push(`/(customer)/product/${deal.product_id}`)}
+    >
+      {/* Image */}
+      <View style={styles.dealImageWrap}>
+        {deal.image_url ? (
+          <Image source={{ uri: deal.image_url }} style={styles.dealImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.dealImagePlaceholder}>
+            <Text style={{ fontSize: 32 }}>
               {CATEGORIES.find(c => c.key === deal.category)?.emoji ?? '🎁'}
             </Text>
           </View>
         )}
-
-        {/* Discount badge */}
-        {discount != null && discount > 0 && !expired && (
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{discount}% OFF</Text>
+        {discount > 0 && !expired && (
+          <View style={styles.dealDiscountBadge}>
+            <Text style={styles.dealDiscountText}>{discount}%</Text>
           </View>
         )}
-
-        {/* Expired overlay */}
         {expired && (
           <View style={styles.expiredOverlay}>
-            <Text style={styles.expiredOverlayText}>EXPIRED</Text>
+            <Text style={styles.expiredText}>EXPIRED</Text>
           </View>
         )}
       </View>
 
-      {/* Content */}
-      <View style={styles.cardBody}>
-        {/* Shop + timer row */}
-        <View style={styles.shopTimerRow}>
-          <Text style={styles.shopName} numberOfLines={1}>{deal.shop_name}</Text>
-          <Animated.View style={[styles.timerBadge, urgent && styles.timerBadgeUrgent, { transform: [{ scale: pulseAnim }] }]}>
-            <Text style={styles.timerIcon}>{expired ? '⏰' : urgent ? '🔥' : '⏱'}</Text>
-            <Text style={[styles.timerText, urgent && !expired && styles.timerTextUrgent, expired && styles.timerTextExpired]}>
-              {countdown}
-            </Text>
-          </Animated.View>
-        </View>
+      {/* Info */}
+      <View style={styles.dealBody}>
+        <Text style={styles.dealShop} numberOfLines={1}>{deal.shop_name}</Text>
+        <Text style={[styles.dealName, expired && { color: COLORS.gray400 }]} numberOfLines={2}>{deal.product_name}</Text>
 
-        {/* Product name */}
-        <Text style={[styles.productName, expired && styles.textMuted]} numberOfLines={2}>
-          {deal.product_name}
-        </Text>
-
-        {/* Description */}
-        {deal.description ? (
-          <Text style={styles.description} numberOfLines={2}>{deal.description}</Text>
-        ) : null}
-
-        {/* Price + claim */}
-        <View style={styles.priceClaimRow}>
-          <View>
-            <Text style={[styles.dealPrice, expired && styles.textMuted]}>
-              {formatPrice(deal.price)}
-            </Text>
-            {deal.original_price && deal.original_price > deal.price ? (
-              <Text style={styles.originalPrice}>{formatPrice(deal.original_price)}</Text>
-            ) : null}
-          </View>
-
-          <Pressable
-            style={[
-              styles.claimBtn,
-              expired && styles.claimBtnExpired,
-              claiming && styles.claimBtnLoading,
-            ]}
-            onPress={() => !expired && !claiming && onClaim(deal.id)}
-            disabled={expired || claiming}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-          >
-            {claiming ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <Text style={[styles.claimBtnText, (expired || claiming) && styles.claimBtnTextMuted]}>
-                {expired ? 'Expired' : 'Claim Deal'}
-              </Text>
-            )}
-          </Pressable>
-        </View>
-
-        {/* Footer: location + claims count */}
-        <View style={styles.cardFooter}>
-          <Text style={styles.footerText} numberOfLines={1}>
-            📍 {deal.shop_address || deal.shop_name}
-          </Text>
-          {deal.claims_count != null && deal.claims_count > 0 && (
-            <View style={styles.claimsCountBadge}>
-              <Text style={styles.claimsCountText}>{deal.claims_count} claimed</Text>
-            </View>
+        <View style={styles.dealPriceRow}>
+          <Text style={[styles.dealPrice, expired && { color: COLORS.gray400 }]}>{formatPrice(deal.price)}</Text>
+          {deal.original_price > deal.price && (
+            <Text style={styles.dealOriginal}>{formatPrice(deal.original_price)}</Text>
           )}
         </View>
+
+        {/* Timer */}
+        <View style={[styles.dealTimer, urgent && styles.dealTimerUrgent, expired && styles.dealTimerExpired]}>
+          <Text style={[styles.dealTimerText, urgent && { color: COLORS.red }, expired && { color: COLORS.gray400 }]}>
+            {expired ? '⏰ Expired' : urgent ? `🔥 ${countdown}` : `⏱ ${countdown}`}
+          </Text>
+        </View>
+
+        {/* Claim button */}
+        <Pressable
+          style={[styles.dealClaimBtn, expired && styles.dealClaimBtnDisabled]}
+          onPress={(e) => { e.stopPropagation(); !expired && !claiming && onClaim(deal.id); }}
+          disabled={expired || claiming}
+        >
+          {claiming ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.dealClaimText}>{expired ? 'Expired' : 'Claim'}</Text>
+          )}
+        </Pressable>
       </View>
     </Pressable>
-  );
-}
-
-// ── Hero header ───────────────────────────────────────────────────────────────
-function HeroHeader({ count }) {
-  return (
-    <View style={styles.hero}>
-      <View style={styles.heroContent}>
-        <Text style={styles.heroLabel}>NEAR YOU TODAY</Text>
-        <Text style={styles.heroTitle}>Deals & Offers</Text>
-        <Text style={styles.heroSub}>
-          {count > 0 ? `${count} active deal${count !== 1 ? 's' : ''} nearby` : 'Checking deals near you…'}
-        </Text>
-      </View>
-      <Text style={styles.heroEmoji}>🎁</Text>
-    </View>
   );
 }
 
@@ -207,7 +205,8 @@ export default function DealsScreen() {
       const params = { limit: 50 };
       if (activeCategory !== 'All') params.category = activeCategory;
       const res = await getNearbyDeals(lat ?? 12.935, lng ?? 77.624, params);
-      setDeals(res.data?.items ?? res.data ?? []);
+      const data = res.data?.items ?? res.data?.deals ?? res.data ?? [];
+      setDeals(Array.isArray(data) ? data : []);
     } catch {
       setError('Could not load deals. Check your connection.');
     }
@@ -228,9 +227,10 @@ export default function DealsScreen() {
     setClaimingId(id);
     try {
       await claimDeal(id);
+      toast.show({ type: 'success', text1: 'Deal claimed! Check your orders.' });
       await loadDeals();
-    } catch {
-      // silently ignore
+    } catch (err) {
+      toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to claim deal' });
     } finally {
       setClaimingId(null);
     }
@@ -238,66 +238,84 @@ export default function DealsScreen() {
 
   const activeDeals = deals.filter(d => new Date(d.expires_at) > Date.now());
   const expiredDeals = deals.filter(d => new Date(d.expires_at) <= Date.now());
-  const orderedDeals = [...activeDeals, ...expiredDeals];
+  const featuredDeal = activeDeals.length > 0 ? activeDeals[0] : null;
+  const remainingDeals = activeDeals.slice(1);
+  const allDisplayDeals = [...remainingDeals, ...expiredDeals];
+
+  const activeCatColor = CATEGORIES.find(c => c.key === activeCategory)?.color || COLORS.primary;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#4338CA" />
+      <StatusBar barStyle="light-content" backgroundColor="#312E81" />
 
       <FlatList
-        data={isLoading ? [] : orderedDeals}
+        data={isLoading ? [] : allDisplayDeals}
         keyExtractor={(item) => String(item.id)}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
         renderItem={({ item }) => (
-          <DealCard
-            deal={item}
-            onClaim={handleClaim}
-            claiming={claimingId === item.id}
-          />
+          <DealCard deal={item} onClaim={handleClaim} claiming={claimingId === item.id} />
         )}
         contentContainerStyle={[
           styles.list,
-          orderedDeals.length === 0 && !isLoading && styles.listEmpty,
+          allDisplayDeals.length === 0 && !isLoading && styles.listEmpty,
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.white}
-            progressBackgroundColor={COLORS.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" progressBackgroundColor={COLORS.primary} />
         }
         ListHeaderComponent={
           <>
-            <HeroHeader count={activeDeals.length} />
+            {/* Hero Header */}
+            <View style={styles.hero}>
+              <View style={styles.heroBubble1} />
+              <View style={styles.heroBubble2} />
+              <View style={styles.heroContent}>
+                <Text style={styles.heroLabel}>NEAR YOU TODAY</Text>
+                <Text style={styles.heroTitle}>Deals & Offers</Text>
+                <Text style={styles.heroSub}>
+                  {activeDeals.length > 0 ? `${activeDeals.length} active deal${activeDeals.length !== 1 ? 's' : ''} nearby` : 'Check for deals near you'}
+                </Text>
+              </View>
+              <Text style={styles.heroEmoji}>🎁</Text>
+            </View>
 
-            {/* Category pills */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryRow}
-              style={styles.categoryScroll}
-            >
-              {CATEGORIES.map(({ key, emoji }) => (
-                <Pressable
-                  key={key}
-                  style={[styles.catPill, activeCategory === key && styles.catPillActive]}
-                  onPress={() => setActiveCategory(key)}
-                  android_ripple={{ color: 'rgba(127,119,221,0.15)' }}
-                >
-                  <Text style={styles.catEmoji}>{emoji}</Text>
-                  <Text style={[styles.catText, activeCategory === key && styles.catTextActive]}>{key}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            {/* Category Pills */}
+            <View style={styles.catSection}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                {CATEGORIES.map(({ key, emoji, color }) => {
+                  const isActive = activeCategory === key;
+                  return (
+                    <Pressable
+                      key={key}
+                      style={[styles.catPill, isActive && { backgroundColor: color + '18', borderColor: color }]}
+                      onPress={() => setActiveCategory(key)}
+                    >
+                      <Text style={styles.catEmoji}>{emoji}</Text>
+                      <Text style={[styles.catText, isActive && { color, fontWeight: '700' }]}>{key}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
-            {/* Section label */}
-            {!isLoading && orderedDeals.length > 0 && (
+            {/* Featured Deal */}
+            {featuredDeal && !isLoading && (
+              <View style={styles.featuredSection}>
+                <Text style={styles.sectionTitle}>🌟 Top Deal</Text>
+                <FeaturedDeal deal={featuredDeal} onClaim={handleClaim} claiming={claimingId === featuredDeal.id} />
+              </View>
+            )}
+
+            {/* Grid Section Title */}
+            {!isLoading && allDisplayDeals.length > 0 && (
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
-                  {activeCategory === 'All' ? '🔥 Hot Deals' : `${CATEGORIES.find(c => c.key === activeCategory)?.emoji ?? ''} ${activeCategory} Deals`}
+                  {activeCategory === 'All' ? '🔥 All Deals' : `${CATEGORIES.find(c => c.key === activeCategory)?.emoji ?? ''} ${activeCategory} Deals`}
                 </Text>
-                <Text style={styles.sectionCount}>{activeDeals.length} active</Text>
+                <View style={[styles.countBadge, { backgroundColor: activeCatColor + '18' }]}>
+                  <Text style={[styles.countText, { color: activeCatColor }]}>{activeDeals.length} active</Text>
+                </View>
               </View>
             )}
           </>
@@ -306,11 +324,11 @@ export default function DealsScreen() {
           isLoading ? (
             <View style={styles.centerContent}>
               <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Finding deals near you…</Text>
+              <Text style={styles.loadingText}>Finding deals near you...</Text>
             </View>
           ) : error ? (
             <View style={styles.centerContent}>
-              <Text style={styles.errorEmoji}>😕</Text>
+              <Text style={{ fontSize: 48, marginBottom: 8 }}>😕</Text>
               <Text style={styles.errorTitle}>Couldn't load deals</Text>
               <Text style={styles.errorSub}>{error}</Text>
               <Pressable style={styles.retryBtn} onPress={loadDeals}>
@@ -319,7 +337,7 @@ export default function DealsScreen() {
             </View>
           ) : (
             <View style={styles.centerContent}>
-              <Text style={styles.emptyEmoji}>🎁</Text>
+              <Text style={{ fontSize: 56, marginBottom: 8 }}>🎁</Text>
               <Text style={styles.emptyTitle}>No deals right now</Text>
               <Text style={styles.emptySub}>Pull down to refresh or check back soon!</Text>
             </View>
@@ -330,246 +348,151 @@ export default function DealsScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#4338CA' },
+  safe: { flex: 1, backgroundColor: '#312E81' },
 
   // Hero
   hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
-    backgroundColor: '#4338CA',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20, backgroundColor: '#312E81',
+    overflow: 'hidden', position: 'relative',
+  },
+  heroBubble1: {
+    position: 'absolute', width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(255,255,255,0.05)', top: -50, right: -40,
+  },
+  heroBubble2: {
+    position: 'absolute', width: 120, height: 120, borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.05)', bottom: -30, left: -20,
   },
   heroContent: { flex: 1 },
   heroLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 2,
-    marginBottom: 4,
+    fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 2, marginBottom: 4,
   },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.white,
-    lineHeight: 32,
-  },
-  heroSub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 6,
-  },
-  heroEmoji: { fontSize: 52, marginLeft: 12 },
+  heroTitle: { fontSize: 26, fontWeight: '800', color: '#fff', lineHeight: 30 },
+  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  heroEmoji: { fontSize: 48, marginLeft: 12 },
 
-  // Category pills
-  categoryScroll: { backgroundColor: COLORS.white },
-  categoryRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-    backgroundColor: COLORS.white,
-  },
+  // Categories
+  catSection: { backgroundColor: '#fff', paddingVertical: 12 },
+  catRow: { paddingHorizontal: 16, gap: 8 },
   catPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.gray100,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-  },
-  catPillActive: {
-    backgroundColor: COLORS.primaryLight,
-    borderColor: COLORS.primary,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: COLORS.gray100, borderWidth: 1.5, borderColor: 'transparent',
   },
   catEmoji: { fontSize: 14 },
   catText: { fontSize: 13, fontWeight: '600', color: COLORS.gray600 },
-  catTextActive: { color: COLORS.primaryDark, fontWeight: '700' },
+
+  // Featured
+  featuredSection: { paddingHorizontal: 16, paddingTop: 16, backgroundColor: COLORS.bg },
+  featuredCard: {
+    backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
+    marginTop: 10, ...SHADOWS.cardHover,
+  },
+  featuredInner: { flexDirection: 'row', padding: 16 },
+  featuredLeft: { flex: 1, marginRight: 12 },
+  featuredDiscountBadge: {
+    backgroundColor: '#EF4444', width: 52, height: 52, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+  },
+  featuredDiscountText: { fontSize: 18, fontWeight: '900', color: '#fff' },
+  featuredDiscountSub: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginTop: -2 },
+  featuredInfo: { flex: 1 },
+  featuredShop: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginBottom: 4 },
+  featuredName: { fontSize: 16, fontWeight: '800', color: COLORS.gray900, lineHeight: 21, marginBottom: 8 },
+  featuredPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  featuredPrice: { fontSize: 22, fontWeight: '800', color: COLORS.green },
+  featuredOriginal: { fontSize: 14, color: COLORS.gray400, textDecorationLine: 'line-through' },
+  featuredRight: { width: 120, alignItems: 'center' },
+  featuredImage: { width: 120, height: 100, borderRadius: 12 },
+  featuredImagePlaceholder: {
+    width: 120, height: 100, borderRadius: 12, backgroundColor: '#EEF2FF',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  featuredTimer: {
+    marginTop: 8, backgroundColor: COLORS.amberLight, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  featuredTimerUrgent: { backgroundColor: COLORS.redLight },
+  featuredTimerText: { fontSize: 11, fontWeight: '700', color: COLORS.amber },
+  featuredClaimBtn: {
+    backgroundColor: COLORS.primary, paddingVertical: 14, alignItems: 'center',
+    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+  },
+  featuredClaimBtnDisabled: { backgroundColor: COLORS.gray300 },
+  featuredClaimText: { fontSize: 15, fontWeight: '800', color: '#fff' },
 
   // Section header
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    backgroundColor: COLORS.bg,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, backgroundColor: COLORS.bg,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray900 },
-  sectionCount: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray900 },
+  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  countText: { fontSize: 12, fontWeight: '700' },
 
-  // List
-  list: { backgroundColor: COLORS.bg, paddingHorizontal: 16, paddingBottom: 32, gap: 14 },
+  // Grid
+  list: { backgroundColor: COLORS.bg, paddingHorizontal: 12, paddingBottom: 32 },
   listEmpty: { flexGrow: 1 },
+  gridRow: { gap: 10, marginBottom: 10 },
 
-  // Card
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    overflow: 'hidden',
-    ...SHADOWS.card,
+  // Deal card
+  dealCard: {
+    flex: 1, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden',
+    maxWidth: (SCREEN_W - 34) / 2, ...SHADOWS.card,
   },
-  cardExpired: { opacity: 0.55 },
-
-  // Card image
-  cardImageWrap: { width: '100%', height: 160, position: 'relative' },
-  cardImage: { width: '100%', height: '100%' },
-  cardImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#4338CA',
+  dealCardExpired: { opacity: 0.5 },
+  dealImageWrap: { width: '100%', height: 110, position: 'relative' },
+  dealImage: { width: '100%', height: '100%' },
+  dealImagePlaceholder: {
+    width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#EEF2FF',
   },
-  cardImagePlaceholderExpired: {
-    backgroundColor: COLORS.gray200,
+  dealDiscountBadge: {
+    position: 'absolute', top: 8, left: 8, backgroundColor: '#EF4444',
+    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
   },
-  placeholderEmoji: { fontSize: 52 },
-  discountBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: COLORS.red,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  discountText: { fontSize: 12, fontWeight: '800', color: COLORS.white },
+  dealDiscountText: { fontSize: 13, fontWeight: '900', color: '#fff' },
   expiredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  expiredOverlayText: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.white,
-    letterSpacing: 3,
+  expiredText: { fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: 2 },
+  dealBody: { padding: 10, gap: 4 },
+  dealShop: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
+  dealName: { fontSize: 13, fontWeight: '700', color: COLORS.gray900, lineHeight: 17 },
+  dealPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  dealPrice: { fontSize: 16, fontWeight: '800', color: COLORS.green },
+  dealOriginal: { fontSize: 11, color: COLORS.gray400, textDecorationLine: 'line-through' },
+  dealTimer: {
+    backgroundColor: COLORS.amberLight, borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginTop: 2,
   },
-
-  // Card body
-  cardBody: { padding: 16, gap: 6 },
-  shopTimerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
+  dealTimerUrgent: { backgroundColor: COLORS.redLight },
+  dealTimerExpired: { backgroundColor: COLORS.gray100 },
+  dealTimerText: { fontSize: 10, fontWeight: '700', color: COLORS.amber },
+  dealClaimBtn: {
+    backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 8,
+    alignItems: 'center', marginTop: 6,
   },
-  shopName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.primary,
-    flex: 1,
-    marginRight: 8,
-  },
-  timerBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.amberLight,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  timerBadgeUrgent: { backgroundColor: COLORS.redLight },
-  timerIcon: { fontSize: 12 },
-  timerText: { fontSize: 12, fontWeight: '700', color: COLORS.amber },
-  timerTextUrgent: { color: COLORS.red },
-  timerTextExpired: { color: COLORS.gray400 },
-  productName: { fontSize: 17, fontWeight: '800', color: COLORS.gray900, lineHeight: 22 },
-  textMuted: { color: COLORS.gray400 },
-  description: {
-    fontSize: 13,
-    color: COLORS.gray500,
-    lineHeight: 18,
-  },
-
-  // Price + claim
-  priceClaimRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  dealPrice: { fontSize: 22, fontWeight: '800', color: COLORS.green },
-  originalPrice: {
-    fontSize: 13,
-    color: COLORS.gray400,
-    textDecorationLine: 'line-through',
-    marginTop: 1,
-  },
-  claimBtn: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    borderRadius: 14,
-    minWidth: 110,
-    alignItems: 'center',
-  },
-  claimBtnExpired: { backgroundColor: COLORS.gray200 },
-  claimBtnLoading: { opacity: 0.8 },
-  claimBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 14 },
-  claimBtnTextMuted: { color: COLORS.gray400 },
-
-  // Footer
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 10,
-    marginTop: 4,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.gray100,
-  },
-  footerText: { fontSize: 12, color: COLORS.gray400, flex: 1 },
-  claimsCountBadge: {
-    backgroundColor: COLORS.greenLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  claimsCountText: { fontSize: 11, fontWeight: '700', color: COLORS.green },
+  dealClaimBtnDisabled: { backgroundColor: COLORS.gray200 },
+  dealClaimText: { fontSize: 12, fontWeight: '700', color: '#fff' },
 
   // States
   centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-    gap: 8,
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    paddingTop: 60, paddingHorizontal: 40, gap: 6,
   },
   loadingText: { fontSize: 14, color: COLORS.gray400, marginTop: 8 },
-  errorEmoji: { fontSize: 44, marginBottom: 4 },
   errorTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray700 },
   errorSub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center' },
   retryBtn: {
-    marginTop: 12,
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    backgroundColor: COLORS.primary,
-    borderRadius: 14,
+    marginTop: 14, paddingHorizontal: 28, paddingVertical: 12,
+    backgroundColor: COLORS.primary, borderRadius: 14,
   },
-  retryText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-  emptyEmoji: { fontSize: 52, marginBottom: 4 },
+  retryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700 },
   emptySub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 },
 });

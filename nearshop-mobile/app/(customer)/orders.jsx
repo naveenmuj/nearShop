@@ -137,7 +137,12 @@ export default function OrdersScreen() {
       const params = activeFilter === 'all' ? {} : { status: activeFilter };
       const res = await getMyOrders(params);
       const d = res?.data;
-      setOrders(Array.isArray(d) ? d : d?.items ?? d?.orders ?? []);
+      let list = Array.isArray(d) ? d : d?.items ?? d?.orders ?? [];
+      // Client-side filter as safety net if backend ignores status param
+      if (activeFilter !== 'all') {
+        list = list.filter(o => o.status === activeFilter);
+      }
+      setOrders(list);
     } catch (err) {
       setError('Failed to load orders. Pull down to retry.');
       setOrders([]);
@@ -178,18 +183,8 @@ export default function OrdersScreen() {
   }, [fetchOrders]);
 
   const handleCardPress = useCallback((order) => {
-    // Show order details inline since order-detail screen doesn't exist
-    const itemsList = Array.isArray(order.items) ? order.items : [];
-    const items = itemsList.length > 0
-      ? itemsList.map(i => `  ${i.quantity ?? 1}x ${i.name || 'Item'} — ₹${i.total || ((i.price || 0) * (i.quantity || 1))}`).join('\n')
-      : 'No item details';
-    const orderId = String(order.order_number || order.id || '').slice(-8);
-    Alert.alert(
-      `Order #${orderId}`,
-      `Shop: ${order.shop_name || 'N/A'}\n\n${items}\n\nTotal: ₹${order.total_amount ?? order.total ?? 0}\nStatus: ${order.status || 'Unknown'}`,
-      [{ text: 'Close' }]
-    );
-  }, []);
+    router.push(`/(customer)/order-detail/${order.id}`);
+  }, [router]);
 
   const renderOrder = useCallback(({ item }) => (
     <OrderCard

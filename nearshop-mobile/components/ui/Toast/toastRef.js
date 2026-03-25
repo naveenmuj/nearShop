@@ -28,4 +28,7 @@ export const toast = {
   error: (message) => _showToast?.({ type: 'error', message }),
   info: (message) => _showToast?.({ type: 'info', message }),
   warning: (message) => _showToast?.({ type: 'warning', message }),
+  coins: (message, coins) => _showToast?.({ type: 'coins', message, coins }),
+  order: (message) => _showToast?.({ type: 'order', message }),
+  cart: (message) => _showToast?.({ type: 'cart', message }),
 };

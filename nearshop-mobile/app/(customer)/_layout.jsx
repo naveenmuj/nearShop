@@ -47,6 +47,7 @@ export default function CustomerTabs() {
       <Tabs.Screen name="orders" options={{ href: null }} />
       <Tabs.Screen name="wallet" options={{ href: null }} />
       <Tabs.Screen name="haggle" options={{ href: null }} />
+      <Tabs.Screen name="order-detail/[id]" options={{ href: null }} />
       <Tabs.Screen name="order-tracking/[id]" options={{ href: null }} />
       <Tabs.Screen name="achievements" options={{ href: null }} />
       <Tabs.Screen name="spin" options={{ href: null }} />

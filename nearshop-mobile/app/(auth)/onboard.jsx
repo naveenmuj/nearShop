@@ -43,10 +43,11 @@ export default function OnboardScreen() {
   // Business fields
   const [ownerName, setOwnerName] = useState('');
   const [shopName, setShopName] = useState('');
-  const [shopCat, setShopCat] = useState('');
+  const [shopCat, setShopCat] = useState([]);
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  const [whatsappSameAsPhone, setWhatsappSameAsPhone] = useState(false);
   const [shopAddress, setShopAddress] = useState('');
   const [logoUri, setLogoUri] = useState(null);
   const [deliveryOption, setDeliveryOption] = useState('pickup');
@@ -118,7 +119,7 @@ export default function OnboardScreen() {
       return;
     }
     if (role === 'business') {
-      if (!ownerName.trim() || !shopName.trim() || !shopCat) {
+      if (!ownerName.trim() || !shopName.trim() || shopCat.length === 0) {
         toast.show({ type: 'error', text1: 'Please fill all required fields' });
         return;
       }
@@ -163,7 +164,8 @@ export default function OnboardScreen() {
 
         await createShop({
           name: shopName.trim(),
-          category: shopCat,
+          category: shopCat[0],
+          categories: shopCat,
           description: description.trim() || undefined,
           phone: phone.trim(),
           whatsapp: whatsapp.trim() || undefined,
@@ -216,7 +218,7 @@ export default function OnboardScreen() {
           <Text style={styles.title}>Tell us about yourself</Text>
           <Text style={styles.subtitle}>Personalize your experience by sharing your interests</Text>
 
-          <Text style={styles.label}>Your name</Text>
+          <Text style={styles.label}>Your name <Text style={{ color: COLORS.red }}>*</Text></Text>
           <TextInput value={name} onChangeText={setName} placeholder="e.g. Priya Sharma" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
 
           <Text style={styles.label}>What do you love? <Text style={styles.hint}>(pick 3+)</Text></Text>
@@ -239,7 +241,7 @@ export default function OnboardScreen() {
 
   // Business mode — Step 1: Basic Info
   if (step === 1) {
-    const canNext = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length > 0 && phone.trim().length >= 10;
+    const canNext = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length >= 1 && phone.trim().length >= 10;
     return (
       <SafeAreaView style={styles.container}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -255,18 +257,35 @@ export default function OnboardScreen() {
           <Text style={styles.label}>Shop name *</Text>
           <TextInput value={shopName} onChangeText={setShopName} placeholder="e.g. Ramesh Electronics" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
 
-          <Text style={styles.label}>Category *</Text>
+          <Text style={styles.label}>Category * <Text style={styles.hint}>(select 1 or more)</Text></Text>
           <View style={styles.chips}>
             {SHOP_CATEGORIES.map((cat) => (
-              <Chip key={cat} label={cat} selected={shopCat === cat} onPress={() => setShopCat(cat)} />
+              <Chip key={cat} label={cat} selected={shopCat.includes(cat)} onPress={() => setShopCat(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])} />
             ))}
           </View>
 
           <Text style={styles.label}>Phone number *</Text>
-          <TextInput value={phone} onChangeText={setPhone} placeholder="e.g. 9876543210" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="phone-pad" maxLength={15} />
+          <TextInput value={phone} onChangeText={(val) => { setPhone(val); if (whatsappSameAsPhone) setWhatsapp(val); }} placeholder="e.g. 9876543210" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="phone-pad" maxLength={15} />
 
           <Text style={styles.label}>WhatsApp number <Text style={styles.hint}>(optional)</Text></Text>
-          <TextInput value={whatsapp} onChangeText={setWhatsapp} placeholder="Same as phone or different" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="phone-pad" maxLength={15} />
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => {
+              const newVal = !whatsappSameAsPhone;
+              setWhatsappSameAsPhone(newVal);
+              if (newVal) setWhatsapp(phone);
+              else setWhatsapp('');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, whatsappSameAsPhone && styles.checkboxChecked]}>
+              {whatsappSameAsPhone && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>Same as phone number</Text>
+          </TouchableOpacity>
+          {!whatsappSameAsPhone && (
+            <TextInput value={whatsapp} onChangeText={setWhatsapp} placeholder="Enter WhatsApp number" placeholderTextColor={COLORS.gray400} style={styles.input} keyboardType="phone-pad" maxLength={15} />
+          )}
 
           <TouchableOpacity onPress={() => setStep(2)} disabled={!canNext} activeOpacity={0.85}
             style={[styles.btn, { backgroundColor: canNext ? COLORS.primary : COLORS.gray200 }]}>
@@ -280,7 +299,7 @@ export default function OnboardScreen() {
   }
 
   // Business mode — Step 2: Additional Details & Delivery
-  const canSubmit = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length > 0 && phone.trim().length >= 10;
+  const canSubmit = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length >= 1 && phone.trim().length >= 10;
   const showDeliveryOptions = deliveryOption === 'delivery' || deliveryOption === 'both';
   return (
     <SafeAreaView style={styles.container}>
@@ -503,6 +522,20 @@ const styles = StyleSheet.create({
     marginBottom: 24, borderWidth: 1, borderColor: '#E9D5FF',
   },
   deliveryTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray900, marginBottom: 12 },
+  checkboxRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2,
+    borderColor: COLORS.gray300, backgroundColor: COLORS.white,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary, borderColor: COLORS.primary,
+  },
+  checkmark: { color: COLORS.white, fontSize: 14, fontWeight: '700', marginTop: -1 },
+  checkboxLabel: { fontSize: 14, color: COLORS.gray600, fontWeight: '500' },
   radiusContainer: { position: 'relative', marginBottom: 20 },
   radiusInput: { paddingRight: 140 },
   radiusLabel: { position: 'absolute', right: 16, top: 16, fontSize: 13, color: COLORS.gray500, fontWeight: '500' },

@@ -43,6 +43,14 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState('products');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'All');
+
+  // Sync category when navigated from home with a filter param
+  useEffect(() => {
+    if (initialCategory && initialCategory !== selectedCategory) {
+      setSelectedCategory(initialCategory);
+      setHasSearched(false);
+    }
+  }, [initialCategory]);
   const [selectedSort, setSelectedSort] = useState('newest');
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
@@ -85,17 +93,14 @@ export default function SearchScreen() {
   const fetchProducts = useCallback(async (q, category, sort) => {
     setLoading(true);
     try {
-      const params = { per_page: 40, sort_by: sort };
-      if (q) params.q = q;
-      // Only send lat/lng for category browse (no text query) to avoid geo-filtering text searches
-      if (!q && category && category !== 'All' && lat != null) {
-        params.lat = lat;
-        params.lng = lng;
-      }
+      const params = { per_page: 40 };
+      if (sort) params.sort_by = sort;
+      if (q && q.trim()) params.q = q.trim();
+      if (lat != null) params.lat = lat;
+      if (lng != null) params.lng = lng;
       if (category && category !== 'All') params.category = category;
       const res = await searchProducts(params);
-      // API returns { items: [...], total, page, per_page }
-      setProducts(res?.data?.items ?? []);
+      setProducts(res?.data?.items ?? res?.data ?? []);
     } catch {
       setProducts([]);
     } finally {

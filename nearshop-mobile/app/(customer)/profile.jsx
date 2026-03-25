@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,12 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
 import { switchRole as apiSwitchRole, deleteAccount as apiDeleteAccount } from '../../lib/auth';
 import { isSoundEnabled, setSoundEnabled, initSound } from '../../lib/sound';
+import { getMyOrders } from '../../lib/orders';
 import { COLORS, SHADOWS, formatDate } from '../../constants/theme';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -87,12 +88,36 @@ export default function ProfileScreen() {
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundOn, setSoundOn] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
 
   const locality = address || 'Location not set';
 
   useEffect(() => {
     initSound().then(() => setSoundOn(isSoundEnabled()));
   }, []);
+
+  // Fetch counts whenever screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      const loadCounts = async () => {
+        try {
+          const res = await getMyOrders({});
+          const d = res?.data;
+          const list = Array.isArray(d) ? d : d?.items ?? d?.orders ?? [];
+          setOrderCount(list.length);
+        } catch {}
+        try {
+          const client = (await import('../../lib/api')).default;
+          const res = await client.get('/wishlists');
+          const d = res?.data;
+          const list = Array.isArray(d) ? d : d?.items ?? [];
+          setWishlistCount(list.length);
+        } catch {}
+      };
+      loadCounts();
+    }, [])
+  );
 
   const handleSoundToggle = async (val) => {
     setSoundOn(val);
@@ -251,13 +276,13 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <StatCard
             label="Orders"
-            value={0}
+            value={orderCount}
             onPress={() => router.push('/(customer)/orders')}
           />
           <View style={styles.statDivider} />
           <StatCard
             label="Wishlist"
-            value={0}
+            value={wishlistCount}
             onPress={() => router.push('/(customer)/wishlist')}
           />
           <View style={styles.statDivider} />

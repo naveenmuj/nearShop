@@ -245,11 +245,13 @@ export default function WalletScreen() {
     }
 
     if (histRes.status === 'fulfilled') {
-      setTransactions(histRes.value?.data?.transactions ?? []);
+      const h = histRes.value?.data;
+      setTransactions(h?.transactions ?? h?.items ?? h?.history ?? (Array.isArray(h) ? h : []));
     }
 
     if (badgeRes.status === 'fulfilled') {
-      setBadges(badgeRes.value?.data?.badges ?? []);
+      const b = badgeRes.value?.data;
+      setBadges(b?.badges ?? b?.items ?? (Array.isArray(b) ? b : []));
     }
 
     if (streakRes.status === 'fulfilled') {

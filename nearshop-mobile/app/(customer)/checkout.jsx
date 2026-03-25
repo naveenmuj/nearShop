@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, StatusBar,
+  TextInput, ActivityIndicator, Alert, StatusBar, Modal, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useCartStore from '../../store/cartStore';
+import useLocationStore from '../../store/locationStore';
 import { createOrder } from '../../lib/orders';
+import { toast } from '../../components/ui/Toast';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN');
@@ -17,10 +19,13 @@ export default function CheckoutScreen() {
   const shopGroups = getShopGroups();
   const grandTotal = getSubtotal();
 
+  const { address: locationAddress } = useLocationStore();
   const [deliveryType, setDeliveryType] = useState('pickup');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(locationAddress || '');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [orderCount, setOrderCount] = useState(0);
 
   const handlePlaceOrder = async () => {
     if (deliveryType === 'delivery' && !address.trim()) {
@@ -46,11 +51,9 @@ export default function CheckoutScreen() {
         clearShopItems(group.shop_id);
         successCount++;
       }
-      Alert.alert(
-        'Orders Placed!',
-        `${successCount} order${successCount > 1 ? 's' : ''} placed successfully. You will be notified when they're ready.`,
-        [{ text: 'View Orders', onPress: () => router.replace('/(customer)/orders') }]
-      );
+      setOrderCount(successCount);
+      setShowSuccess(true);
+      toast.show({ type: 'order', text1: `${successCount} order${successCount > 1 ? 's' : ''} placed!` });
     } catch (err) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : 'Failed to place order. Please try again.';
@@ -172,6 +175,34 @@ export default function CheckoutScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccess} transparent animationType="fade">
+        <View style={styles.successOverlay}>
+          <View style={styles.successCard}>
+            <Text style={styles.successEmoji}>🎉</Text>
+            <Text style={styles.successTitle}>Order Placed!</Text>
+            <Text style={styles.successSub}>
+              {orderCount > 1
+                ? `${orderCount} orders have been sent to the shops`
+                : 'Your order has been sent to the shop'}
+            </Text>
+            <Text style={styles.successHint}>You'll be notified when it's ready</Text>
+            <TouchableOpacity
+              style={styles.successPrimaryBtn}
+              onPress={() => { setShowSuccess(false); router.replace('/(customer)/orders'); }}
+            >
+              <Text style={styles.successPrimaryText}>📦 View My Orders</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.successSecondaryBtn}
+              onPress={() => { setShowSuccess(false); router.replace('/(customer)/home'); }}
+            >
+              <Text style={styles.successSecondaryText}>Continue Shopping</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -209,4 +240,14 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700, marginBottom: 24 },
   shopBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 32 },
   shopBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  successOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
+  successCard: { backgroundColor: COLORS.white, borderRadius: 24, padding: 32, alignItems: 'center', width: '100%', maxWidth: 340 },
+  successEmoji: { fontSize: 64, marginBottom: 12 },
+  successTitle: { fontSize: 24, fontWeight: '800', color: COLORS.gray900, marginBottom: 8 },
+  successSub: { fontSize: 15, color: COLORS.gray600, textAlign: 'center', lineHeight: 22, marginBottom: 4 },
+  successHint: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', marginBottom: 24 },
+  successPrimaryBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginBottom: 10 },
+  successPrimaryText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+  successSecondaryBtn: { paddingVertical: 10 },
+  successSecondaryText: { color: COLORS.gray500, fontWeight: '600', fontSize: 14 },
 });

@@ -50,20 +50,29 @@ export default function DealsScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleCreate = async () => {
-    if (!selectedProduct) { Alert.alert('Error', 'Select a product'); return; }
-    if (!shopId) { Alert.alert('Error', 'Shop not found. Please refresh.'); return; }
-    if (!discountPct || Number(discountPct) <= 0 || Number(discountPct) > 99) { Alert.alert('Error', 'Enter a valid discount (1-99%)'); return; }
+    if (!selectedProduct) { Alert.alert('Select Product', 'Please choose a product to create a deal for.'); return; }
+    if (!shopId) { Alert.alert('Shop Not Found', 'Could not find your shop. Please go back and try again.'); return; }
+    const disc = Number(discountPct);
+    if (!disc || disc <= 0 || disc > 99) { Alert.alert('Invalid Discount', 'Enter a discount between 1% and 99%.'); return; }
     setCreating(true);
     try {
-      await client.post(`/deals?shop_id=${shopId}`, {
+      await client.post('/deals', {
+        shop_id: shopId,
         product_id: selectedProduct.id,
-        discount_percentage: Number(discountPct),
+        discount_percentage: disc,
         duration_days: duration,
       });
-      Alert.alert('Success', `Deal created for ${selectedProduct.name}!`);
-      setSelectedProduct(null); setDiscountPct('10'); loadData();
-    } catch (e) { Alert.alert('Error', e.response?.data?.detail || 'Failed to create deal'); }
-    finally { setCreating(false); }
+      Alert.alert('Deal Created!', `${disc}% off deal created for ${selectedProduct.name}. It will be visible to nearby customers.`);
+      setSelectedProduct(null);
+      setDiscountPct('10');
+      setTab('active');
+      loadData();
+    } catch (e) {
+      const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || 'Failed to create deal. Please try again.';
+      Alert.alert('Error', String(msg));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const filtered = search ? products.filter(p => p?.name?.toLowerCase().includes(search.toLowerCase())) : [];
