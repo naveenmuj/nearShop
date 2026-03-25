@@ -46,7 +46,7 @@ export const uploadFile = async (uri, folder = 'general') => {
     type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
   });
   formData.append('folder', folder);
-  return client.post('/media/upload', formData, {
+  return client.post('/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };

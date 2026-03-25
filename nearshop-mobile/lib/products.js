@@ -6,7 +6,7 @@ export const getSearchSuggestions = (q, lat, lng) => {
   const params = { q };
   if (lat != null) params.lat = lat;
   if (lng != null) params.lng = lng;
-  return client.get('/products/suggestions', { params });
+  return client.get('/search/suggestions', { params });
 };
 export const getProduct = (id) => client.get(`/products/${id}`);
 export const getSimilarProducts = (id) => client.get(`/products/${id}/similar`);

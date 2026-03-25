@@ -58,7 +58,7 @@ export default function HomeScreen() {
     const [storiesRes, dealsRes, shopsRes, productsRes] = await Promise.allSettled([
       getStoriesFeed(),
       getNearbyDeals(lat, lng),
-      getNearbyShops(lat, lng, { radius: 5000 }),
+      getNearbyShops(lat, lng, { radius_km: 5 }),
       searchProducts({ sort: 'newest', limit: 20 }),
     ]);
 

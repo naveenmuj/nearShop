@@ -7,7 +7,7 @@ export const searchShops = (q, params = {}) =>
 export const getShop = (id) => client.get(`/shops/${id}`);
 export const getShopProducts = (id, params = {}) =>
   client.get(`/shops/${id}/products`, { params });
-export const getShopReviews = (id) => client.get(`/shops/${id}/reviews`);
+export const getShopReviews = (id) => client.get(`/reviews/shop/${id}`);
 export const followShop = (id) => client.post(`/shops/${id}/follow`);
 export const unfollowShop = (id) => client.delete(`/shops/${id}/follow`);
 export const createShop = (data) => client.post('/shops', data);
