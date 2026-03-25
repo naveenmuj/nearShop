@@ -3,9 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PackageSearch, ChevronLeft, ChevronRight, Store, ShoppingBag, Search, X, ArrowUpRight, SlidersHorizontal } from 'lucide-react'
 import { useLocationStore } from '../../store/locationStore'
 import { searchProducts, getSearchSuggestions } from '../../api/products'
-import { searchShops } from '../../api/shops'
+import { searchShops, searchUnified } from '../../api/search'
 import { getCategories } from '../../api/categories'
 import EmptyState from '../../components/ui/EmptyState'
+import ShopCard from '../../components/ShopCard'
 
 const DEBOUNCE_MS = 400
 const SUGGEST_MS = 180
@@ -58,14 +59,25 @@ export default function SearchPage() {
     try {
       const params = { page: pg, per_page: PER_PAGE }
       if (q.trim()) params.q = q
-      if (!q.trim() && category && latitude != null) { params.lat = latitude; params.lng = longitude }
       if (category) params.category = category
-      const [productsRes, shopsRes] = await Promise.allSettled([
-        searchProducts(params),
-        q.trim() ? searchShops(q, latitude != null ? { lat: latitude, lng: longitude } : {}) : Promise.resolve({ data: { items: [] } }),
-      ])
-      if (productsRes.status === 'fulfilled') { const d = productsRes.value.data; setProducts(d.items ?? []); setTotalCount(d.total ?? 0) } else { setProducts([]); setTotalCount(0) }
-      if (shopsRes.status === 'fulfilled') { setShops(shopsRes.value.data.items ?? []) } else { setShops([]) }
+
+      // Use unified search if query exists
+      let productsRes, shopsRes
+      if (q.trim()) {
+        const unifiedRes = await searchUnified(q, latitude, longitude)
+        productsRes = { data: { items: unifiedRes.data.products || [] } }
+        shopsRes = { data: { items: unifiedRes.data.shops || [] } }
+      } else {
+        const [pRes, sRes] = await Promise.allSettled([
+          searchProducts(params),
+          Promise.resolve({ data: { items: [] } }),
+        ])
+        productsRes = pRes.status === 'fulfilled' ? pRes.value : { data: { items: [] } }
+        shopsRes = sRes.status === 'fulfilled' ? sRes.value : { data: { items: [] } }
+      }
+
+      if (productsRes.status === 'fulfilled') { const d = productsRes.value.data; setProducts(d.items ?? []); setTotalCount(d.total ?? 0) } else { setProducts(productsRes?.data?.items ?? []); setTotalCount(0) }
+      if (shopsRes.status === 'fulfilled') { setShops(shopsRes.value.data.items ?? []) } else { setShops(shopsRes?.data?.items ?? []) }
     } catch { setProducts([]); setShops([]); setTotalCount(0) } finally { setLoading(false) }
   }, [latitude, longitude])
 

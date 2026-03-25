@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { toast } from '../../components/ui/Toast';
 import auth from '@react-native-firebase/auth';
 import { signInWithEmail, registerWithEmail, signInWithGoogle } from '../../lib/firebaseAuth';
 import useAuthStore from '../../store/authStore';
@@ -42,7 +42,7 @@ export default function EmailLoginScreen() {
       }
     } catch (err) {
       console.error('Navigation after auth failed:', err);
-      Toast.show({
+      toast.show({
         type: 'error',
         text1: 'Setup failed',
         text2: 'Could not save login. Please try again.'
@@ -54,15 +54,15 @@ export default function EmailLoginScreen() {
 
   const handleSubmit = async () => {
     if (!email || !password) {
-      Toast.show({ type: 'error', text1: 'Fill in all fields' });
+      toast.show({ type: 'error', text1: 'Fill in all fields' });
       return;
     }
     if (isRegister && password !== confirm) {
-      Toast.show({ type: 'error', text1: 'Passwords do not match' });
+      toast.show({ type: 'error', text1: 'Passwords do not match' });
       return;
     }
     if (password.length < 6) {
-      Toast.show({ type: 'error', text1: 'Password must be at least 6 characters' });
+      toast.show({ type: 'error', text1: 'Password must be at least 6 characters' });
       return;
     }
     setLoading(true);
@@ -73,7 +73,7 @@ export default function EmailLoginScreen() {
       await navigateAfterAuth(data);
     } catch (err) {
       const msg = friendlyError(err?.code) || err?.message || 'Please try again';
-      Toast.show({ type: 'error', text1: isRegister ? 'Registration failed' : 'Sign-in failed', text2: msg });
+      toast.show({ type: 'error', text1: isRegister ? 'Registration failed' : 'Sign-in failed', text2: msg });
       setLoading(false);
     }
   };
@@ -85,7 +85,7 @@ export default function EmailLoginScreen() {
       await navigateAfterAuth(data);
     } catch (err) {
       if (err?.code !== 'SIGN_IN_CANCELLED') {
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err?.message || 'Please try again' });
+        toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err?.message || 'Please try again' });
       }
       setGoogleLoading(false);
     }

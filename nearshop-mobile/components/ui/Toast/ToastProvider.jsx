@@ -1,7 +1,8 @@
-import { createContext, useState, useCallback, useRef } from 'react'
+import { createContext, useState, useCallback, useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Toast from './Toast'
+import { setToastRef } from './toastRef'
 
 export const ToastContext = createContext({
   showToast: () => {},
@@ -24,6 +25,12 @@ export default function ToastProvider({ children }) {
       return next
     })
   }, [])
+
+  // Register global ref so toast can be called from anywhere
+  useEffect(() => {
+    setToastRef(showToast)
+    return () => setToastRef(null)
+  }, [showToast])
 
   const dismissToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))

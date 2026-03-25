@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
-import { switchRole as apiSwitchRole } from '../../lib/auth';
+import { switchRole as apiSwitchRole, deleteAccount as apiDeleteAccount } from '../../lib/auth';
 import { isSoundEnabled, setSoundEnabled, initSound } from '../../lib/sound';
 import { COLORS, SHADOWS, formatDate } from '../../constants/theme';
 
@@ -136,6 +136,76 @@ export default function ProfileScreen() {
         },
       ],
       { cancelable: true }
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    const hasBizRole = Array.isArray(user?.roles) && user.roles.includes('business');
+
+    const options = [{ text: 'Cancel', style: 'cancel' }];
+
+    if (hasBizRole) {
+      options.push({
+        text: 'Delete Business Only',
+        onPress: () => confirmDelete(false, true),
+      });
+      options.push({
+        text: 'Delete Customer Only',
+        onPress: () => confirmDelete(true, false),
+      });
+      options.push({
+        text: 'Delete Everything',
+        style: 'destructive',
+        onPress: () => confirmDelete(true, true),
+      });
+    } else {
+      options.push({
+        text: 'Delete My Account',
+        style: 'destructive',
+        onPress: () => confirmDelete(true, false),
+      });
+    }
+
+    Alert.alert(
+      'Delete Account',
+      hasBizRole
+        ? 'You have both customer and business roles. Choose what to delete. Deleting everything will permanently remove your account, all shops, and Firebase login.'
+        : 'This will permanently delete your account and all data. This action cannot be undone.',
+      options,
+      { cancelable: true },
+    );
+  };
+
+  const confirmDelete = (delCustomer, delBusiness) => {
+    const isFull = delCustomer && delBusiness;
+    Alert.alert(
+      isFull ? 'Permanently Delete?' : 'Confirm Deletion',
+      isFull
+        ? 'This will delete your account, shops, orders, and Firebase login. You cannot undo this.'
+        : 'Are you sure? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiDeleteAccount(delCustomer, delBusiness);
+              if (isFull) {
+                await logout();
+                router.replace('/(auth)/login');
+              } else if (delBusiness) {
+                Alert.alert('Done', 'Business data deleted successfully.');
+              } else {
+                await logout();
+                router.replace('/(auth)/login');
+              }
+            } catch (err) {
+              Alert.alert('Error', err?.response?.data?.detail || 'Failed to delete account');
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -300,12 +370,23 @@ export default function ProfileScreen() {
         <SectionHeader title="Account" />
         <View style={styles.menuCard}>
           <TouchableOpacity
-            style={[styles.menuRow, styles.menuRowLast]}
+            style={styles.menuRow}
             onPress={handleSignOut}
             activeOpacity={0.65}
           >
             <Text style={styles.menuIcon}>🚪</Text>
             <Text style={[styles.menuLabel, styles.menuLabelDanger]}>Sign Out</Text>
+            <View style={styles.menuRight}>
+              <Text style={[styles.chevron, styles.chevronDanger]}>›</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuRow, styles.menuRowLast]}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.65}
+          >
+            <Text style={styles.menuIcon}>🗑️</Text>
+            <Text style={[styles.menuLabel, styles.menuLabelDanger]}>Delete Account</Text>
             <View style={styles.menuRight}>
               <Text style={[styles.chevron, styles.chevronDanger]}>›</Text>
             </View>

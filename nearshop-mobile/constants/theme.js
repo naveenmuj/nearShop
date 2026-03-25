@@ -8,6 +8,7 @@ export const COLORS = {
   greenLight: '#E1F5EE',
   amber: '#EF9F27',
   amberLight: '#FAEEDA',
+  orange: '#F97316',
   red: '#E24B4A',
   redLight: '#FCEBEB',
   coral: '#D85A30',

@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import Toast from 'react-native-toast-message';
-import NetworkLogger, { startNetworkLogging } from 'react-native-network-logger';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NETWORK_LOGGER_ENABLED } from '../constants/debugConfig';
 import useAuthStore from '../store/authStore';
@@ -11,15 +9,25 @@ import useLocationStore from '../store/locationStore';
 import { ToastProvider } from '../components/ui/Toast';
 import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogProvider';
 
+// Lazy-load network logger to prevent crash if module has issues
+let NetworkLogger = null;
 if (NETWORK_LOGGER_ENABLED) {
-  startNetworkLogging();
+  try {
+    const mod = require('react-native-network-logger');
+    NetworkLogger = mod.default;
+    if (typeof mod.startNetworkLogging === 'function') {
+      mod.startNetworkLogging();
+    }
+  } catch (e) {
+    console.warn('Network logger failed to initialize:', e?.message);
+  }
 }
 
 function NetworkLoggerOverlay() {
   const [visible, setVisible] = useState(false);
   const insets = useSafeAreaInsets();
 
-  if (!NETWORK_LOGGER_ENABLED) return null;
+  if (!NETWORK_LOGGER_ENABLED || !NetworkLogger) return null;
 
   return (
     <>
@@ -82,6 +90,27 @@ const styles = StyleSheet.create({
   closeBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 });
 
+// Expo Router error boundary — prevents white-screen crash
+export function ErrorBoundary({ error, retry }) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 32 }}>
+      <Text style={{ fontSize: 48, marginBottom: 16 }}>😵</Text>
+      <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: 8 }}>
+        Something went wrong
+      </Text>
+      <Text style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 24 }}>
+        {error?.message || 'An unexpected error occurred'}
+      </Text>
+      <TouchableOpacity
+        onPress={retry}
+        style={{ backgroundColor: '#7F77DD', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+      >
+        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const initLocation = useLocationStore((s) => s.initialize);
@@ -117,7 +146,6 @@ export default function RootLayout() {
           <Stack.Screen name="(business)" />
           <Stack.Screen name="admin" options={{ headerShown: false }} />
         </Stack>
-        <Toast />
         <NetworkLoggerOverlay />
       </ConfirmDialogProvider>
     </ToastProvider>

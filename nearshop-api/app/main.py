@@ -80,8 +80,10 @@ def create_app() -> FastAPI:
     from app.broadcast.router import router as broadcast_router
     from app.advisor.router import router as advisor_router
     from app.engagement.router import router as engagement_router
+    from app.search.router import router as search_router
 
     app.include_router(auth_router)
+    app.include_router(search_router)
     app.include_router(shops_router)
     app.include_router(products_router)
     app.include_router(orders_router)

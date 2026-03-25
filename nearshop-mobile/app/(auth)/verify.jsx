@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { toast } from '../../components/ui/Toast';
 import { verifyFirebaseOtp, sendFirebaseOtp, getConfirmation } from '../../lib/firebaseAuth';
 import useAuthStore from '../../store/authStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -76,7 +76,7 @@ export default function VerifyScreen() {
       }
     } catch (err) {
       console.error('OTP verification error:', err);
-      Toast.show({
+      toast.show({
         type: 'error',
         text1: 'Invalid OTP',
         text2: err?.message || 'Please try again',
@@ -92,9 +92,9 @@ export default function VerifyScreen() {
     try {
       await sendFirebaseOtp(phone);
       setTimer(60);
-      Toast.show({ type: 'success', text1: 'OTP resent!' });
+      toast.show({ type: 'success', text1: 'OTP resent!' });
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Failed to resend', text2: err.message });
+      toast.show({ type: 'error', text1: 'Failed to resend', text2: err.message });
     }
   };
 

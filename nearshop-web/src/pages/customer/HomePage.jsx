@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Store, Search, ChevronRight, Zap, ShoppingBag, Star } from 'lucide-react'
+import { MapPin, Store, Search, ChevronRight, Zap, ShoppingBag, Star, Truck } from 'lucide-react'
 import { useLocation } from '../../hooks/useLocation'
 import { useAuthStore } from '../../store/authStore'
 import { getNearbyShops } from '../../api/shops'
@@ -8,10 +8,13 @@ import { getNearbyDeals } from '../../api/deals'
 import { getStoriesFeed } from '../../api/stories'
 import { getCategories } from '../../api/categories'
 import { searchProducts } from '../../api/products'
+import { getNearbyDeliverableShops } from '../../api/search'
 import StoryCircle from '../../components/StoryCircle'
 import EmptyState from '../../components/ui/EmptyState'
 import ScrollReveal from '../../components/ui/ScrollReveal'
 import RecentlyViewed from '../../components/RecentlyViewed'
+import ShopCarousel from '../../components/ShopCarousel'
+import ShopCard from '../../components/ShopCard'
 
 const CATEGORY_ICONS = {
   food: '🍔', grocery: '🛒', pharmacy: '💊', electronics: '📱',
@@ -26,6 +29,7 @@ export default function HomePage() {
   const { isAuthenticated, user } = useAuthStore()
 
   const [shops, setShops] = useState([])
+  const [deliveryShops, setDeliveryShops] = useState([])
   const [deals, setDeals] = useState([])
   const [stories, setStories] = useState([])
   const [categories, setCategories] = useState([])
@@ -44,13 +48,15 @@ export default function HomePage() {
           getNearbyDeals(latitude, longitude, { limit: 8 }),
           getCategories(),
           searchProducts({ per_page: 12 }),
+          getNearbyDeliverableShops(latitude, longitude, 5, 10),
         ]
         if (isAuthenticated) reqs.push(getStoriesFeed())
-        const [shopsRes, dealsRes, catsRes, prodsRes, storiesRes] = await Promise.all(reqs)
+        const [shopsRes, dealsRes, catsRes, prodsRes, deliveryRes, storiesRes] = await Promise.all(reqs)
         setShops(shopsRes.data.items ?? shopsRes.data ?? [])
         setDeals(dealsRes.data.items ?? dealsRes.data ?? [])
         setCategories(catsRes.data.items ?? catsRes.data ?? [])
         setProducts(prodsRes.data.items ?? prodsRes.data ?? [])
+        setDeliveryShops(deliveryRes.data.shops ?? [])
         if (storiesRes) setStories(storiesRes.data.items ?? storiesRes.data ?? [])
       } catch (err) { setError(err.message || 'Failed to load') } finally { setLoading(false) }
     }
@@ -142,11 +148,33 @@ export default function HomePage() {
         </ScrollReveal>
       )}
 
-      {/* Nearby Shops */}
+      {/* Shops That Deliver to You - Beautiful Carousel */}
+      {deliveryShops.length > 0 && (
+        <ScrollReveal direction="up" delay={140}>
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Truck className="w-5 h-5 text-green-500" />
+                <h2 className="text-lg font-bold text-gray-900">Shops Delivering to You</h2>
+              </div>
+              <button onClick={() => navigate('/app/shops/nearby')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
+                View all <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <ShopCarousel
+              shops={deliveryShops}
+              loading={loading}
+              distance_km_map={deliveryShops.reduce((acc, shop) => ({ ...acc, [shop.id]: shop.distance_km }), {})}
+            />
+          </section>
+        </ScrollReveal>
+      )}
+
+      {/* Nearby Shops - Grid View */}
       <ScrollReveal direction="up" delay={150}>
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-bold text-gray-900">Nearby Shops</h2>
+            <h2 className="text-lg font-bold text-gray-900">All Nearby Shops</h2>
             <button onClick={() => navigate('/app/shops/map')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
               Map view <ChevronRight className="w-4 h-4" />
             </button>
@@ -157,29 +185,7 @@ export default function HomePage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
               {shops.map((shop, i) => (
                 <ScrollReveal key={shop.id} direction="up" delay={i * 40}>
-                  <button onClick={() => navigate(`/app/shop/${shop.id}`)}
-                    className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
-                    <div className="aspect-[4/3] bg-gray-100 relative overflow-hidden">
-                      {(shop.image || shop.cover_image) ? (
-                        <img src={shop.image ?? shop.cover_image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl text-gray-200">🏪</div>
-                      )}
-                      {shop.avg_rating > 0 && (
-                        <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-lg">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span className="text-xs font-bold text-gray-800">{Number(shop.avg_rating).toFixed(1)}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{shop.name}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{shop.category}</p>
-                      <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-400">
-                        {shop.total_products > 0 && <span>{shop.total_products} products</span>}
-                      </div>
-                    </div>
-                  </button>
+                  <ShopCard shop={shop} />
                 </ScrollReveal>
               ))}
             </div>

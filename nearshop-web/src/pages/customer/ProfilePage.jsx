@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { getBalance, getStreak, getBadges } from '../../api/loyalty'
 import client from '../../api/client'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
-import { ShoppingBag, Heart, Wallet, MessageSquare, Settings, Repeat, LogOut, ChevronRight, Coins, Award } from 'lucide-react'
+import { ShoppingBag, Heart, Wallet, MessageSquare, Settings, Repeat, LogOut, ChevronRight, Coins, Award, Trash2 } from 'lucide-react'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
@@ -46,6 +46,35 @@ export default function ProfilePage() {
   }
 
   const handleLogout = () => { logout(); navigate('/auth/login') }
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [delCustomer, setDelCustomer] = useState(true)
+  const [delBusiness, setDelBusiness] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const hasBizRole = Array.isArray(user?.roles) && user.roles.includes('business')
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    try {
+      await client.delete('/auth/delete-account', { data: { delete_customer: delCustomer, delete_business: delBusiness } })
+      if (delCustomer && delBusiness) {
+        toast.success('Account permanently deleted')
+        logout()
+        navigate('/auth/login')
+      } else if (delBusiness) {
+        toast.success('Business data deleted')
+        setShowDeleteModal(false)
+        // Refresh user
+        try { const { data } = await client.get('/auth/me'); useAuthStore.setState({ user: data }) } catch {}
+      } else {
+        toast.success('Account deleted')
+        logout()
+        navigate('/auth/login')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to delete account')
+    } finally { setDeleting(false) }
+  }
 
   const menuSections = [
     {
@@ -133,12 +162,69 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100">
+      <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
         <button onClick={handleLogout} className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-red-50 transition text-left">
           <div className="w-9 h-9 rounded-lg bg-brand-red-light flex items-center justify-center"><LogOut className="w-4 h-4 text-brand-red" /></div>
           <span className="flex-1 text-sm font-medium text-brand-red">Sign Out</span>
         </button>
+        <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-red-50 transition text-left">
+          <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center"><Trash2 className="w-4 h-4 text-red-600" /></div>
+          <span className="flex-1 text-sm font-medium text-red-600">Delete Account</span>
+        </button>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Delete Account</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Choose what to delete. Deleting everything will permanently remove your account and Firebase login.
+            </p>
+
+            <div className="space-y-3 mb-6">
+              <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition">
+                <input type="checkbox" checked={delCustomer} onChange={e => setDelCustomer(e.target.checked)}
+                  className="w-4 h-4 accent-red-500 rounded" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Customer Data</p>
+                  <p className="text-xs text-gray-400">Orders, wishlist, reviews, coins, achievements</p>
+                </div>
+              </label>
+
+              {hasBizRole && (
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition">
+                  <input type="checkbox" checked={delBusiness} onChange={e => setDelBusiness(e.target.checked)}
+                    className="w-4 h-4 accent-red-500 rounded" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">Business Data</p>
+                    <p className="text-xs text-gray-400">Shops, products, deals, billing, inventory</p>
+                  </div>
+                </label>
+              )}
+
+              {delCustomer && delBusiness && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-red-700">
+                    This will permanently delete your user account and Firebase login. You cannot undo this.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteModal(false)} disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition">
+                Cancel
+              </button>
+              <button onClick={handleDeleteAccount} disabled={deleting || (!delCustomer && !delBusiness)}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition disabled:opacity-40">
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-center text-xs text-gray-300 mt-6">NearShop v1.0.0</p>
     </div>

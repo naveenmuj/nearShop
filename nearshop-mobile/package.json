@@ -35,5 +35,10 @@
     "react-native-web": "^0.21.2",
     "zustand": "^5.0.12"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-native": "^0.72.8",
+    "typescript": "^6.0.2"
+  }
 }

@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ShoppingBag, ArrowLeft, MapPin, Phone, Star, Users, Clock, Share2, Heart, MessageCircle, Navigation } from 'lucide-react'
+import { ShoppingBag, ArrowLeft, MapPin, Phone, Star, Users, Clock, Share2, Heart, MessageCircle, Navigation, Truck, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { useLocationStore } from '../../store/locationStore'
 import { getShop, getShopProducts, followShop, unfollowShop } from '../../api/shops'
 import { getShopReviews } from '../../api/reviews'
+import { checkDeliveryEligibility } from '../../api/delivery'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
+import DeliveryBadge from '../../components/DeliveryBadge'
 
 const TABS = ['Products', 'Reviews', 'About']
 
@@ -13,13 +16,16 @@ export default function ShopDetailPage() {
   const { shopId } = useParams()
   const navigate = useNavigate()
   const { isAuthenticated } = useAuthStore()
+  const { latitude, longitude } = useLocationStore()
   const tabBarRef = useRef(null)
 
   const [shop, setShop] = useState(null)
   const [products, setProducts] = useState([])
   const [reviews, setReviews] = useState([])
+  const [deliveryInfo, setDeliveryInfo] = useState(null)
   const [shopLoading, setShopLoading] = useState(true)
   const [productsLoading, setProductsLoading] = useState(true)
+  const [deliveryLoading, setDeliveryLoading] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('Products')
@@ -46,6 +52,16 @@ export default function ShopDetailPage() {
       .then(({ data }) => setReviews(data.reviews ?? data.items ?? data ?? []))
       .catch(() => setReviews([]))
   }, [shopId])
+
+  // Check delivery eligibility
+  useEffect(() => {
+    if (!shopId || !latitude || !longitude) return
+    setDeliveryLoading(true)
+    checkDeliveryEligibility(shopId, latitude, longitude)
+      .then(({ data }) => setDeliveryInfo(data))
+      .catch(() => setDeliveryInfo(null))
+      .finally(() => setDeliveryLoading(false))
+  }, [shopId, latitude, longitude])
 
   const handleFollowToggle = async () => {
     if (!isAuthenticated) { navigate('/auth/login'); return }
@@ -224,6 +240,13 @@ export default function ShopDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Delivery Info Section */}
+      {deliveryInfo && !deliveryLoading && (
+        <div className="px-4 py-3">
+          <DeliveryBadge deliveryInfo={deliveryInfo} />
+        </div>
+      )}
 
       {/* ── Sticky Tab bar ── */}
       <div

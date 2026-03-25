@@ -24,6 +24,11 @@ from app.core.security import create_access_token
 class UserSettingsRequest(BaseModel):
     sound_enabled: bool
 
+
+class DeleteAccountRequest(BaseModel):
+    delete_customer: bool = True
+    delete_business: bool = False
+
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
@@ -93,6 +98,27 @@ async def update_settings(
     await db.flush()
     await db.refresh(current_user)
     return UserResponse.model_validate(current_user)
+
+
+@router.delete("/delete-account")
+async def delete_account(
+    body: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete user account. Options:
+    - delete_customer=true, delete_business=false → removes customer data only
+    - delete_customer=false, delete_business=true → removes shops & business data only
+    - delete_customer=true, delete_business=true → permanently deletes everything + Firebase
+    """
+    result = await AuthService.delete_account(
+        db,
+        current_user.id,
+        delete_customer=body.delete_customer,
+        delete_business=body.delete_business,
+    )
+    return result
 
 
 @router.post("/firebase-signin")

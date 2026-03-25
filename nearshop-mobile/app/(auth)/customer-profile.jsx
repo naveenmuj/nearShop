@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import Toast from 'react-native-toast-message';
+import { toast } from '../../components/ui/Toast';
 import { updateProfile } from '../../lib/auth';
 import useAuthStore from '../../store/authStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -47,14 +47,14 @@ export default function CustomerProfileScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
     });
     if (result.canceled) return;
     if (!result.assets?.length) {
-      Toast.show({ type: 'error', text1: 'No image selected' });
+      toast.show({ type: 'error', text1: 'No image selected' });
       return;
     }
     const asset = result.assets[0];
@@ -75,7 +75,7 @@ export default function CustomerProfileScreen() {
       const url = data?.url || data?.file_url;
       if (url) setAvatarUri(url);
     } catch {
-      Toast.show({ type: 'error', text1: 'Photo upload failed', text2: 'You can skip this and add later' });
+      toast.show({ type: 'error', text1: 'Photo upload failed', text2: 'You can skip this and add later' });
     } finally {
       setUploading(false);
     }
@@ -87,7 +87,7 @@ export default function CustomerProfileScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Toast.show({ type: 'error', text1: 'Please enter your name' });
+      toast.show({ type: 'error', text1: 'Please enter your name' });
       return;
     }
     setSaving(true);
@@ -103,10 +103,10 @@ export default function CustomerProfileScreen() {
       if (updatedUser && typeof updatedUser === 'object') {
         await updateUser(updatedUser);
       }
-      Toast.show({ type: 'success', text1: 'Profile set up!', text2: `Welcome, ${name.trim()}!` });
+      toast.show({ type: 'success', text1: 'Profile set up!', text2: `Welcome, ${name.trim()}!` });
       router.replace('/(customer)/home');
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Could not save profile', text2: err?.response?.data?.detail || err.message });
+      toast.show({ type: 'error', text1: 'Could not save profile', text2: err?.response?.data?.detail || err.message });
     } finally {
       setSaving(false);
     }

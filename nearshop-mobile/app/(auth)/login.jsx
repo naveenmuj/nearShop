@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { toast } from '../../components/ui/Toast';
 import { sendFirebaseOtp, signInWithGoogle, signInWithApple } from '../../lib/firebaseAuth';
 import useAuthStore from '../../store/authStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -35,7 +35,7 @@ export default function LoginScreen() {
       }
     } catch (err) {
       console.error('Navigation after auth failed:', err);
-      Toast.show({
+      toast.show({
         type: 'error',
         text1: 'Setup failed',
         text2: 'Could not save login. Please try again.'
@@ -46,7 +46,7 @@ export default function LoginScreen() {
 
   const handleSendOtp = async () => {
     if (phone.length !== 10) {
-      Toast.show({ type: 'error', text1: 'Enter a valid 10-digit number' });
+      toast.show({ type: 'error', text1: 'Enter a valid 10-digit number' });
       return;
     }
     setLoading(true);
@@ -55,7 +55,7 @@ export default function LoginScreen() {
       await sendFirebaseOtp(formattedPhone);
       router.push({ pathname: '/(auth)/verify', params: { phone: formattedPhone } });
     } catch (err) {
-      Toast.show({
+      toast.show({
         type: 'error',
         text1: 'Could not send OTP',
         text2: err.message || 'Check the phone number and try again',
@@ -72,7 +72,7 @@ export default function LoginScreen() {
       await navigateAfterAuth(data);
     } catch (err) {
       if (err?.code !== 'SIGN_IN_CANCELLED' && err?.code !== 'auth/popup-closed-by-user') {
-        Toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err?.message || 'Please try again' });
+        toast.show({ type: 'error', text1: 'Google Sign-In failed', text2: err?.message || 'Please try again' });
       }
       setLoadingProvider(null);
     }
@@ -80,7 +80,7 @@ export default function LoginScreen() {
 
   const handleApple = async () => {
     if (Platform.OS !== 'ios') {
-      Toast.show({ type: 'info', text1: 'Apple Sign-In', text2: 'Only available on iOS devices' });
+      toast.show({ type: 'info', text1: 'Apple Sign-In', text2: 'Only available on iOS devices' });
       return;
     }
     setLoadingProvider('apple');
@@ -88,7 +88,7 @@ export default function LoginScreen() {
       const data = await signInWithApple();
       await navigateAfterAuth(data);
     } catch (err) {
-      Toast.show({ type: 'error', text1: 'Apple Sign-In failed', text2: err?.message || 'Please try again' });
+      toast.show({ type: 'error', text1: 'Apple Sign-In failed', text2: err?.message || 'Please try again' });
       setLoadingProvider(null);
     }
   };

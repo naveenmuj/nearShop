@@ -33,6 +33,8 @@ export const updateProfile = (data) => client.patch('/auth/profile', data);
 export const getMe = () => client.get('/auth/me');
 export const switchRole = (role) => client.post('/auth/switch-role', { role });
 export const refreshToken = (token) => client.post('/auth/refresh', { refresh_token: token });
+export const deleteAccount = (deleteCustomer, deleteBusiness) =>
+  client.delete('/auth/delete-account', { data: { delete_customer: deleteCustomer, delete_business: deleteBusiness } });
 
 export const uploadFile = async (uri, folder = 'general') => {
   const formData = new FormData();

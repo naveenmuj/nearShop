@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import Toast from 'react-native-toast-message';
+import { toast } from '../../components/ui/Toast';
 import { completeProfile, uploadFile } from '../../lib/auth';
 import { createShop } from '../../lib/shops';
 import client from '../../lib/api';
@@ -90,7 +90,7 @@ export default function OnboardScreen() {
 
   const handleGenerateDescription = async () => {
     if (!shopName.trim()) {
-      Toast.show({ type: 'info', text1: 'Enter shop name first' });
+      toast.show({ type: 'info', text1: 'Enter shop name first' });
       return;
     }
     setAiLoading(true);
@@ -102,11 +102,11 @@ export default function OnboardScreen() {
       });
       if (data?.description) {
         setDescription(data.description);
-        Toast.show({ type: 'success', text1: 'Description generated!' });
+        toast.show({ type: 'success', text1: 'Description generated!' });
       }
     } catch (err) {
       // Graceful fallback - don't show alert, just disable AI
-      Toast.show({ type: 'info', text1: 'Type your description manually' });
+      toast.show({ type: 'info', text1: 'Type your description manually' });
     } finally {
       setAiLoading(false);
     }
@@ -114,16 +114,16 @@ export default function OnboardScreen() {
 
   const handleComplete = async () => {
     if (role === 'customer' && (!name.trim() || interests.length < 3)) {
-      Toast.show({ type: 'error', text1: 'Add your name and pick at least 3 interests' });
+      toast.show({ type: 'error', text1: 'Add your name and pick at least 3 interests' });
       return;
     }
     if (role === 'business') {
       if (!ownerName.trim() || !shopName.trim() || !shopCat) {
-        Toast.show({ type: 'error', text1: 'Please fill all required fields' });
+        toast.show({ type: 'error', text1: 'Please fill all required fields' });
         return;
       }
       if (!phone.trim()) {
-        Toast.show({ type: 'error', text1: 'Phone number is required for business' });
+        toast.show({ type: 'error', text1: 'Phone number is required for business' });
         return;
       }
     }
@@ -175,7 +175,7 @@ export default function OnboardScreen() {
         });
       }
 
-      Toast.show({
+      toast.show({
         type: 'success',
         text1: role === 'customer' ? 'Welcome to NearShop!' : 'Shop created successfully!',
       });
@@ -184,7 +184,7 @@ export default function OnboardScreen() {
       console.error('Profile completion error:', err);
       // Better error message extraction
       const errorMsg = err.response?.data?.detail || err.response?.data?.message || err.response?.data?.error || err.message || 'Unknown error';
-      Toast.show({
+      toast.show({
         type: 'error',
         text1: 'Setup failed',
         text2: String(errorMsg).substring(0, 100),

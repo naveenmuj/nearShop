@@ -71,3 +71,4 @@ class Shop(Base):
     deals = relationship("Deal", back_populates="shop", lazy="selectin")
     stories = relationship("Story", back_populates="shop", lazy="selectin")
     orders = relationship("Order", back_populates="shop", lazy="selectin")
+    delivery_zones = relationship("DeliveryZone", back_populates="shop", lazy="selectin")

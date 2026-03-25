@@ -2,10 +2,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import User, OTPCode
+from app.auth.models import User, OTPCode, Follow, UserEvent, SearchLog
 from app.auth.schemas import CompleteProfileRequest, UserResponse
 from app.core.exceptions import BadRequestError, NotFoundError, UnauthorizedError
 from app.core.security import (
@@ -220,3 +220,181 @@ class AuthService:
             raise NotFoundError("User not found")
 
         return user
+
+    @staticmethod
+    async def delete_account(
+        db: AsyncSession,
+        user_id: UUID,
+        delete_customer: bool = True,
+        delete_business: bool = False,
+    ) -> dict:
+        """
+        Delete user account and all associated data.
+        If both delete_customer and delete_business are True, deletes everything
+        including the user record and Firebase account.
+        If only delete_business, removes shops and business data but keeps user.
+        """
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise NotFoundError("User not found")
+
+        firebase_uid = user.firebase_uid
+        deleted_items = []
+
+        # --- Delete business data (shops + related) ---
+        if delete_business:
+            from app.shops.models import Shop
+            from app.products.models import Product, Wishlist, PriceHistory
+            from app.orders.models import Order
+            from app.reviews.models import Review
+            from app.deals.models import Deal
+            from app.stories.models import Story
+            from app.billing.models import Bill
+            from app.delivery.models import DeliveryZone
+            from app.inventory.models import StockLog
+            from app.broadcast.models import BroadcastMessage
+            from app.expenses.models import Expense
+            from app.haggle.models import HaggleSession, HaggleMessage
+
+            # Get all shops owned by this user
+            shops_result = await db.execute(
+                select(Shop).where(Shop.owner_id == user_id)
+            )
+            shops = shops_result.scalars().all()
+            shop_ids = [s.id for s in shops]
+
+            if shop_ids:
+                # Get all product IDs for these shops
+                prod_result = await db.execute(
+                    select(Product.id).where(Product.shop_id.in_(shop_ids))
+                )
+                product_ids = [r[0] for r in prod_result.all()]
+
+                if product_ids:
+                    # Delete product-related data
+                    await db.execute(delete(PriceHistory).where(PriceHistory.product_id.in_(product_ids)))
+                    await db.execute(delete(StockLog).where(StockLog.product_id.in_(product_ids)))
+                    await db.execute(delete(Wishlist).where(Wishlist.product_id.in_(product_ids)))
+                    await db.execute(delete(Product).where(Product.id.in_(product_ids)))
+
+                # Delete shop-related data
+                await db.execute(delete(DeliveryZone).where(DeliveryZone.shop_id.in_(shop_ids)))
+                await db.execute(delete(Deal).where(Deal.shop_id.in_(shop_ids)))
+                await db.execute(delete(Story).where(Story.shop_id.in_(shop_ids)))
+                await db.execute(delete(Bill).where(Bill.shop_id.in_(shop_ids)))
+                await db.execute(delete(BroadcastMessage).where(BroadcastMessage.shop_id.in_(shop_ids)))
+                await db.execute(delete(Expense).where(Expense.shop_id.in_(shop_ids)))
+                await db.execute(delete(Review).where(Review.shop_id.in_(shop_ids)))
+                await db.execute(delete(Order).where(Order.shop_id.in_(shop_ids)))
+
+                # Delete haggle sessions for these shops
+                haggle_result = await db.execute(
+                    select(HaggleSession.id).where(HaggleSession.shop_id.in_(shop_ids))
+                )
+                haggle_ids = [r[0] for r in haggle_result.all()]
+                if haggle_ids:
+                    await db.execute(delete(HaggleMessage).where(HaggleMessage.session_id.in_(haggle_ids)))
+                    await db.execute(delete(HaggleSession).where(HaggleSession.id.in_(haggle_ids)))
+
+                await db.execute(delete(Follow).where(Follow.shop_id.in_(shop_ids)))
+
+                # Delete shops
+                await db.execute(delete(Shop).where(Shop.id.in_(shop_ids)))
+                deleted_items.append(f"{len(shop_ids)} shop(s)")
+
+            # Remove business role
+            if not delete_customer:
+                roles = list(user.roles or [])
+                if "business" in roles:
+                    roles.remove("business")
+                user.roles = roles if roles else ["customer"]
+                user.active_role = "customer"
+                await db.flush()
+
+        # --- Delete customer data ---
+        if delete_customer:
+            from app.products.models import Wishlist
+            from app.orders.models import Order
+            from app.reviews.models import Review
+            from app.loyalty.models import ShopCoinsLedger, Badge, UserStreak
+            from app.engagement.models import (
+                UserRecentlyViewed, UserRecentSearch,
+                UserAchievement, DailySpin,
+            )
+            from app.notifications.models import Notification
+            from app.community.models import CommunityPost, CommunityAnswer
+            from app.reservations.models import Reservation
+            from app.haggle.models import HaggleSession, HaggleMessage
+
+            # Delete customer engagement data
+            await db.execute(delete(UserRecentlyViewed).where(UserRecentlyViewed.user_id == user_id))
+            await db.execute(delete(UserRecentSearch).where(UserRecentSearch.user_id == user_id))
+            await db.execute(delete(UserAchievement).where(UserAchievement.user_id == user_id))
+            await db.execute(delete(DailySpin).where(DailySpin.user_id == user_id))
+            await db.execute(delete(Notification).where(Notification.user_id == user_id))
+            await db.execute(delete(Wishlist).where(Wishlist.user_id == user_id))
+            await db.execute(delete(ShopCoinsLedger).where(ShopCoinsLedger.user_id == user_id))
+            await db.execute(delete(Badge).where(Badge.user_id == user_id))
+            await db.execute(delete(UserStreak).where(UserStreak.user_id == user_id))
+            await db.execute(delete(Follow).where(Follow.user_id == user_id))
+            await db.execute(delete(Review).where(Review.user_id == user_id))
+            await db.execute(delete(Reservation).where(Reservation.customer_id == user_id))
+            await db.execute(delete(CommunityAnswer).where(CommunityAnswer.user_id == user_id))
+            await db.execute(delete(CommunityPost).where(CommunityPost.user_id == user_id))
+            await db.execute(delete(SearchLog).where(SearchLog.user_id == user_id))
+            await db.execute(delete(UserEvent).where(UserEvent.user_id == user_id))
+
+            # Delete customer haggle sessions
+            cust_haggle = await db.execute(
+                select(HaggleSession.id).where(HaggleSession.customer_id == user_id)
+            )
+            cust_haggle_ids = [r[0] for r in cust_haggle.all()]
+            if cust_haggle_ids:
+                await db.execute(delete(HaggleMessage).where(HaggleMessage.session_id.in_(cust_haggle_ids)))
+                await db.execute(delete(HaggleSession).where(HaggleSession.id.in_(cust_haggle_ids)))
+
+            # Delete customer orders (nullify customer_id or delete)
+            await db.execute(delete(Order).where(Order.customer_id == user_id))
+            deleted_items.append("customer data")
+
+        # --- If both roles deleted, delete the user record + Firebase ---
+        if delete_customer and delete_business:
+            # Clear referral references from other users
+            await db.execute(
+                update(User).where(User.referred_by == user_id).values(referred_by=None)
+            )
+            # Delete OTP codes
+            if user.phone:
+                await db.execute(delete(OTPCode).where(OTPCode.phone == user.phone))
+
+            # Delete the user record
+            await db.execute(delete(User).where(User.id == user_id))
+            deleted_items.append("user account")
+
+            # Delete from Firebase
+            if firebase_uid:
+                try:
+                    from firebase_admin import auth as firebase_auth
+                    from app.core.firebase import get_firebase_app
+                    get_firebase_app()
+                    firebase_auth.delete_user(firebase_uid)
+                    deleted_items.append("Firebase account")
+                    logger.info("Deleted Firebase user %s", firebase_uid)
+                except Exception as e:
+                    logger.warning("Failed to delete Firebase user %s: %s", firebase_uid, e)
+
+            await db.flush()
+            return {"message": "Account permanently deleted", "deleted": deleted_items}
+
+        elif delete_customer and not delete_business:
+            # Remove customer role, keep business
+            roles = list(user.roles or [])
+            if "customer" in roles:
+                roles.remove("customer")
+            user.roles = roles if roles else ["business"]
+            user.active_role = "business"
+            await db.flush()
+
+        await db.flush()
+        return {"message": "Selected data deleted", "deleted": deleted_items}
