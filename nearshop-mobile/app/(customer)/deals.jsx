@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator,
   RefreshControl, ScrollView, StatusBar, Image, Animated, Dimensions,
+  Easing, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -9,39 +10,81 @@ import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 import { getNearbyDeals, claimDeal } from '../../lib/deals';
 import { toast } from '../../components/ui/Toast';
 import useLocationStore from '../../store/locationStore';
+import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+// Try to import optional dependencies, fallback gracefully
+let LinearGradient;
+let BlurView;
+try {
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch (e) {
+  // Fallback: Simple View with background color
+  LinearGradient = ({ colors, style, children, ...props }) => (
+    <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
+      {children}
+    </View>
+  );
+}
+try {
+  BlurView = require('expo-blur').BlurView;
+} catch (e) {
+  BlurView = ({ style, children, ...props }) => (
+    <View style={[style, { backgroundColor: 'rgba(255,255,255,0.9)' }]} {...props}>
+      {children}
+    </View>
+  );
+}
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 const CATEGORIES = [
-  { key: 'All', emoji: '🔥', color: '#EF4444' },
-  { key: 'Electronics', emoji: '📱', color: '#3B82F6' },
-  { key: 'Clothing', emoji: '👕', color: '#8B5CF6' },
-  { key: 'Grocery', emoji: '🛒', color: '#10B981' },
-  { key: 'Food', emoji: '🍔', color: '#F59E0B' },
-  { key: 'Home', emoji: '🏠', color: '#6366F1' },
-  { key: 'Beauty', emoji: '💄', color: '#EC4899' },
+  { key: 'All', emoji: '🔥', color: '#EF4444', label: 'Hot Deals' },
+  { key: 'Electronics', emoji: '📱', color: '#3B82F6', label: 'Electronics' },
+  { key: 'Clothing', emoji: '👕', color: '#8B5CF6', label: 'Fashion' },
+  { key: 'Grocery', emoji: '🛒', color: '#10B981', label: 'Grocery' },
+  { key: 'Food', emoji: '🍔', color: '#F59E0B', label: 'Food' },
+  { key: 'Home', emoji: '🏠', color: '#6366F1', label: 'Home' },
+  { key: 'Beauty', emoji: '💄', color: '#EC4899', label: 'Beauty' },
 ];
 
-// ── Countdown hook ────────────────────────────────────────────────────────────
+// Urgency color thresholds
+const getUrgencyColor = (hoursLeft) => {
+  if (hoursLeft <= 1) return { bg: '#FEE2E2', text: '#DC2626', glow: '#EF4444' };
+  if (hoursLeft <= 6) return { bg: '#FEF3C7', text: '#D97706', glow: '#F59E0B' };
+  return { bg: '#DCFCE7', text: '#16A34A', glow: '#22C55E' };
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANIMATED COUNTDOWN HOOK (Enhanced)
+// ═══════════════════════════════════════════════════════════════════════════════
 function useCountdown(expiresAt) {
-  const [remaining, setRemaining] = useState({ text: '', urgent: false, expired: false });
+  const [remaining, setRemaining] = useState({
+    hours: 0, minutes: 0, seconds: 0,
+    text: '', urgent: false, critical: false, expired: false, hoursLeft: 24
+  });
   const timerRef = useRef(null);
 
   useEffect(() => {
     const tick = () => {
       const diff = new Date(expiresAt) - Date.now();
       if (diff <= 0) {
-        setRemaining({ text: 'Expired', urgent: false, expired: true });
+        setRemaining({ hours: 0, minutes: 0, seconds: 0, text: 'Expired', urgent: false, critical: false, expired: true, hoursLeft: 0 });
         clearInterval(timerRef.current);
         return;
       }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      const urgent = diff < 3600000;
-      if (h > 0) setRemaining({ text: `${h}h ${m}m left`, urgent: false, expired: false });
-      else if (m > 0) setRemaining({ text: `${m}m ${s}s left`, urgent, expired: false });
-      else setRemaining({ text: `${s}s left`, urgent: true, expired: false });
+      const hoursLeft = diff / 3600000;
+      const urgent = hoursLeft < 6;
+      const critical = hoursLeft < 1;
+      
+      let text;
+      if (h > 0) text = `${h}h ${m}m`;
+      else if (m > 0) text = `${m}m ${s}s`;
+      else text = `${s}s`;
+      
+      setRemaining({ hours: h, minutes: m, seconds: s, text, urgent, critical, expired: false, hoursLeft });
     };
     tick();
     timerRef.current = setInterval(tick, 1000);
@@ -51,145 +94,694 @@ function useCountdown(expiresAt) {
   return remaining;
 }
 
-// ── Featured Deal (top banner) ────────────────────────────────────────────────
-function FeaturedDeal({ deal, onClaim, claiming }) {
-  const { text: countdown, urgent, expired } = useCountdown(deal.expires_at);
-  const discount = deal.original_price && deal.original_price > deal.price
-    ? Math.round((1 - deal.price / deal.original_price) * 100) : 0;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANIMATED PARTICLES (Floating Effect)
+// ═══════════════════════════════════════════════════════════════════════════════
+function FloatingParticles({ count = 6 }) {
+  const particles = useRef([...Array(count)].map(() => ({
+    anim: new Animated.Value(0),
+    x: Math.random() * SCREEN_W,
+    size: 4 + Math.random() * 8,
+    duration: 3000 + Math.random() * 2000,
+    delay: Math.random() * 2000,
+  }))).current;
 
   useEffect(() => {
-    if (urgent && !expired) {
-      Animated.loop(Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 1.03, duration: 800, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])).start();
-    }
-  }, [urgent, expired]);
+    particles.forEach(p => {
+      const animate = () => {
+        p.anim.setValue(0);
+        Animated.timing(p.anim, {
+          toValue: 1,
+          duration: p.duration,
+          delay: p.delay,
+          useNativeDriver: true,
+          easing: Easing.linear,
+        }).start(animate);
+      };
+      animate();
+    });
+  }, []);
 
   return (
-    <Animated.View style={[styles.featuredCard, { transform: [{ scale: scaleAnim }] }]}>
-      <Pressable
-        style={styles.featuredInner}
-        onPress={() => router.push(`/(customer)/product/${deal.product_id}`)}
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {particles.map((p, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            position: 'absolute',
+            left: p.x,
+            width: p.size,
+            height: p.size,
+            borderRadius: p.size / 2,
+            backgroundColor: 'rgba(255,255,255,0.3)',
+            transform: [{
+              translateY: p.anim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [SCREEN_H * 0.3, -50]
+              })
+            }],
+            opacity: p.anim.interpolate({
+              inputRange: [0, 0.2, 0.8, 1],
+              outputRange: [0, 0.6, 0.6, 0]
+            })
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHIMMER EFFECT
+// ═══════════════════════════════════════════════════════════════════════════════
+function ShimmerEffect({ style }) {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+        easing: Easing.linear,
+      })
+    ).start();
+  }, []);
+  
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          transform: [{
+            translateX: shimmerAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [-200, 200]
+            })
+          }]
+        }
+      ]}
+    >
+      <LinearGradient
+        colors={['transparent', 'rgba(255,255,255,0.4)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{ width: 200, height: '100%' }}
+      />
+    </Animated.View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PULSE ANIMATION COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+function PulseView({ children, style, active = true, intensity = 1.05 }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  useEffect(() => {
+    if (active) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: intensity, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [active]);
+  
+  return (
+    <Animated.View style={[style, { transform: [{ scale: pulseAnim }] }]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FLIP CLOCK DIGIT
+// ═══════════════════════════════════════════════════════════════════════════════
+function FlipDigit({ value, color = '#1F2937' }) {
+  return (
+    <View style={flipStyles.digitContainer}>
+      <LinearGradient
+        colors={['#1F2937', '#374151']}
+        style={flipStyles.digitBg}
       >
-        <View style={styles.featuredLeft}>
-          {discount > 0 && (
-            <View style={styles.featuredDiscountBadge}>
+        <Text style={[flipStyles.digit, { color: '#fff' }]}>{String(value).padStart(2, '0')}</Text>
+      </LinearGradient>
+    </View>
+  );
+}
+
+function FlipClock({ hours, minutes, seconds, urgent, critical }) {
+  const bgColors = critical ? ['#DC2626', '#EF4444'] : urgent ? ['#D97706', '#F59E0B'] : ['#1F2937', '#374151'];
+  
+  return (
+    <View style={flipStyles.container}>
+      <View style={flipStyles.segment}>
+        <LinearGradient colors={bgColors} style={flipStyles.digitBg}>
+          <Text style={flipStyles.digit}>{String(hours).padStart(2, '0')}</Text>
+        </LinearGradient>
+        <Text style={flipStyles.label}>HRS</Text>
+      </View>
+      <Text style={flipStyles.colon}>:</Text>
+      <View style={flipStyles.segment}>
+        <LinearGradient colors={bgColors} style={flipStyles.digitBg}>
+          <Text style={flipStyles.digit}>{String(minutes).padStart(2, '0')}</Text>
+        </LinearGradient>
+        <Text style={flipStyles.label}>MIN</Text>
+      </View>
+      <Text style={flipStyles.colon}>:</Text>
+      <View style={flipStyles.segment}>
+        <LinearGradient colors={bgColors} style={flipStyles.digitBg}>
+          <Text style={flipStyles.digit}>{String(seconds).padStart(2, '0')}</Text>
+        </LinearGradient>
+        <Text style={flipStyles.label}>SEC</Text>
+      </View>
+    </View>
+  );
+}
+
+const flipStyles = StyleSheet.create({
+  container: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  segment: { alignItems: 'center' },
+  digitBg: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  digit: { fontSize: 20, fontWeight: '900', color: '#fff', fontVariant: ['tabular-nums'] },
+  label: { fontSize: 8, fontWeight: '700', color: COLORS.gray400, marginTop: 2, letterSpacing: 1 },
+  colon: { fontSize: 18, fontWeight: '900', color: COLORS.gray400, marginBottom: 14 },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PROGRESS BAR (Claims Progress)
+// ═══════════════════════════════════════════════════════════════════════════════
+function ClaimsProgressBar({ current, max, style }) {
+  const progress = max ? Math.min(current / max, 1) : 0;
+  const remaining = max ? max - current : null;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: progress,
+      friction: 8,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+  
+  if (!max) return null;
+  
+  const isLow = remaining && remaining <= 5;
+  
+  return (
+    <View style={[{ marginTop: 8 }, style]}>
+      <View style={progressStyles.track}>
+        <Animated.View
+          style={[
+            progressStyles.fill,
+            {
+              backgroundColor: isLow ? '#EF4444' : '#22C55E',
+              width: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%']
+              })
+            }
+          ]}
+        />
+      </View>
+      <View style={progressStyles.labelRow}>
+        <Text style={[progressStyles.label, isLow && { color: '#EF4444', fontWeight: '700' }]}>
+          {isLow ? `🔥 Only ${remaining} left!` : `${current}/${max} claimed`}
+        </Text>
+        <Text style={progressStyles.pct}>{Math.round(progress * 100)}%</Text>
+      </View>
+    </View>
+  );
+}
+
+const progressStyles = StyleSheet.create({
+  track: { height: 6, backgroundColor: '#E5E7EB', borderRadius: 3, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 3 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
+  label: { fontSize: 11, color: COLORS.gray500 },
+  pct: { fontSize: 11, fontWeight: '700', color: COLORS.gray600 },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FEATURED DEAL (Redesigned Hero Card)
+// ═══════════════════════════════════════════════════════════════════════════════
+function FeaturedDeal({ deal, onClaim, claiming }) {
+  const { hours, minutes, seconds, text: countdown, urgent, critical, expired, hoursLeft } = useCountdown(deal.expires_at);
+  const discount = deal.discount_pct || (deal.discount_amount ? Math.round(deal.discount_amount) : 0);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const urgencyColor = getUrgencyColor(hoursLeft);
+
+  useEffect(() => {
+    if (critical && !expired) {
+      // Shake animation for critical urgency
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shakeAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: -1, duration: 100, useNativeDriver: true }),
+          Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+          Animated.delay(2000),
+        ])
+      ).start();
+    }
+    
+    // Glow animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 1500, useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 1500, useNativeDriver: false }),
+      ])
+    ).start();
+  }, [critical, expired]);
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/(customer)/product/${deal.product_id}`);
+  };
+
+  const handleClaim = () => {
+    if (expired || claiming) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onClaim(deal.id);
+  };
+
+  return (
+    <Animated.View style={[
+      styles.featuredCard,
+      {
+        transform: [
+          { scale: scaleAnim },
+          { translateX: shakeAnim.interpolate({ inputRange: [-1, 0, 1], outputRange: [-3, 0, 3] }) }
+        ]
+      }
+    ]}>
+      <Pressable onPress={handlePress} style={styles.featuredPressable}>
+        {/* Background Image or Gradient */}
+        {deal.image_url ? (
+          <Image source={{ uri: deal.image_url }} style={styles.featuredBgImage} blurRadius={2} />
+        ) : (
+          <LinearGradient
+            colors={['#667EEA', '#764BA2']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.featuredBgImage}
+          />
+        )}
+        
+        {/* Overlay */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']}
+          style={styles.featuredOverlay}
+        />
+        
+        {/* Discount Badge */}
+        {discount > 0 && (
+          <PulseView style={styles.featuredDiscountBadge} intensity={1.08}>
+            <LinearGradient
+              colors={['#EF4444', '#DC2626']}
+              style={styles.featuredDiscountInner}
+            >
               <Text style={styles.featuredDiscountText}>{discount}%</Text>
               <Text style={styles.featuredDiscountSub}>OFF</Text>
+            </LinearGradient>
+          </PulseView>
+        )}
+        
+        {/* Content */}
+        <View style={styles.featuredContent}>
+          <View style={styles.featuredTopRow}>
+            <View style={styles.featuredShopBadge}>
+              <Text style={styles.featuredShopIcon}>🏪</Text>
+              <Text style={styles.featuredShopName}>{deal.shop_name || 'Local Shop'}</Text>
             </View>
-          )}
-          <View style={styles.featuredInfo}>
-            <Text style={styles.featuredShop} numberOfLines={1}>{deal.shop_name}</Text>
-            <Text style={styles.featuredName} numberOfLines={2}>{deal.product_name}</Text>
-            <View style={styles.featuredPriceRow}>
-              <Text style={styles.featuredPrice}>{formatPrice(deal.price)}</Text>
-              {deal.original_price > deal.price && (
-                <Text style={styles.featuredOriginal}>{formatPrice(deal.original_price)}</Text>
-              )}
-            </View>
+            {deal.current_claims > 0 && (
+              <View style={styles.socialProofBadge}>
+                <Text style={styles.socialProofText}>👥 {deal.current_claims} claimed</Text>
+              </View>
+            )}
           </View>
-        </View>
-        <View style={styles.featuredRight}>
-          {deal.image_url ? (
-            <Image source={{ uri: deal.image_url }} style={styles.featuredImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.featuredImagePlaceholder}>
-              <Text style={{ fontSize: 48 }}>🎁</Text>
+          
+          <View style={styles.featuredMiddle}>
+            <Text style={styles.featuredTitle} numberOfLines={2}>
+              {deal.title || deal.product_name || 'Special Deal'}
+            </Text>
+            {deal.description && (
+              <Text style={styles.featuredDesc} numberOfLines={2}>{deal.description}</Text>
+            )}
+          </View>
+          
+          <View style={styles.featuredBottom}>
+            {/* Timer Section */}
+            <View style={styles.featuredTimerSection}>
+              <Text style={styles.featuredTimerLabel}>
+                {expired ? '⏰ Ended' : critical ? '🔥 HURRY!' : urgent ? '⚡ Ending Soon' : '⏱ Time Left'}
+              </Text>
+              {!expired && <FlipClock hours={hours} minutes={minutes} seconds={seconds} urgent={urgent} critical={critical} />}
             </View>
-          )}
-          <View style={[styles.featuredTimer, urgent && styles.featuredTimerUrgent]}>
-            <Text style={styles.featuredTimerText}>{expired ? '⏰' : urgent ? '🔥' : '⏱'} {countdown}</Text>
+            
+            {/* Claims Progress */}
+            <ClaimsProgressBar current={deal.current_claims} max={deal.max_claims} />
           </View>
         </View>
       </Pressable>
+      
+      {/* CTA Button */}
       <Pressable
-        style={[styles.featuredClaimBtn, expired && styles.featuredClaimBtnDisabled]}
-        onPress={() => !expired && !claiming && onClaim(deal.id)}
+        style={[styles.featuredCTA, expired && styles.featuredCTADisabled]}
+        onPress={handleClaim}
         disabled={expired || claiming}
       >
-        {claiming ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Text style={styles.featuredClaimText}>{expired ? 'Expired' : '🎉 Grab This Deal'}</Text>
+        <LinearGradient
+          colors={expired ? ['#9CA3AF', '#6B7280'] : ['#22C55E', '#16A34A']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.featuredCTAGradient}
+        >
+          {claiming ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.featuredCTAText}>
+                {expired ? 'Deal Ended' : '🎉 Grab This Deal Now'}
+              </Text>
+              {!expired && <ShimmerEffect style={styles.ctaShimmer} />}
+            </>
+          )}
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEAL CARD (Redesigned Grid Item)
+// ═══════════════════════════════════════════════════════════════════════════════
+function DealCard({ deal, onClaim, claiming, index }) {
+  const { text: countdown, urgent, critical, expired, hoursLeft } = useCountdown(deal.expires_at);
+  const discount = deal.discount_pct || (deal.discount_amount ? Math.round(deal.discount_amount) : 0);
+  const urgencyColor = getUrgencyColor(hoursLeft);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const entryAnim = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.spring(entryAnim, {
+      toValue: 1,
+      delay: index * 100,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, friction: 8 }).start();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+  
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 8 }).start();
+  };
+
+  const handleClaim = (e) => {
+    e.stopPropagation();
+    if (expired || claiming) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onClaim(deal.id);
+  };
+
+  const categoryEmoji = CATEGORIES.find(c => c.key === deal.category)?.emoji ?? '🎁';
+  const isLowStock = deal.max_claims && (deal.max_claims - deal.current_claims) <= 3;
+
+  return (
+    <Animated.View style={[
+      styles.dealCard,
+      {
+        opacity: entryAnim,
+        transform: [
+          { scale: scaleAnim },
+          { translateY: entryAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }
+        ]
+      },
+      expired && styles.dealCardExpired
+    ]}>
+      <Pressable
+        onPress={() => !expired && router.push(`/(customer)/product/${deal.product_id}`)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.dealCardInner}
+      >
+        {/* Image Section */}
+        <View style={styles.dealImageWrap}>
+          {deal.image_url ? (
+            <Image source={{ uri: deal.image_url }} style={styles.dealImage} resizeMode="cover" />
+          ) : (
+            <LinearGradient
+              colors={['#EEF2FF', '#E0E7FF']}
+              style={styles.dealImagePlaceholder}
+            >
+              <Text style={{ fontSize: 40 }}>{categoryEmoji}</Text>
+            </LinearGradient>
+          )}
+          
+          {/* Discount Badge */}
+          {discount > 0 && !expired && (
+            <View style={styles.dealDiscountBadge}>
+              <LinearGradient
+                colors={['#EF4444', '#DC2626']}
+                style={styles.dealDiscountGradient}
+              >
+                <Text style={styles.dealDiscountText}>{discount}%</Text>
+                <Text style={styles.dealDiscountOff}>OFF</Text>
+              </LinearGradient>
+            </View>
+          )}
+          
+          {/* Hot Badge */}
+          {deal.current_claims > 10 && !expired && (
+            <View style={styles.hotBadge}>
+              <Text style={styles.hotBadgeText}>🔥 HOT</Text>
+            </View>
+          )}
+          
+          {/* Low Stock Warning */}
+          {isLowStock && !expired && (
+            <View style={styles.lowStockBadge}>
+              <Text style={styles.lowStockText}>⚡ {deal.max_claims - deal.current_claims} left!</Text>
+            </View>
+          )}
+          
+          {/* Expired Overlay */}
+          {expired && (
+            <View style={styles.expiredOverlay}>
+              <Text style={styles.expiredText}>ENDED</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Info Section */}
+        <View style={styles.dealBody}>
+          <View style={styles.dealShopRow}>
+            <Text style={styles.dealShopIcon}>🏪</Text>
+            <Text style={styles.dealShop} numberOfLines={1}>{deal.shop_name || 'Local Shop'}</Text>
+          </View>
+          
+          <Text style={[styles.dealName, expired && { color: COLORS.gray400 }]} numberOfLines={2}>
+            {deal.title || deal.product_name || 'Special Deal'}
+          </Text>
+
+          {/* Timer */}
+          <View style={[
+            styles.dealTimer,
+            { backgroundColor: urgencyColor.bg },
+            expired && styles.dealTimerExpired
+          ]}>
+            <Text style={[styles.dealTimerText, { color: urgencyColor.text }]}>
+              {expired ? '⏰ Ended' : critical ? `🔥 ${countdown}` : urgent ? `⚡ ${countdown}` : `⏱ ${countdown}`}
+            </Text>
+          </View>
+
+          {/* Social Proof */}
+          {deal.current_claims > 0 && !expired && (
+            <Text style={styles.dealSocialProof}>
+              👥 {deal.current_claims} claimed
+            </Text>
+          )}
+
+          {/* Claim Button */}
+          <Pressable
+            style={[styles.dealClaimBtn, expired && styles.dealClaimBtnDisabled]}
+            onPress={handleClaim}
+            disabled={expired || claiming}
+          >
+            {claiming ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <LinearGradient
+                colors={expired ? ['#D1D5DB', '#9CA3AF'] : ['#7F77DD', '#6366F1']}
+                style={styles.dealClaimGradient}
+              >
+                <Text style={styles.dealClaimText}>{expired ? 'Ended' : '🎁 Claim'}</Text>
+              </LinearGradient>
+            )}
+          </Pressable>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CATEGORY PILL (Animated)
+// ═══════════════════════════════════════════════════════════════════════════════
+function CategoryPill({ cat, isActive, onPress, dealCount }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 0.9, duration: 100, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+    onPress();
+  };
+  
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        style={[
+          styles.catPill,
+          isActive && { backgroundColor: cat.color + '20', borderColor: cat.color }
+        ]}
+        onPress={handlePress}
+      >
+        <Text style={styles.catEmoji}>{cat.emoji}</Text>
+        <Text style={[styles.catText, isActive && { color: cat.color, fontWeight: '800' }]}>
+          {cat.label || cat.key}
+        </Text>
+        {dealCount > 0 && (
+          <View style={[styles.catCount, { backgroundColor: isActive ? cat.color : COLORS.gray300 }]}>
+            <Text style={styles.catCountText}>{dealCount}</Text>
+          </View>
         )}
       </Pressable>
     </Animated.View>
   );
 }
 
-// ── Deal Card (grid item) ─────────────────────────────────────────────────────
-function DealCard({ deal, onClaim, claiming }) {
-  const { text: countdown, urgent, expired } = useCountdown(deal.expires_at);
-  const discount = deal.original_price && deal.original_price > deal.price
-    ? Math.round((1 - deal.price / deal.original_price) * 100) : 0;
-
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANIMATED HERO SECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+function HeroSection({ activeDeals, timeOfDay }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  
+  const greetings = {
+    morning: { text: 'Good Morning!', sub: 'Start your day with amazing deals' },
+    afternoon: { text: 'Good Afternoon!', sub: 'Grab lunch-time specials' },
+    evening: { text: 'Good Evening!', sub: 'End-of-day deals waiting' },
+    night: { text: 'Night Owl?', sub: 'Exclusive late-night deals' },
+  };
+  
+  const greeting = greetings[timeOfDay] || greetings.morning;
+  
   return (
-    <Pressable
-      style={[styles.dealCard, expired && styles.dealCardExpired]}
-      onPress={() => !expired && router.push(`/(customer)/product/${deal.product_id}`)}
+    <LinearGradient
+      colors={['#4F46E5', '#7C3AED', '#9333EA']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.hero}
     >
-      {/* Image */}
-      <View style={styles.dealImageWrap}>
-        {deal.image_url ? (
-          <Image source={{ uri: deal.image_url }} style={styles.dealImage} resizeMode="cover" />
-        ) : (
-          <View style={styles.dealImagePlaceholder}>
-            <Text style={{ fontSize: 32 }}>
-              {CATEGORIES.find(c => c.key === deal.category)?.emoji ?? '🎁'}
-            </Text>
-          </View>
-        )}
-        {discount > 0 && !expired && (
-          <View style={styles.dealDiscountBadge}>
-            <Text style={styles.dealDiscountText}>{discount}%</Text>
-          </View>
-        )}
-        {expired && (
-          <View style={styles.expiredOverlay}>
-            <Text style={styles.expiredText}>EXPIRED</Text>
-          </View>
+      <FloatingParticles count={8} />
+      
+      <View style={styles.heroContent}>
+        <Text style={styles.heroGreeting}>{greeting.text}</Text>
+        <Text style={styles.heroTitle}>Deals & Offers</Text>
+        <Text style={styles.heroSub}>{greeting.sub}</Text>
+        
+        {activeDeals > 0 && (
+          <Animated.View style={[styles.heroCountBadge, { transform: [{ scale: pulseAnim }] }]}>
+            <Text style={styles.heroCountText}>🔥 {activeDeals} Hot Deal{activeDeals !== 1 ? 's' : ''} Near You</Text>
+          </Animated.View>
         )}
       </View>
-
-      {/* Info */}
-      <View style={styles.dealBody}>
-        <Text style={styles.dealShop} numberOfLines={1}>{deal.shop_name}</Text>
-        <Text style={[styles.dealName, expired && { color: COLORS.gray400 }]} numberOfLines={2}>{deal.product_name}</Text>
-
-        <View style={styles.dealPriceRow}>
-          <Text style={[styles.dealPrice, expired && { color: COLORS.gray400 }]}>{formatPrice(deal.price)}</Text>
-          {deal.original_price > deal.price && (
-            <Text style={styles.dealOriginal}>{formatPrice(deal.original_price)}</Text>
-          )}
-        </View>
-
-        {/* Timer */}
-        <View style={[styles.dealTimer, urgent && styles.dealTimerUrgent, expired && styles.dealTimerExpired]}>
-          <Text style={[styles.dealTimerText, urgent && { color: COLORS.red }, expired && { color: COLORS.gray400 }]}>
-            {expired ? '⏰ Expired' : urgent ? `🔥 ${countdown}` : `⏱ ${countdown}`}
-          </Text>
-        </View>
-
-        {/* Claim button */}
-        <Pressable
-          style={[styles.dealClaimBtn, expired && styles.dealClaimBtnDisabled]}
-          onPress={(e) => { e.stopPropagation(); !expired && !claiming && onClaim(deal.id); }}
-          disabled={expired || claiming}
-        >
-          {claiming ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.dealClaimText}>{expired ? 'Expired' : 'Claim'}</Text>
-          )}
-        </Pressable>
+      
+      <View style={styles.heroRight}>
+        <Animated.Text style={[styles.heroEmoji, { transform: [{ scale: pulseAnim }] }]}>
+          🎁
+        </Animated.Text>
+        <Text style={styles.heroEmojiSub}>Limited Time!</Text>
       </View>
-    </Pressable>
+    </LinearGradient>
   );
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKELETON LOADING
+// ═══════════════════════════════════════════════════════════════════════════════
+function SkeletonCard() {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+        easing: Easing.linear,
+      })
+    ).start();
+  }, []);
+  
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonImage}>
+        <Animated.View
+          style={[styles.skeletonShimmer, {
+            transform: [{
+              translateX: shimmerAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-100, 200]
+              })
+            }]
+          }]}
+        />
+      </View>
+      <View style={styles.skeletonBody}>
+        <View style={styles.skeletonLine} />
+        <View style={[styles.skeletonLine, { width: '60%' }]} />
+        <View style={[styles.skeletonLine, { width: '40%' }]} />
+      </View>
+    </View>
+  );
+}
+
+function LoadingState() {
+  return (
+    <View style={styles.loadingContainer}>
+      <View style={styles.skeletonGrid}>
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </View>
+    </View>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN SCREEN
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function DealsScreen() {
   const { lat, lng } = useLocationStore();
   const [deals, setDeals] = useState([]);
@@ -198,6 +790,15 @@ export default function DealsScreen() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [error, setError] = useState(null);
   const [claimingId, setClaimingId] = useState(null);
+
+  // Get time of day for personalized greeting
+  const timeOfDay = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    if (hour < 21) return 'evening';
+    return 'night';
+  }, []);
 
   const loadDeals = useCallback(async () => {
     try {
@@ -219,6 +820,7 @@ export default function DealsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await loadDeals();
     setRefreshing(false);
   };
@@ -227,10 +829,12 @@ export default function DealsScreen() {
     setClaimingId(id);
     try {
       await claimDeal(id);
-      toast.show({ type: 'success', text1: 'Deal claimed! Check your orders.' });
+      toast.show({ type: 'success', text1: '🎉 Deal claimed! Check your orders.' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadDeals();
     } catch (err) {
       toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to claim deal' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setClaimingId(null);
     }
@@ -242,19 +846,30 @@ export default function DealsScreen() {
   const remainingDeals = activeDeals.slice(1);
   const allDisplayDeals = [...remainingDeals, ...expiredDeals];
 
+  // Count deals per category
+  const categoryDealCounts = useMemo(() => {
+    const counts = { All: activeDeals.length };
+    CATEGORIES.forEach(cat => {
+      if (cat.key !== 'All') {
+        counts[cat.key] = activeDeals.filter(d => d.category === cat.key).length;
+      }
+    });
+    return counts;
+  }, [activeDeals]);
+
   const activeCatColor = CATEGORIES.find(c => c.key === activeCategory)?.color || COLORS.primary;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#312E81" />
+      <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
 
       <FlatList
         data={isLoading ? [] : allDisplayDeals}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
-        renderItem={({ item }) => (
-          <DealCard deal={item} onClaim={handleClaim} claiming={claimingId === item.id} />
+        renderItem={({ item, index }) => (
+          <DealCard deal={item} onClaim={handleClaim} claiming={claimingId === item.id} index={index} />
         )}
         contentContainerStyle={[
           styles.list,
@@ -262,56 +877,62 @@ export default function DealsScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" progressBackgroundColor={COLORS.primary} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor="#fff" 
+            progressBackgroundColor="#4F46E5"
+            colors={['#fff']}
+          />
         }
         ListHeaderComponent={
           <>
-            {/* Hero Header */}
-            <View style={styles.hero}>
-              <View style={styles.heroBubble1} />
-              <View style={styles.heroBubble2} />
-              <View style={styles.heroContent}>
-                <Text style={styles.heroLabel}>NEAR YOU TODAY</Text>
-                <Text style={styles.heroTitle}>Deals & Offers</Text>
-                <Text style={styles.heroSub}>
-                  {activeDeals.length > 0 ? `${activeDeals.length} active deal${activeDeals.length !== 1 ? 's' : ''} nearby` : 'Check for deals near you'}
-                </Text>
-              </View>
-              <Text style={styles.heroEmoji}>🎁</Text>
-            </View>
+            {/* Animated Hero Header */}
+            <HeroSection activeDeals={activeDeals.length} timeOfDay={timeOfDay} />
 
             {/* Category Pills */}
             <View style={styles.catSection}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-                {CATEGORIES.map(({ key, emoji, color }) => {
-                  const isActive = activeCategory === key;
-                  return (
-                    <Pressable
-                      key={key}
-                      style={[styles.catPill, isActive && { backgroundColor: color + '18', borderColor: color }]}
-                      onPress={() => setActiveCategory(key)}
-                    >
-                      <Text style={styles.catEmoji}>{emoji}</Text>
-                      <Text style={[styles.catText, isActive && { color, fontWeight: '700' }]}>{key}</Text>
-                    </Pressable>
-                  );
-                })}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.catRow}
+                snapToInterval={100}
+                decelerationRate="fast"
+              >
+                {CATEGORIES.map((cat) => (
+                  <CategoryPill
+                    key={cat.key}
+                    cat={cat}
+                    isActive={activeCategory === cat.key}
+                    onPress={() => setActiveCategory(cat.key)}
+                    dealCount={categoryDealCounts[cat.key] || 0}
+                  />
+                ))}
               </ScrollView>
             </View>
 
             {/* Featured Deal */}
             {featuredDeal && !isLoading && (
               <View style={styles.featuredSection}>
-                <Text style={styles.sectionTitle}>🌟 Top Deal</Text>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>⭐ Top Deal</Text>
+                  <View style={styles.liveBadge}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveText}>LIVE</Text>
+                  </View>
+                </View>
                 <FeaturedDeal deal={featuredDeal} onClaim={handleClaim} claiming={claimingId === featuredDeal.id} />
               </View>
             )}
 
+            {/* Loading State */}
+            {isLoading && <LoadingState />}
+
             {/* Grid Section Title */}
             {!isLoading && allDisplayDeals.length > 0 && (
-              <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeader2}>
                 <Text style={styles.sectionTitle}>
-                  {activeCategory === 'All' ? '🔥 All Deals' : `${CATEGORIES.find(c => c.key === activeCategory)?.emoji ?? ''} ${activeCategory} Deals`}
+                  {activeCategory === 'All' ? '🔥 All Deals' : `${CATEGORIES.find(c => c.key === activeCategory)?.emoji ?? ''} ${activeCategory}`}
                 </Text>
                 <View style={[styles.countBadge, { backgroundColor: activeCatColor + '18' }]}>
                   <Text style={[styles.countText, { color: activeCatColor }]}>{activeDeals.length} active</Text>
@@ -321,26 +942,29 @@ export default function DealsScreen() {
           </>
         }
         ListEmptyComponent={
-          isLoading ? (
-            <View style={styles.centerContent}>
-              <ActivityIndicator size="large" color={COLORS.primary} />
-              <Text style={styles.loadingText}>Finding deals near you...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.centerContent}>
-              <Text style={{ fontSize: 48, marginBottom: 8 }}>😕</Text>
-              <Text style={styles.errorTitle}>Couldn't load deals</Text>
-              <Text style={styles.errorSub}>{error}</Text>
-              <Pressable style={styles.retryBtn} onPress={loadDeals}>
-                <Text style={styles.retryText}>Try Again</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.centerContent}>
-              <Text style={{ fontSize: 56, marginBottom: 8 }}>🎁</Text>
-              <Text style={styles.emptyTitle}>No deals right now</Text>
-              <Text style={styles.emptySub}>Pull down to refresh or check back soon!</Text>
-            </View>
+          !isLoading && (
+            error ? (
+              <View style={styles.centerContent}>
+                <Text style={{ fontSize: 56, marginBottom: 12 }}>😕</Text>
+                <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+                <Text style={styles.errorSub}>{error}</Text>
+                <Pressable style={styles.retryBtn} onPress={loadDeals}>
+                  <LinearGradient
+                    colors={['#7F77DD', '#6366F1']}
+                    style={styles.retryBtnGradient}
+                  >
+                    <Text style={styles.retryText}>🔄 Try Again</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.centerContent}>
+                <Text style={{ fontSize: 64, marginBottom: 12 }}>🎁</Text>
+                <Text style={styles.emptyTitle}>No deals right now</Text>
+                <Text style={styles.emptySub}>Pull down to refresh or check back soon!</Text>
+                <Text style={styles.emptyHint}>💡 Deals are updated frequently</Text>
+              </View>
+            )
           )
         }
       />
@@ -349,150 +973,552 @@ export default function DealsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#312E81' },
+  safe: { flex: 1, backgroundColor: '#4F46E5' },
 
-  // Hero
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HERO SECTION
+  // ═══════════════════════════════════════════════════════════════════════════════
   hero: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 20, backgroundColor: '#312E81',
-    overflow: 'hidden', position: 'relative',
-  },
-  heroBubble1: {
-    position: 'absolute', width: 180, height: 180, borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.05)', top: -50, right: -40,
-  },
-  heroBubble2: {
-    position: 'absolute', width: 120, height: 120, borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.05)', bottom: -30, left: -20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    overflow: 'hidden',
+    position: 'relative',
   },
   heroContent: { flex: 1 },
-  heroLabel: {
-    fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.6)',
-    letterSpacing: 2, marginBottom: 4,
+  heroGreeting: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.7)',
+    marginBottom: 4,
   },
-  heroTitle: { fontSize: 26, fontWeight: '800', color: '#fff', lineHeight: 30 },
-  heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
-  heroEmoji: { fontSize: 48, marginLeft: 12 },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#fff',
+    lineHeight: 32,
+  },
+  heroSub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 4,
+  },
+  heroCountBadge: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  heroCountText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  heroRight: {
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  heroEmoji: {
+    fontSize: 56,
+  },
+  heroEmojiSub: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+  },
 
-  // Categories
-  catSection: { backgroundColor: '#fff', paddingVertical: 12 },
-  catRow: { paddingHorizontal: 16, gap: 8 },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // CATEGORIES
+  // ═══════════════════════════════════════════════════════════════════════════════
+  catSection: { 
+    backgroundColor: '#fff', 
+    paddingVertical: 14,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -12,
+  },
+  catRow: { paddingHorizontal: 16, gap: 10 },
   catPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    backgroundColor: COLORS.gray100, borderWidth: 1.5, borderColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: COLORS.gray100,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  catEmoji: { fontSize: 14 },
+  catEmoji: { fontSize: 16 },
   catText: { fontSize: 13, fontWeight: '600', color: COLORS.gray600 },
+  catCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  catCountText: { fontSize: 10, fontWeight: '800', color: '#fff' },
 
-  // Featured
-  featuredSection: { paddingHorizontal: 16, paddingTop: 16, backgroundColor: COLORS.bg },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // FEATURED DEAL
+  // ═══════════════════════════════════════════════════════════════════════════════
+  featuredSection: { 
+    paddingHorizontal: 16, 
+    paddingTop: 20, 
+    backgroundColor: COLORS.bg,
+  },
   featuredCard: {
-    backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
-    marginTop: 10, ...SHADOWS.cardHover,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginTop: 12,
+    ...SHADOWS.cardHover,
   },
-  featuredInner: { flexDirection: 'row', padding: 16 },
-  featuredLeft: { flex: 1, marginRight: 12 },
+  featuredPressable: {
+    height: 280,
+    position: 'relative',
+  },
+  featuredBgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  featuredOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
   featuredDiscountBadge: {
-    backgroundColor: '#EF4444', width: 52, height: 52, borderRadius: 14,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 10,
   },
-  featuredDiscountText: { fontSize: 18, fontWeight: '900', color: '#fff' },
-  featuredDiscountSub: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.8)', marginTop: -2 },
-  featuredInfo: { flex: 1 },
-  featuredShop: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginBottom: 4 },
-  featuredName: { fontSize: 16, fontWeight: '800', color: COLORS.gray900, lineHeight: 21, marginBottom: 8 },
-  featuredPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  featuredPrice: { fontSize: 22, fontWeight: '800', color: COLORS.green },
-  featuredOriginal: { fontSize: 14, color: COLORS.gray400, textDecorationLine: 'line-through' },
-  featuredRight: { width: 120, alignItems: 'center' },
-  featuredImage: { width: 120, height: 100, borderRadius: 12 },
-  featuredImagePlaceholder: {
-    width: 120, height: 100, borderRadius: 12, backgroundColor: '#EEF2FF',
-    justifyContent: 'center', alignItems: 'center',
+  featuredDiscountInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.cardHover,
   },
-  featuredTimer: {
-    marginTop: 8, backgroundColor: COLORS.amberLight, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 4,
+  featuredDiscountText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#fff',
   },
-  featuredTimerUrgent: { backgroundColor: COLORS.redLight },
-  featuredTimerText: { fontSize: 11, fontWeight: '700', color: COLORS.amber },
-  featuredClaimBtn: {
-    backgroundColor: COLORS.primary, paddingVertical: 14, alignItems: 'center',
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
+  featuredDiscountSub: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: -2,
   },
-  featuredClaimBtnDisabled: { backgroundColor: COLORS.gray300 },
-  featuredClaimText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  featuredContent: {
+    flex: 1,
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  featuredTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  featuredShopBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  featuredShopIcon: { fontSize: 12 },
+  featuredShopName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.gray700,
+  },
+  socialProofBadge: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  socialProofText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.gray600,
+  },
+  featuredMiddle: {
+    marginTop: 'auto',
+  },
+  featuredTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  featuredDesc: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+  },
+  featuredBottom: {
+    marginTop: 12,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    padding: 12,
+    borderRadius: 16,
+  },
+  featuredTimerSection: {
+    alignItems: 'center',
+  },
+  featuredTimerLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.gray500,
+    marginBottom: 6,
+    letterSpacing: 0.5,
+  },
+  featuredCTA: {
+    overflow: 'hidden',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  featuredCTADisabled: {
+    opacity: 0.7,
+  },
+  featuredCTAGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  featuredCTAText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  ctaShimmer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
 
-  // Section header
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // SECTION HEADERS
+  // ═══════════════════════════════════════════════════════════════════════════════
   sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8, backgroundColor: COLORS.bg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray900 },
-  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  sectionHeader2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 12,
+    backgroundColor: COLORS.bg,
+  },
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: '800', 
+    color: COLORS.gray900,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  liveText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#DC2626',
+    letterSpacing: 1,
+  },
+  countBadge: { 
+    paddingHorizontal: 12, 
+    paddingVertical: 5, 
+    borderRadius: 14,
+  },
   countText: { fontSize: 12, fontWeight: '700' },
 
-  // Grid
-  list: { backgroundColor: COLORS.bg, paddingHorizontal: 12, paddingBottom: 32 },
-  listEmpty: { flexGrow: 1 },
-  gridRow: { gap: 10, marginBottom: 10 },
-
-  // Deal card
-  dealCard: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden',
-    maxWidth: (SCREEN_W - 34) / 2, ...SHADOWS.card,
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // GRID & LIST
+  // ═══════════════════════════════════════════════════════════════════════════════
+  list: { 
+    backgroundColor: COLORS.bg, 
+    paddingHorizontal: 12, 
+    paddingBottom: 100,
   },
-  dealCardExpired: { opacity: 0.5 },
-  dealImageWrap: { width: '100%', height: 110, position: 'relative' },
+  listEmpty: { flexGrow: 1 },
+  gridRow: { gap: 12, marginBottom: 12 },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DEAL CARD
+  // ═══════════════════════════════════════════════════════════════════════════════
+  dealCard: {
+    flex: 1,
+    maxWidth: (SCREEN_W - 36) / 2,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.cardHover,
+  },
+  dealCardExpired: { opacity: 0.6 },
+  dealCardInner: { flex: 1 },
+  dealImageWrap: { 
+    width: '100%', 
+    height: 130, 
+    position: 'relative',
+    overflow: 'hidden',
+  },
   dealImage: { width: '100%', height: '100%' },
   dealImagePlaceholder: {
-    width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#EEF2FF',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dealDiscountBadge: {
-    position: 'absolute', top: 8, left: 8, backgroundColor: '#EF4444',
-    width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    zIndex: 10,
   },
-  dealDiscountText: { fontSize: 13, fontWeight: '900', color: '#fff' },
+  dealDiscountGradient: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  dealDiscountText: { 
+    fontSize: 14, 
+    fontWeight: '900', 
+    color: '#fff',
+  },
+  dealDiscountOff: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  hotBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  hotBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#D97706',
+  },
+  lowStockBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(239,68,68,0.95)',
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  lowStockText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#fff',
+  },
   expiredOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center', alignItems: 'center',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  expiredText: { fontSize: 14, fontWeight: '800', color: '#fff', letterSpacing: 2 },
-  dealBody: { padding: 10, gap: 4 },
-  dealShop: { fontSize: 11, fontWeight: '700', color: COLORS.primary },
-  dealName: { fontSize: 13, fontWeight: '700', color: COLORS.gray900, lineHeight: 17 },
-  dealPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  dealPrice: { fontSize: 16, fontWeight: '800', color: COLORS.green },
-  dealOriginal: { fontSize: 11, color: COLORS.gray400, textDecorationLine: 'line-through' },
+  expiredText: { 
+    fontSize: 16, 
+    fontWeight: '900', 
+    color: '#fff', 
+    letterSpacing: 3,
+  },
+  dealBody: { 
+    padding: 12, 
+    gap: 4,
+  },
+  dealShopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dealShopIcon: { fontSize: 10 },
+  dealShop: { 
+    fontSize: 11, 
+    fontWeight: '700', 
+    color: COLORS.primary,
+    flex: 1,
+  },
+  dealName: { 
+    fontSize: 14, 
+    fontWeight: '700', 
+    color: COLORS.gray900, 
+    lineHeight: 18,
+    marginTop: 2,
+  },
   dealTimer: {
-    backgroundColor: COLORS.amberLight, borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', marginTop: 2,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    marginTop: 6,
   },
-  dealTimerUrgent: { backgroundColor: COLORS.redLight },
   dealTimerExpired: { backgroundColor: COLORS.gray100 },
-  dealTimerText: { fontSize: 10, fontWeight: '700', color: COLORS.amber },
+  dealTimerText: { 
+    fontSize: 11, 
+    fontWeight: '700',
+  },
+  dealSocialProof: {
+    fontSize: 10,
+    color: COLORS.gray500,
+    marginTop: 4,
+  },
   dealClaimBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 10, paddingVertical: 8,
-    alignItems: 'center', marginTop: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
   },
-  dealClaimBtnDisabled: { backgroundColor: COLORS.gray200 },
-  dealClaimText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  dealClaimBtnDisabled: { opacity: 0.6 },
+  dealClaimGradient: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dealClaimText: { 
+    fontSize: 13, 
+    fontWeight: '800', 
+    color: '#fff',
+  },
 
-  // States
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // LOADING / SKELETON
+  // ═══════════════════════════════════════════════════════════════════════════════
+  loadingContainer: {
+    padding: 16,
+    backgroundColor: COLORS.bg,
+  },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  skeletonCard: {
+    width: (SCREEN_W - 36) / 2,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.card,
+  },
+  skeletonImage: {
+    width: '100%',
+    height: 130,
+    backgroundColor: COLORS.gray200,
+    overflow: 'hidden',
+  },
+  skeletonShimmer: {
+    width: 100,
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  skeletonBody: {
+    padding: 12,
+    gap: 8,
+  },
+  skeletonLine: {
+    height: 12,
+    backgroundColor: COLORS.gray200,
+    borderRadius: 6,
+    width: '80%',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STATES (Error, Empty)
+  // ═══════════════════════════════════════════════════════════════════════════════
   centerContent: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    paddingTop: 60, paddingHorizontal: 40, gap: 6,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 40,
+    gap: 8,
   },
-  loadingText: { fontSize: 14, color: COLORS.gray400, marginTop: 8 },
-  errorTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray700 },
-  errorSub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center' },
+  loadingText: { 
+    fontSize: 14, 
+    color: COLORS.gray400, 
+    marginTop: 12,
+  },
+  errorTitle: { 
+    fontSize: 18, 
+    fontWeight: '800', 
+    color: COLORS.gray800,
+    textAlign: 'center',
+  },
+  errorSub: { 
+    fontSize: 14, 
+    color: COLORS.gray500, 
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   retryBtn: {
-    marginTop: 14, paddingHorizontal: 28, paddingVertical: 12,
-    backgroundColor: COLORS.primary, borderRadius: 14,
+    marginTop: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  retryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700 },
-  emptySub: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', lineHeight: 20 },
+  retryBtnGradient: {
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+  },
+  retryText: { 
+    color: '#fff', 
+    fontWeight: '800', 
+    fontSize: 15,
+  },
+  emptyTitle: { 
+    fontSize: 20, 
+    fontWeight: '800', 
+    color: COLORS.gray800,
+  },
+  emptySub: { 
+    fontSize: 14, 
+    color: COLORS.gray500, 
+    textAlign: 'center', 
+    lineHeight: 22,
+  },
+  emptyHint: {
+    fontSize: 13,
+    color: COLORS.gray400,
+    marginTop: 8,
+  },
 });

@@ -183,11 +183,19 @@ def tap_node(node: ET.Element) -> None:
 
 
 def tap_text(name: str, *, exact: str | None = None, contains: str | None = None) -> None:
-    root = ui_dump(name)
-    node = find_node(root, text=exact) if exact else find_node(root, text_contains=contains)
-    if not node:
-        raise RuntimeError(f"Tap target not found: exact={exact} contains={contains}")
-    tap_node(node)
+    last_error = None
+    for idx in range(4):
+        root = ui_dump(f"{name}_{idx}")
+        if exact:
+            node = find_node(root, text=exact) or find_node(root, desc_contains=exact)
+        else:
+            node = find_node(root, text_contains=contains) or find_node(root, desc_contains=contains)
+        if node:
+            tap_node(node)
+            return
+        last_error = f"Tap target not found: exact={exact} contains={contains}"
+        time.sleep(1)
+    raise RuntimeError(last_error or f"Tap target not found: exact={exact} contains={contains}")
 
 
 def tap_desc(name: str, contains: str) -> None:

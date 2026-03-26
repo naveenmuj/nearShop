@@ -240,32 +240,21 @@ async def log_search(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Log user search query for personalization.
-    Stores in user metadata for future recommendations.
-    """
+    """Log user search query for personalization using SearchLog table."""
     if not current_user:
         return {"status": "skipped", "reason": "anonymous user"}
-    
-    from datetime import datetime, timezone
-    
-    # Get current search history from user metadata
-    metadata = current_user.metadata_ or {}
-    search_history = metadata.get("search_history", [])
-    
-    # Add new search (keep last 50)
-    search_history.insert(0, {
-        "query": q.lower().strip(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
-    search_history = search_history[:50]
-    
-    # Update user metadata
-    metadata["search_history"] = search_history
-    current_user.metadata_ = metadata
-    
+
+    from app.auth.models import SearchLog
+
+    new_log = SearchLog(
+        user_id=current_user.id,
+        query=q.lower().strip(),
+        query_text=q.lower().strip(),
+        search_type="text",
+    )
+    db.add(new_log)
     await db.commit()
-    
+
     return {"status": "logged", "query": q}
 
 
@@ -275,24 +264,32 @@ async def get_search_history(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get user's recent search history."""
+    """Get user's recent search history from SearchLog table."""
     if not current_user:
         return {"history": []}
-    
-    metadata = current_user.metadata_ or {}
-    search_history = metadata.get("search_history", [])
-    
-    # Return unique recent searches
+
+    from app.auth.models import SearchLog
+
+    result = await db.execute(
+        select(SearchLog.query, SearchLog.created_at)
+        .where(SearchLog.user_id == current_user.id, SearchLog.query.isnot(None))
+        .order_by(desc(SearchLog.created_at))
+        .limit(limit * 3)
+    )
+
     seen = set()
     unique_history = []
-    for entry in search_history:
-        query = entry.get("query", "")
-        if query and query not in seen:
-            seen.add(query)
-            unique_history.append(entry)
+    for row in result.fetchall():
+        query_text = row[0]
+        if query_text and query_text not in seen:
+            seen.add(query_text)
+            unique_history.append({
+                "query": query_text,
+                "timestamp": row[1].isoformat() if row[1] else None,
+            })
             if len(unique_history) >= limit:
                 break
-    
+
     return {"history": unique_history}
 
 
@@ -304,13 +301,18 @@ async def clear_search_history(
     """Clear user's search history."""
     if not current_user:
         return {"status": "skipped"}
-    
-    metadata = current_user.metadata_ or {}
-    metadata["search_history"] = []
-    current_user.metadata_ = metadata
-    
+
+    from app.auth.models import SearchLog
+
+    await db.execute(
+        select(SearchLog).where(SearchLog.user_id == current_user.id)
+    )
+    from sqlalchemy import delete as sa_delete
+    await db.execute(
+        sa_delete(SearchLog).where(SearchLog.user_id == current_user.id)
+    )
     await db.commit()
-    
+
     return {"status": "cleared"}
 
 

@@ -1,0 +1,61 @@
+{
+  "run_date": "2026-03-26",
+  "environment": {
+    "device": "emulator-5554",
+    "app_package": "com.nearshop.app",
+    "api_base": "http://10.0.2.2:8010/api/v1",
+    "backend_mode": "local uvicorn with live access-log verification"
+  },
+  "summary": {
+    "executed": 4,
+    "passed": 1,
+    "failed": 1,
+    "blocked": 2,
+    "confirmed_product_bugs": 1
+  },
+  "results": [
+    {
+      "case_id": "ML-001",
+      "title": "Customer email sign-in completes backend authentication",
+      "status": "BLOCKED",
+      "details": "Firebase auth and backend API calls completed, but post-login navigation could not be treated as pass because the customer Home screen immediately threw a React render error."
+    },
+    {
+      "case_id": "ML-002",
+      "title": "Customer home and search click-through load after login",
+      "status": "FAIL",
+      "details": "Confirmed product defect. After successful customer login, Home crashes with ReactNativeJS error: Objects are not valid as a React child (found: object with keys {query, timestamp}). Search flow could not continue from Home."
+    },
+    {
+      "case_id": "ML-003",
+      "title": "Business email login and dashboard load",
+      "status": "PASS",
+      "details": "Business login succeeded from a clean app state and the business dashboard loaded with bottom tabs including Products, Orders, and More."
+    },
+    {
+      "case_id": "ML-004",
+      "title": "Business AI Advisor click-through from dashboard",
+      "status": "BLOCKED",
+      "details": "Business dashboard state was valid, but AI Advisor navigation was not reliably validated in the same pass with the current raw adb/uiautomator harness."
+    }
+  ],
+  "bugs": [
+    {
+      "bug_id": "BUG-EMU-001",
+      "severity": "High",
+      "title": "Customer Home crashes after login when recent search history contains objects",
+      "evidence": "ReactNativeJS log: Objects are not valid as a React child (found: object with keys {query, timestamp})",
+      "likely_source": "d:/Local_shop/nearshop-mobile/app/(customer)/home.jsx lines 512-518 render recentSearches items directly as text and use encodeURIComponent(query), but API history items are objects. Data is set at lines 128-129 from historyRes.value?.data?.history.",
+      "impact": "Customer home feed does not render after login for affected users; search flow from home is blocked."
+    }
+  ],
+  "artifacts": [
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-direct\\screenshots\\business_current.png",
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-direct\\screenshots\\emulator_current.png"
+  ],
+  "notes": [
+    "Firebase email authentication succeeded on emulator and backend access logs confirmed follow-up API activity for the customer session.",
+    "The confirmed app defect occurs on the customer Home render path, not at credential validation.",
+    "Business dashboard coverage is valid; AI Advisor remains pending more stable navigation automation or a targeted manual walkthrough."
+  ]
+}

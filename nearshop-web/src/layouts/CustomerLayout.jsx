@@ -8,6 +8,8 @@ import SearchSuggestions from '../components/SearchSuggestions'
 import { useAuthStore } from '../store/authStore'
 import { useCartStore } from '../store/cartStore'
 import { useLocationStore } from '../store/locationStore'
+import { useThemeStore } from '../store/themeStore'
+import ThemeToggle from '../components/ThemeToggle'
 import client from '../api/client'
 
 export default function CustomerLayout() {
@@ -20,6 +22,8 @@ export default function CustomerLayout() {
   const profileRef = useRef(null)
   const initial = user?.name?.charAt(0)?.toUpperCase() || '?'
   const locality = address?.split(',')[0] || 'Set location'
+
+  useEffect(() => { useThemeStore.getState().initTheme() }, [])
 
   useEffect(() => {
     const handler = (e) => { if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false) }
@@ -42,7 +46,7 @@ export default function CustomerLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex flex-col">
       {/* ── TOP NAVBAR ───────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-8xl mx-auto px-4 lg:px-8">

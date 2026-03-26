@@ -103,6 +103,12 @@ async def visual_search(
     db: AsyncSession = Depends(get_db),
 ):
     """Search for visually similar products nearby using an image."""
+    settings = get_settings()
+    if not settings.FEATURE_VISUAL_SEARCH:
+        raise HTTPException(
+            status_code=403,
+            detail="Visual search is not enabled. Set FEATURE_VISUAL_SEARCH=true to activate.",
+        )
     embedding = await generate_image_embedding(body.image_url)
     results = await search_similar_products(
         db,
@@ -153,9 +159,29 @@ async def recommendations(
     current_user: User = Depends(require_customer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get content-based product recommendations for the current user."""
+    """Get content-based product recommendations with Redis caching."""
+    from app.ai.cache import get_cached_recommendations, set_cached_recommendations
+
+    cached = await get_cached_recommendations(str(current_user.id), "content", lat, lng)
+    if cached is not None:
+        return {"products": cached[:limit], "count": min(len(cached), limit), "cached": True}
+
     products = await get_recommendations(db, current_user.id, lat, lng, limit)
-    return {"products": products, "count": len(products)}
+
+    # Cache serializable data (products may be ORM objects)
+    cache_data = []
+    for p in products:
+        if hasattr(p, "id"):
+            cache_data.append({
+                "id": str(p.id), "name": p.name, "price": float(p.price or 0),
+                "images": p.images or [], "category": p.category,
+                "shop_id": str(p.shop_id),
+            })
+        else:
+            cache_data.append(p)
+    await set_cached_recommendations(str(current_user.id), "content", lat, lng, cache_data)
+
+    return {"products": products, "count": len(products), "cached": False}
 
 
 @router.get("/recommendations/collaborative")
@@ -167,11 +193,19 @@ async def cf_recommendations(
     current_user: User = Depends(require_customer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get collaborative-filtering recommendations (people near you also bought)."""
+    """Get collaborative-filtering recommendations with Redis caching."""
+    from app.ai.cache import get_cached_recommendations, set_cached_recommendations
+
+    cached = await get_cached_recommendations(str(current_user.id), "cf", lat, lng)
+    if cached is not None:
+        return {"products": cached[:limit], "count": min(len(cached), limit), "type": "collaborative", "cached": True}
+
     products = await get_cf_recommendations(
         db, current_user.id, lat, lng, radius_km, limit
     )
-    return {"products": products, "count": len(products), "type": "collaborative"}
+    await set_cached_recommendations(str(current_user.id), "cf", lat, lng, products)
+
+    return {"products": products, "count": len(products), "type": "collaborative", "cached": False}
 
 
 # ── Trending feed endpoint (Feature 9) ─────────────────────────────────────

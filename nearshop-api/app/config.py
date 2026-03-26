@@ -43,6 +43,41 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     APP_DEBUG: bool = True
 
+    # ── Feature flags ────────────────────────────────────────────
+    # Paid / optional features that can be toggled via environment variables.
+    # Map view — requires a Mapbox or Google Maps API key
+    FEATURE_MAP_VIEW: bool = False
+    MAP_PROVIDER: str = "leaflet"  # "leaflet" (free), "mapbox", "google"
+    MAPBOX_ACCESS_TOKEN: str = ""
+    GOOGLE_MAPS_API_KEY: str = ""
+
+    # CDN for product images — rewrites R2 URLs to a CDN edge URL
+    FEATURE_CDN_IMAGES: bool = False
+    CDN_BASE_URL: str = ""  # e.g. https://cdn.nearshop.in
+
+    # Visual search (CLIP / OpenAI embeddings) — uses OpenAI API credits
+    FEATURE_VISUAL_SEARCH: bool = False
+
+    # AI-powered features — all require OPENAI_API_KEY
+    FEATURE_AI_RECOMMENDATIONS: bool = True
+    FEATURE_AI_CATALOGING: bool = True
+    FEATURE_AI_PRICING: bool = True
+    FEATURE_AI_SENTIMENT: bool = True
+
+    # Redis caching for recommendations
+    FEATURE_REDIS_CACHE: bool = True
+    RECOMMENDATION_CACHE_TTL: int = 3600  # seconds (1 hour)
+
+    # Social sharing deeplinks
+    FEATURE_SOCIAL_SHARING: bool = True
+    APP_DEEPLINK_BASE: str = "https://nearshop.in"  # base URL for share links
+
+    # Business onboarding tutorial
+    FEATURE_ONBOARDING_TUTORIAL: bool = True
+
+    # PostGIS-powered geo queries (requires PostGIS extension)
+    FEATURE_POSTGIS: bool = False
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

@@ -121,6 +121,43 @@ def create_app() -> FastAPI:
     async def health_check():
         return {"status": "healthy", "version": "1.0.0"}
 
+    @app.get("/api/v1/features")
+    async def feature_flags():
+        """Return enabled feature flags so clients can conditionally render UI."""
+        return {
+            "map_view": settings.FEATURE_MAP_VIEW,
+            "map_provider": settings.MAP_PROVIDER if settings.FEATURE_MAP_VIEW else None,
+            "cdn_images": settings.FEATURE_CDN_IMAGES,
+            "visual_search": settings.FEATURE_VISUAL_SEARCH,
+            "ai_recommendations": settings.FEATURE_AI_RECOMMENDATIONS,
+            "ai_cataloging": settings.FEATURE_AI_CATALOGING,
+            "ai_pricing": settings.FEATURE_AI_PRICING,
+            "ai_sentiment": settings.FEATURE_AI_SENTIMENT,
+            "redis_cache": settings.FEATURE_REDIS_CACHE,
+            "social_sharing": settings.FEATURE_SOCIAL_SHARING,
+            "onboarding_tutorial": settings.FEATURE_ONBOARDING_TUTORIAL,
+            "postgis": settings.FEATURE_POSTGIS,
+        }
+
+    @app.get("/api/v1/share/{entity_type}/{entity_id}")
+    async def get_share_link(entity_type: str, entity_id: str):
+        """Generate share deeplink for a product, deal, or shop."""
+        base = settings.APP_DEEPLINK_BASE
+        path_map = {
+            "product": f"/app/product/{entity_id}",
+            "shop": f"/shop/{entity_id}",
+            "deal": f"/app/deals?highlight={entity_id}",
+        }
+        path = path_map.get(entity_type, f"/app/{entity_type}/{entity_id}")
+        url = f"{base}{path}"
+        whatsapp_url = f"https://wa.me/?text={url}"
+        return {
+            "url": url,
+            "whatsapp_url": whatsapp_url,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+        }
+
     return app
 
 
