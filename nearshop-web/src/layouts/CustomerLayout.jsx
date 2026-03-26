@@ -48,7 +48,7 @@ export default function CustomerLayout() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex flex-col">
       {/* ── TOP NAVBAR ───────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm">
         <div className="max-w-8xl mx-auto px-4 lg:px-8">
           <div className="flex items-center h-16 gap-4 lg:gap-6">
             {/* Logo */}
@@ -88,7 +88,8 @@ export default function CustomerLayout() {
 
             {/* Right side */}
             <div className="flex items-center gap-1 ml-auto">
-              <button onClick={() => setCartOpen(true)} className="hidden sm:flex relative p-2 text-gray-400 hover:text-brand-purple hover:bg-brand-purple-light rounded-lg transition">
+              <ThemeToggle />
+              <button onClick={() => setCartOpen(true)} className="hidden sm:flex relative p-2 text-gray-400 dark:text-gray-500 hover:text-brand-purple hover:bg-brand-purple-light dark:hover:bg-brand-purple/10 rounded-lg transition">
                 <ShoppingCart className="w-5 h-5" />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-brand-red text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
@@ -113,7 +114,7 @@ export default function CustomerLayout() {
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                  <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 z-50">
                     <div className="px-4 py-2.5 border-b border-gray-100">
                       <p className="text-sm font-semibold text-gray-900">{user?.name || 'Guest'}</p>
                       <p className="text-xs text-gray-400">{user?.phone || user?.email}</p>
@@ -168,7 +169,7 @@ export default function CustomerLayout() {
       </main>
 
       {/* ── FOOTER (desktop) ─────────────────────────────────── */}
-      <footer className="hidden md:block bg-white border-t border-gray-100 mt-auto">
+      <footer className="hidden md:block bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 mt-auto">
         <div className="max-w-8xl mx-auto px-4 lg:px-8 py-10">
           <div className="grid grid-cols-4 gap-8">
             <div>
@@ -209,7 +210,7 @@ export default function CustomerLayout() {
       </footer>
 
       {/* ── MOBILE BOTTOM NAV (< md) ────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-lg z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex justify-around py-1.5">
           {[
             { to: '/app/home',    icon: Home,   label: 'Home' },

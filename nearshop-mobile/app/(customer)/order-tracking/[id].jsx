@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   View,
   Text,
@@ -7,21 +7,43 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   StatusBar,
+  Animated,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { getOrderTracking } from '../../../lib/engagement'
+import { connectOrderTracking } from '../../../lib/orders'
+import useAuthStore from '../../../store/authStore'
 import OrderTimeline from '../../../components/OrderTimeline'
 import { COLORS, SHADOWS, formatDate } from '../../../constants/theme'
 
 export default function OrderTrackingScreen() {
   const { id } = useLocalSearchParams()
   const router = useRouter()
+  const { token } = useAuthStore()
 
   const [tracking, setTracking] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [wsConnected, setWsConnected] = useState(false)
+  const [liveUpdate, setLiveUpdate] = useState(null)
+  const wsRef = useRef(null)
+  const pulseAnim = useRef(new Animated.Value(1)).current
 
+  // Pulse animation for live indicator
+  useEffect(() => {
+    if (!wsConnected) return
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    )
+    pulse.start()
+    return () => pulse.stop()
+  }, [wsConnected])
+
+  // Load initial tracking data
   useEffect(() => {
     if (!id) return
     setLoading(true)
@@ -34,6 +56,55 @@ export default function OrderTrackingScreen() {
       })
       .finally(() => setLoading(false))
   }, [id])
+
+  // WebSocket real-time connection
+  useEffect(() => {
+    if (!id || !token) return
+
+    const ws = connectOrderTracking(id, token, {
+      onOpen: () => {
+        setWsConnected(true)
+      },
+      onMessage: (data) => {
+        if (data.type === 'order_update' || data.type === 'status_update') {
+          setLiveUpdate(data)
+          // Update tracking data with new status
+          setTracking((prev) => {
+            if (!prev) return prev
+            const newTimeline = [...(prev.timeline || [])]
+            if (data.status && data.timestamp) {
+              newTimeline.push({
+                status: data.status,
+                timestamp: data.timestamp,
+                description: data.description || `Order ${data.status}`,
+              })
+            }
+            return {
+              ...prev,
+              current_status: data.status || prev.current_status,
+              timeline: newTimeline,
+            }
+          })
+          // Clear the live update indicator after 3s
+          setTimeout(() => setLiveUpdate(null), 3000)
+        }
+      },
+      onError: () => {
+        setWsConnected(false)
+      },
+      onClose: () => {
+        setWsConnected(false)
+      },
+    })
+    wsRef.current = ws
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+  }, [id, token])
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -48,7 +119,15 @@ export default function OrderTrackingScreen() {
         >
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order Tracking</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.headerTitle}>Order Tracking</Text>
+          {wsConnected && (
+            <Animated.View style={[styles.liveIndicator, { opacity: pulseAnim }]}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>LIVE</Text>
+            </Animated.View>
+          )}
+        </View>
         <View style={styles.backBtn} />
       </View>
 
@@ -109,6 +188,16 @@ export default function OrderTrackingScreen() {
               </View>
             ) : null}
           </View>
+
+          {/* Live update toast */}
+          {liveUpdate && (
+            <View style={styles.liveUpdateToast}>
+              <Text style={styles.liveUpdateIcon}>🔔</Text>
+              <Text style={styles.liveUpdateText}>
+                Status updated: {liveUpdate.status?.replace(/_/g, ' ')}
+              </Text>
+            </View>
+          )}
 
           {/* Timeline */}
           <View style={styles.timelineCard}>
@@ -243,5 +332,48 @@ const styles = StyleSheet.create({
     color: COLORS.gray900,
     paddingHorizontal: 16,
     marginBottom: 8,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8FFF3',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#1D9E75',
+  },
+  liveText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#1D9E75',
+    letterSpacing: 1,
+  },
+  liveUpdateToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EAF6FF',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BAD9F0',
+  },
+  liveUpdateIcon: {
+    fontSize: 18,
+  },
+  liveUpdateText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#3B8BD4',
+    flex: 1,
   },
 })

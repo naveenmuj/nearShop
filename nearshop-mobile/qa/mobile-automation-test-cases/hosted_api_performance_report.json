@@ -1,0 +1,56 @@
+{
+  "generated_at": "2026-03-26T21:05:00+05:30",
+  "hosted_api_base": "http://165.232.182.130/api/v1",
+  "summary": {
+    "public_endpoints": {
+      "health_avg_ms": 40.9,
+      "nearby_shops_avg_ms": 210.0,
+      "products_search_iphone_avg_ms": 140.2,
+      "products_search_headphones_avg_ms": 124.3,
+      "search_suggestions_avg_ms": 55.3,
+      "search_unified_avg_ms": 49.0
+    },
+    "authenticated_customer_endpoints": {
+      "auth_me_avg_ms": 61.3,
+      "recently_viewed_avg_ms": 34.7,
+      "feed_home_avg_ms": 56.3,
+      "feed_hook_avg_ms": 73.4,
+      "ai_trending_avg_ms": 66.9,
+      "ai_recommendations_avg_ms": 65.5,
+      "deals_nearby_avg_ms": 61.2,
+      "shops_nearby_avg_ms": 73.8,
+      "products_search_default_avg_ms": 71.5
+    }
+  },
+  "findings": [
+    {
+      "type": "performance",
+      "severity": "medium",
+      "endpoint": "/shops/nearby",
+      "evidence": "Slowest public endpoint sampled, but still averaged 210.0 ms over 5 requests."
+    },
+    {
+      "type": "deployment",
+      "severity": "high",
+      "endpoint": "/features",
+      "evidence": "Hosted API returned 404 on every request even though the route exists in local app/main.py."
+    },
+    {
+      "type": "defect",
+      "severity": "high",
+      "endpoint": "/search/history",
+      "evidence": "Hosted API returned 500 on every authenticated request for the customer account."
+    },
+    {
+      "type": "environment",
+      "severity": "high",
+      "endpoint": "local-debug-stack",
+      "evidence": "Local uvicorn access logs previously showed 1000-2700 ms on customer-home dependencies while using a remote managed PostgreSQL connection."
+    }
+  ],
+  "likely_causes": [
+    "The hosted VM appears to be running a deployment that does not fully match the current codebase or migration state.",
+    "The slow behavior observed earlier is more consistent with the local API process talking to a remote database than with the hosted VM itself.",
+    "Geo endpoints rely on Haversine calculations and count-plus-data queries, which makes them the first candidates for degradation at higher data volume."
+  ]
+}

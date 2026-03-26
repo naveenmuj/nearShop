@@ -21,6 +21,7 @@ import { getNearbyShops, getSearchHistory } from '../../lib/shops';
 import { searchProducts } from '../../lib/products';
 import { getNearbyDeals } from '../../lib/deals';
 import { getStoriesFeed } from '../../lib/stories';
+import { getShopsWithDelivery } from '../../lib/api/delivery';
 import {
   getCFRecommendations,
   getRecommendations as getAIRecommendations,
@@ -44,6 +45,19 @@ const CATEGORIES = [
   { label: 'Home', value: 'Home' },
 ];
 
+function normalizeRecentSearches(items = []) {
+  return items
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') {
+        const value = item.query ?? item.term ?? item.text ?? '';
+        return String(value).trim();
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -56,6 +70,7 @@ export default function HomeScreen() {
   const [forYouRecs, setForYouRecs] = useState([]);
   const [trending, setTrending] = useState([]);
   const [cfRecs, setCfRecs] = useState([]);
+  const [deliveryShops, setDeliveryShops] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -79,6 +94,7 @@ export default function HomeScreen() {
       getNearbyShops(lat, lng, { radius_km: 5 }),
       searchProducts({ sort: 'newest', limit: 20 }),
       getTrendingProducts(lat, lng, { limit: 10 }),
+      getShopsWithDelivery(lat, lng, 5),
     ];
     
     // Add personalized data requests if user is logged in
@@ -89,7 +105,7 @@ export default function HomeScreen() {
     }
 
     const results = await Promise.allSettled(requests);
-    const [storiesRes, dealsRes, shopsRes, productsRes, trendingRes, recsRes, cfRes, historyRes] = results;
+    const [storiesRes, dealsRes, shopsRes, productsRes, trendingRes, deliveryRes, recsRes, cfRes, historyRes] = results;
 
     // Check if all failed
     const allFailed = storiesRes.status === 'rejected' &&
@@ -119,6 +135,11 @@ export default function HomeScreen() {
     if (trendingRes.status === 'fulfilled') {
       setTrending(trendingRes.value?.data?.products ?? []);
     }
+    if (deliveryRes?.status === 'fulfilled') {
+      // getShopsWithDelivery returns response.data directly (already unwrapped)
+      const deliveryData = deliveryRes.value;
+      setDeliveryShops(deliveryData?.shops ?? deliveryData?.data?.shops ?? []);
+    }
     if (user && recsRes?.status === 'fulfilled') {
       setForYouRecs(mapAIProducts(recsRes.value?.data?.products ?? []));
     }
@@ -126,7 +147,7 @@ export default function HomeScreen() {
       setCfRecs(cfRes.value?.data?.products ?? []);
     }
     if (user && historyRes?.status === 'fulfilled') {
-      setRecentSearches(historyRes.value?.data?.history ?? []);
+      setRecentSearches(normalizeRecentSearches(historyRes.value?.data?.history ?? []));
     }
   }, [lat, lng, user]);
 
@@ -307,6 +328,67 @@ export default function HomeScreen() {
               contentContainerStyle={styles.shopsList}
               ItemSeparatorComponent={() => <View style={styles.shopSeparator} />}
               renderItem={({ item }) => <ShopCard shop={item} />}
+            />
+          </View>
+        )}
+
+        {/* ── Shops Delivering to You ───────────────────────────── */}
+        {deliveryShops.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.aiTitleRow}>
+                <Text style={styles.aiTitleIcon}>🚚</Text>
+                <Text style={styles.sectionTitle}>Delivering to You</Text>
+              </View>
+            </View>
+            <FlatList
+              data={deliveryShops}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.shopsList}
+              ItemSeparatorComponent={() => <View style={styles.shopSeparator} />}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.deliveryShopCard}
+                  activeOpacity={0.85}
+                  onPress={() => router.push(`/(customer)/shop/${item.id}`)}
+                >
+                  <View style={styles.deliveryShopImageWrap}>
+                    {item.cover_image ? (
+                      <Image source={{ uri: item.cover_image }} style={styles.deliveryShopImage} />
+                    ) : item.logo_url ? (
+                      <Image source={{ uri: item.logo_url }} style={styles.deliveryShopImage} />
+                    ) : (
+                      <View style={styles.deliveryShopPlaceholder}>
+                        <Text style={{ fontSize: 28 }}>🏪</Text>
+                      </View>
+                    )}
+                    {item.is_open && (
+                      <View style={styles.openBadge}>
+                        <Text style={styles.openBadgeText}>Open</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.deliveryShopContent}>
+                    <Text style={styles.deliveryShopName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.deliveryShopCategory} numberOfLines={1}>{item.category}</Text>
+                    <View style={styles.deliveryShopMeta}>
+                      <Text style={styles.deliveryShopDist}>
+                        {item.distance ? `${item.distance.toFixed(1)} km` : ''}
+                      </Text>
+                      {item.delivery_fee != null && (
+                        <Text style={styles.deliveryShopFee}>
+                          {item.delivery_fee === 0 ? 'Free delivery' : `₹${item.delivery_fee} delivery`}
+                        </Text>
+                      )}
+                    </View>
+                    {item.rating > 0 && (
+                      <Text style={styles.deliveryShopRating}>⭐ {Number(item.rating).toFixed(1)}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
             />
           </View>
         )}
@@ -733,6 +815,81 @@ const styles = StyleSheet.create({
 
   bottomSpacing: {
     height: 32,
+  },
+
+  // Delivery Shops
+  deliveryShopCard: {
+    width: 180,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...SHADOWS.card,
+  },
+  deliveryShopImageWrap: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#F3F0FF',
+    position: 'relative',
+  },
+  deliveryShopImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  deliveryShopPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F0FF',
+  },
+  openBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#1D9E75',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  openBadgeText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  deliveryShopContent: {
+    padding: 10,
+  },
+  deliveryShopName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.gray900,
+  },
+  deliveryShopCategory: {
+    fontSize: 11,
+    color: COLORS.gray500,
+    marginTop: 1,
+  },
+  deliveryShopMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  deliveryShopDist: {
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  deliveryShopFee: {
+    fontSize: 11,
+    color: '#1D9E75',
+    fontWeight: '600',
+  },
+  deliveryShopRating: {
+    fontSize: 11,
+    color: '#EF9F27',
+    marginTop: 3,
+    fontWeight: '600',
   },
 
   // For You Section

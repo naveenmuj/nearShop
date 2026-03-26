@@ -5,6 +5,7 @@ import { LayoutDashboard, Package, ShoppingBag, BarChart2, Settings, Menu, X, Be
   Sparkles, Megaphone, PartyPopper, Users, Star, CreditCard, Repeat,
   ChevronRight, Home, Box } from 'lucide-react'
 import NotificationBell from '../components/NotificationBell'
+import { OnboardingGuard } from '../components/OnboardingTutorial'
 import useMyShop from '../hooks/useMyShop'
 import { useAuthStore } from '../store/authStore'
 import client from '../api/client'
@@ -104,6 +105,7 @@ export default function BusinessLayout() {
   }
 
   return (
+    <OnboardingGuard>
     <div className="min-h-screen bg-gray-50">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-100 z-40">
@@ -178,5 +180,6 @@ export default function BusinessLayout() {
         </div>
       </nav>
     </div>
+    </OnboardingGuard>
   )
 }

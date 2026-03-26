@@ -11,6 +11,7 @@ import { trackView } from '../../api/engagement'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import WishlistHeart from '../../components/WishlistHeart'
+import ShareModal from '../../components/ShareModal'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
@@ -62,6 +63,7 @@ export default function ProductDetailPage() {
   const [offerAmount, setOfferAmount] = useState('')
   const [currentImage, setCurrentImage] = useState(0)
   const [descExpanded, setDescExpanded] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const fetchProduct = async () => {
     setLoading(true); setError(null)
@@ -96,10 +98,7 @@ export default function ProductDetailPage() {
     catch (err) { toast.error(err.response?.data?.detail || 'Failed to send offer') }
   }
 
-  const handleShare = () => {
-    if (navigator.share) navigator.share({ title: product.name, url: window.location.href }).catch(() => {})
-    else { navigator.clipboard?.writeText(window.location.href); toast.success('Link copied!') }
-  }
+  const handleShare = () => setShareOpen(true)
 
   if (loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
   if (error) return <EmptyState icon={ShoppingBag} title="Could not load product" message={error} action="Retry" onAction={fetchProduct} />
@@ -299,6 +298,18 @@ export default function ProductDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Share modal */}
+      <ShareModal
+        isOpen={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title={product?.name}
+        text={product?.description?.slice(0, 100)}
+        url={typeof window !== 'undefined' ? window.location.href : ''}
+        image={images?.[0]}
+        entityType="product"
+        entityId={product?.id}
+      />
     </div>
   )
 }

@@ -15,6 +15,8 @@ import { trackEvent } from '../../../lib/analytics';
 import { startHaggle } from '../../../lib/haggle';
 import { createOrder } from '../../../lib/orders';
 import { toast } from '../../../components/ui/Toast';
+import * as Sharing from 'expo-sharing';
+import * as Linking from 'expo-linking';
 import useAuthStore from '../../../store/authStore';
 import useCartStore from '../../../store/cartStore';
 import useLocationStore from '../../../store/locationStore';
@@ -288,6 +290,33 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const handleShare = async () => {
+    const shareUrl = `https://nearshop.in/app/product/${id}`;
+    const message = `Check out ${product?.name || 'this product'} on NearShop!\n${shareUrl}`;
+    try {
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        await Sharing.shareAsync(shareUrl, { dialogTitle: 'Share Product' });
+      } else {
+        // Fallback: open WhatsApp
+        const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        await Linking.openURL(waUrl);
+      }
+    } catch {
+      // Fallback: open WhatsApp
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      Linking.openURL(waUrl).catch(() => {});
+    }
+  };
+
+  const handleWhatsApp = () => {
+    const shop = product?.shop || {};
+    const phone = (shop.whatsapp || shop.phone || '').replace('+', '');
+    const msg = encodeURIComponent(`Hi, I saw ${product?.name} on NearShop — is it available?`);
+    Linking.openURL(`https://wa.me/${phone}?text=${msg}`).catch(() => {});
+    trackEvent({ event_type: 'inquiry', entity_type: 'product', entity_id: id }).catch(() => {});
+  };
+
   const handleOrder = async () => {
     if (!product) return;
     if (!product.shop_id) {
@@ -345,14 +374,19 @@ export default function ProductDetailScreen() {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Back + wishlist overlay on hero */}
+      {/* Back + share + wishlist overlay on hero */}
       <View style={styles.floatingHeader} pointerEvents="box-none">
         <Pressable style={styles.floatBtn} onPress={() => router.back()}>
           <Text style={styles.floatBtnText}>←</Text>
         </Pressable>
-        <Pressable style={styles.floatBtn} onPress={toggleWishlist}>
-          <Text style={styles.floatBtnText}>{inWishlist ? '❤️' : '🤍'}</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Pressable style={styles.floatBtn} onPress={handleShare}>
+            <Text style={styles.floatBtnText}>🔗</Text>
+          </Pressable>
+          <Pressable style={styles.floatBtn} onPress={toggleWishlist}>
+            <Text style={styles.floatBtnText}>{inWishlist ? '❤️' : '🤍'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -489,6 +523,21 @@ export default function ProductDetailScreen() {
       {/* Sticky action bar */}
       <SafeAreaView edges={['bottom']} style={styles.stickyBar}>
         <View style={styles.stickyInner}>
+          {/* WhatsApp + Share row */}
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: hagglingEnabled || isAvailable ? 8 : 0 }}>
+            <Pressable
+              style={[styles.haggleBtn, { flex: 1, backgroundColor: '#25D366' }]}
+              onPress={handleWhatsApp}
+            >
+              <Text style={[styles.haggleBtnText, { color: '#fff' }]}>💬 WhatsApp</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.haggleBtn, { flex: 1, backgroundColor: COLORS.primary + '15', borderColor: COLORS.primary }]}
+              onPress={handleShare}
+            >
+              <Text style={[styles.haggleBtnText, { color: COLORS.primary }]}>🔗 Share</Text>
+            </Pressable>
+          </View>
           {hagglingEnabled && isAvailable ? (
             <Pressable
               style={styles.haggleBtn}
