@@ -50,3 +50,14 @@ export const uploadFile = async (uri, folder = 'general') => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADDRESS APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const createAddress = (data) => client.post('/auth/addresses', data);
+export const listAddresses = () => client.get('/auth/addresses');
+export const getAddress = (addressId) => client.get(`/auth/addresses/${addressId}`);
+export const updateAddress = (addressId, data) => client.put(`/auth/addresses/${addressId}`, data);
+export const deleteAddress = (addressId) => client.delete(`/auth/addresses/${addressId}`);
+export const setDefaultAddress = (addressId) => client.post(`/auth/addresses/${addressId}/set-default`);

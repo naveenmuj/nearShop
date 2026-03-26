@@ -6,6 +6,7 @@ import { useLocationStore } from '../../store/locationStore'
 import { getShop, getShopProducts, followShop, unfollowShop } from '../../api/shops'
 import { getShopReviews } from '../../api/reviews'
 import { checkDeliveryEligibility } from '../../api/delivery'
+import { trackEvent } from '../../api/analytics'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import DeliveryBadge from '../../components/DeliveryBadge'
@@ -39,7 +40,10 @@ export default function ShopDetailPage() {
     setError(null)
 
     getShop(shopId)
-      .then(({ data }) => setShop(data))
+      .then(({ data }) => {
+        setShop(data)
+        trackEvent({ event_type: 'view', entity_type: 'shop', entity_id: shopId, lat: latitude, lng: longitude }).catch(() => {})
+      })
       .catch((err) => setError(err.message || 'Failed to load shop'))
       .finally(() => setShopLoading(false))
 
@@ -51,7 +55,7 @@ export default function ShopDetailPage() {
     getShopReviews(shopId)
       .then(({ data }) => setReviews(data.reviews ?? data.items ?? data ?? []))
       .catch(() => setReviews([]))
-  }, [shopId])
+  }, [shopId, latitude, longitude])
 
   // Check delivery eligibility
   useEffect(() => {

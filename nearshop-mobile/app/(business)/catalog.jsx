@@ -193,12 +193,20 @@ export default function CatalogScreen() {
             <Text style={styles.countText}>{products.length}</Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => router.push('/(business)/snap-list')}
-        >
-          <Ionicons name="add" size={24} color={COLORS.white} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: COLORS.green }]}
+            onPress={() => router.push('/(business)/bulk-upload')}
+          >
+            <Ionicons name="documents-outline" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => router.push('/(business)/snap-list')}
+          >
+            <Ionicons name="add" size={24} color={COLORS.white} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}

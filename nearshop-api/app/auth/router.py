@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException, Query
 from pydantic import BaseModel
+from typing import Optional
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.auth.models import User
+from app.auth.models import User, UserAddress
 from app.auth.permissions import get_current_user
 from app.auth.schemas import (
     CompleteProfileRequest,
@@ -28,6 +30,46 @@ class UserSettingsRequest(BaseModel):
 class DeleteAccountRequest(BaseModel):
     delete_customer: bool = True
     delete_business: bool = False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADDRESS SCHEMAS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AddressCreate(BaseModel):
+    label: str = "home"  # 'home', 'work', 'other'
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    address_line1: str
+    address_line2: Optional[str] = None
+    city: str
+    state: Optional[str] = None
+    pincode: str
+    landmark: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    is_default: bool = False
+
+
+class AddressResponse(BaseModel):
+    id: str
+    label: str
+    full_name: Optional[str]
+    phone: Optional[str]
+    address_line1: str
+    address_line2: Optional[str]
+    city: str
+    state: Optional[str]
+    pincode: str
+    landmark: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
+    is_default: bool
+    formatted_address: str
+
+    class Config:
+        from_attributes = True
+
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -194,3 +236,285 @@ async def firebase_signin(
         "is_new_user": is_new_user,
         "provider": provider,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADDRESS ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def format_address(addr: UserAddress) -> str:
+    """Format address as a single string"""
+    parts = [addr.address_line1]
+    if addr.address_line2:
+        parts.append(addr.address_line2)
+    if addr.landmark:
+        parts.append(f"Near {addr.landmark}")
+    parts.append(f"{addr.city} - {addr.pincode}")
+    if addr.state:
+        parts.append(addr.state)
+    return ", ".join(parts)
+
+
+@router.post("/addresses", response_model=AddressResponse)
+async def create_address(
+    body: AddressCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new saved address."""
+    # If this is the default address, unset other defaults
+    if body.is_default:
+        result = await db.execute(
+            select(UserAddress).where(
+                UserAddress.user_id == current_user.id,
+                UserAddress.is_default == True
+            )
+        )
+        for addr in result.scalars().all():
+            addr.is_default = False
+    
+    address = UserAddress(
+        user_id=current_user.id,
+        label=body.label,
+        full_name=body.full_name or current_user.name,
+        phone=body.phone or current_user.phone,
+        address_line1=body.address_line1,
+        address_line2=body.address_line2,
+        city=body.city,
+        state=body.state,
+        pincode=body.pincode,
+        landmark=body.landmark,
+        latitude=body.latitude,
+        longitude=body.longitude,
+        is_default=body.is_default,
+    )
+    db.add(address)
+    await db.commit()
+    await db.refresh(address)
+    
+    return AddressResponse(
+        id=str(address.id),
+        label=address.label,
+        full_name=address.full_name,
+        phone=address.phone,
+        address_line1=address.address_line1,
+        address_line2=address.address_line2,
+        city=address.city,
+        state=address.state,
+        pincode=address.pincode,
+        landmark=address.landmark,
+        latitude=address.latitude,
+        longitude=address.longitude,
+        is_default=address.is_default,
+        formatted_address=format_address(address),
+    )
+
+
+@router.get("/addresses", response_model=list[AddressResponse])
+async def list_addresses(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all saved addresses for the current user."""
+    result = await db.execute(
+        select(UserAddress)
+        .where(UserAddress.user_id == current_user.id)
+        .order_by(UserAddress.is_default.desc(), UserAddress.created_at.desc())
+    )
+    addresses = result.scalars().all()
+    
+    return [
+        AddressResponse(
+            id=str(addr.id),
+            label=addr.label,
+            full_name=addr.full_name,
+            phone=addr.phone,
+            address_line1=addr.address_line1,
+            address_line2=addr.address_line2,
+            city=addr.city,
+            state=addr.state,
+            pincode=addr.pincode,
+            landmark=addr.landmark,
+            latitude=addr.latitude,
+            longitude=addr.longitude,
+            is_default=addr.is_default,
+            formatted_address=format_address(addr),
+        )
+        for addr in addresses
+    ]
+
+
+@router.get("/addresses/{address_id}", response_model=AddressResponse)
+async def get_address(
+    address_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific address."""
+    result = await db.execute(
+        select(UserAddress).where(
+            UserAddress.id == address_id,
+            UserAddress.user_id == current_user.id
+        )
+    )
+    address = result.scalar_one_or_none()
+    
+    if not address:
+        raise HTTPException(status_code=404, detail="Address not found")
+    
+    return AddressResponse(
+        id=str(address.id),
+        label=address.label,
+        full_name=address.full_name,
+        phone=address.phone,
+        address_line1=address.address_line1,
+        address_line2=address.address_line2,
+        city=address.city,
+        state=address.state,
+        pincode=address.pincode,
+        landmark=address.landmark,
+        latitude=address.latitude,
+        longitude=address.longitude,
+        is_default=address.is_default,
+        formatted_address=format_address(address),
+    )
+
+
+@router.put("/addresses/{address_id}", response_model=AddressResponse)
+async def update_address(
+    address_id: UUID,
+    body: AddressCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a saved address."""
+    result = await db.execute(
+        select(UserAddress).where(
+            UserAddress.id == address_id,
+            UserAddress.user_id == current_user.id
+        )
+    )
+    address = result.scalar_one_or_none()
+    
+    if not address:
+        raise HTTPException(status_code=404, detail="Address not found")
+    
+    # If setting as default, unset other defaults
+    if body.is_default and not address.is_default:
+        others_result = await db.execute(
+            select(UserAddress).where(
+                UserAddress.user_id == current_user.id,
+                UserAddress.is_default == True,
+                UserAddress.id != address_id
+            )
+        )
+        for addr in others_result.scalars().all():
+            addr.is_default = False
+    
+    # Update fields
+    address.label = body.label
+    address.full_name = body.full_name
+    address.phone = body.phone
+    address.address_line1 = body.address_line1
+    address.address_line2 = body.address_line2
+    address.city = body.city
+    address.state = body.state
+    address.pincode = body.pincode
+    address.landmark = body.landmark
+    address.latitude = body.latitude
+    address.longitude = body.longitude
+    address.is_default = body.is_default
+    
+    await db.commit()
+    await db.refresh(address)
+    
+    return AddressResponse(
+        id=str(address.id),
+        label=address.label,
+        full_name=address.full_name,
+        phone=address.phone,
+        address_line1=address.address_line1,
+        address_line2=address.address_line2,
+        city=address.city,
+        state=address.state,
+        pincode=address.pincode,
+        landmark=address.landmark,
+        latitude=address.latitude,
+        longitude=address.longitude,
+        is_default=address.is_default,
+        formatted_address=format_address(address),
+    )
+
+
+@router.delete("/addresses/{address_id}")
+async def delete_address(
+    address_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a saved address."""
+    result = await db.execute(
+        select(UserAddress).where(
+            UserAddress.id == address_id,
+            UserAddress.user_id == current_user.id
+        )
+    )
+    address = result.scalar_one_or_none()
+    
+    if not address:
+        raise HTTPException(status_code=404, detail="Address not found")
+    
+    await db.delete(address)
+    await db.commit()
+    
+    return {"message": "Address deleted"}
+
+
+@router.post("/addresses/{address_id}/set-default", response_model=AddressResponse)
+async def set_default_address(
+    address_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set an address as the default."""
+    result = await db.execute(
+        select(UserAddress).where(
+            UserAddress.id == address_id,
+            UserAddress.user_id == current_user.id
+        )
+    )
+    address = result.scalar_one_or_none()
+    
+    if not address:
+        raise HTTPException(status_code=404, detail="Address not found")
+    
+    # Unset other defaults
+    others_result = await db.execute(
+        select(UserAddress).where(
+            UserAddress.user_id == current_user.id,
+            UserAddress.is_default == True
+        )
+    )
+    for addr in others_result.scalars().all():
+        addr.is_default = False
+    
+    address.is_default = True
+    await db.commit()
+    await db.refresh(address)
+    
+    return AddressResponse(
+        id=str(address.id),
+        label=address.label,
+        full_name=address.full_name,
+        phone=address.phone,
+        address_line1=address.address_line1,
+        address_line2=address.address_line2,
+        city=address.city,
+        state=address.state,
+        pincode=address.pincode,
+        landmark=address.landmark,
+        latitude=address.latitude,
+        longitude=address.longitude,
+        is_default=address.is_default,
+        formatted_address=format_address(address),
+    )

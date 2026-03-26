@@ -38,6 +38,18 @@ qrcode==8.0
 # ── AI (optional — comment out if not using AI features) ─────────────────────
 openai==1.56.2
 
+# ── Payments ──────────────────────────────────────────────────────────────────
+razorpay==1.4.2
+
+# ── WebSocket ─────────────────────────────────────────────────────────────────
+websockets==12.0
+
+# ── PDF Generation ────────────────────────────────────────────────────────────
+reportlab==4.2.5
+
+# ── Excel/CSV Export ──────────────────────────────────────────────────────────
+openpyxl==3.1.5
+
 # Removed (not used in codebase):
 #   celery       — no task queue code found
 #   geoalchemy2  — using pure Python Haversine, not PostGIS

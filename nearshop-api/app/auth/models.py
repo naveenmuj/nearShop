@@ -46,6 +46,9 @@ class User(Base):
     daily_spin_streak = Column(Integer, server_default=text("0"), nullable=True)
     last_spin_date = Column(Date, nullable=True)
     sound_enabled = Column(Boolean, server_default=text("false"), nullable=True)
+    # FCM Push Notification fields
+    fcm_token = Column(Text, nullable=True)
+    fcm_device_type = Column(String(20), nullable=True)  # 'mobile', 'web'
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -146,5 +149,37 @@ class SearchLog(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
+class UserAddress(Base):
+    """Saved addresses for users"""
+    __tablename__ = "user_addresses"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("uuid_generate_v4()"),
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    label = Column(String(50), nullable=False)  # 'home', 'work', 'other'
+    full_name = Column(String(100), nullable=True)
+    phone = Column(String(15), nullable=True)
+    address_line1 = Column(String(255), nullable=False)
+    address_line2 = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=False)
+    state = Column(String(100), nullable=True)
+    pincode = Column(String(10), nullable=False)
+    landmark = Column(String(200), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    is_default = Column(Boolean, server_default=text("false"), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     user = relationship("User", foreign_keys=[user_id])

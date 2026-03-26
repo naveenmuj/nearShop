@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Pressable,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,10 +17,15 @@ import { useState, useEffect, useCallback } from 'react';
 
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
-import { getNearbyShops } from '../../lib/shops';
+import { getNearbyShops, getSearchHistory } from '../../lib/shops';
 import { searchProducts } from '../../lib/products';
 import { getNearbyDeals } from '../../lib/deals';
 import { getStoriesFeed } from '../../lib/stories';
+import {
+  getCFRecommendations,
+  getRecommendations as getAIRecommendations,
+  getTrendingProducts,
+} from '../../lib/api/ai';
 import StoryCircle from '../../components/StoryCircle';
 import ShopCard from '../../components/ShopCard';
 import ProductCard from '../../components/ProductCard';
@@ -47,6 +53,10 @@ export default function HomeScreen() {
   const [deals, setDeals] = useState([]);
   const [shops, setShops] = useState([]);
   const [products, setProducts] = useState([]);
+  const [forYouRecs, setForYouRecs] = useState([]);
+  const [trending, setTrending] = useState([]);
+  const [cfRecs, setCfRecs] = useState([]);
+  const [recentSearches, setRecentSearches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -55,18 +65,38 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     setError(null);
-    const [storiesRes, dealsRes, shopsRes, productsRes] = await Promise.allSettled([
+    const mapAIProducts = (items = []) =>
+      items.map((item) => ({
+        ...item,
+        type: 'product',
+        image_url: item.images?.[0] ?? null,
+        reason: item.reason ?? 'ai_match',
+      }));
+
+    const requests = [
       getStoriesFeed(),
       getNearbyDeals(lat, lng),
       getNearbyShops(lat, lng, { radius_km: 5 }),
       searchProducts({ sort: 'newest', limit: 20 }),
-    ]);
+      getTrendingProducts(lat, lng, { limit: 10 }),
+    ];
+    
+    // Add personalized data requests if user is logged in
+    if (user) {
+      requests.push(getAIRecommendations({ lat, lng, limit: 10 }));
+      requests.push(getCFRecommendations(lat, lng, { limit: 10 }));
+      requests.push(getSearchHistory(5));
+    }
+
+    const results = await Promise.allSettled(requests);
+    const [storiesRes, dealsRes, shopsRes, productsRes, trendingRes, recsRes, cfRes, historyRes] = results;
 
     // Check if all failed
     const allFailed = storiesRes.status === 'rejected' &&
                       dealsRes.status === 'rejected' &&
                       shopsRes.status === 'rejected' &&
-                      productsRes.status === 'rejected';
+                      productsRes.status === 'rejected' &&
+                      trendingRes.status === 'rejected';
 
     if (allFailed) {
       setError('Failed to load content. Check your internet connection.');
@@ -86,7 +116,19 @@ export default function HomeScreen() {
     if (productsRes.status === 'fulfilled') {
       setProducts(productsRes.value?.data?.items ?? []);
     }
-  }, [lat, lng]);
+    if (trendingRes.status === 'fulfilled') {
+      setTrending(trendingRes.value?.data?.products ?? []);
+    }
+    if (user && recsRes?.status === 'fulfilled') {
+      setForYouRecs(mapAIProducts(recsRes.value?.data?.products ?? []));
+    }
+    if (user && cfRes?.status === 'fulfilled') {
+      setCfRecs(cfRes.value?.data?.products ?? []);
+    }
+    if (user && historyRes?.status === 'fulfilled') {
+      setRecentSearches(historyRes.value?.data?.history ?? []);
+    }
+  }, [lat, lng, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -288,6 +330,197 @@ export default function HomeScreen() {
                 </View>
               )}
             />
+          </View>
+        )}
+
+        {/* ── Trending Near You ─────────────────────────────────── */}
+        {trending.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.aiTitleRow}>
+                <Text style={styles.aiTitleIcon}>📈</Text>
+                <Text style={styles.sectionTitle}>Trending Near You</Text>
+              </View>
+            </View>
+            <FlatList
+              data={trending}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.forYouList}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.forYouCard}
+                  activeOpacity={0.8}
+                  onPress={() => router.push(`/(customer)/product/${item.id}`)}
+                >
+                  <View style={styles.forYouImageWrap}>
+                    {item.images?.[0] ? (
+                      <Image source={{ uri: item.images[0] }} style={styles.forYouImage} />
+                    ) : (
+                      <View style={styles.forYouImagePlaceholder}>
+                        <Text style={styles.forYouImageEmoji}>📦</Text>
+                      </View>
+                    )}
+                    <View style={[styles.forYouBadge, styles.trendingBadge]}>
+                      <Text style={[styles.forYouBadgeText, styles.trendingBadgeText]}>
+                        {item.trend_label || 'Trending'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.forYouCardContent}>
+                    <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
+                    {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
+                    {item.shop_name && <Text style={styles.forYouCardShop} numberOfLines={1}>{item.shop_name}</Text>}
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
+        {/* ── For You - Personalized Recommendations ─────────────── */}
+        {user && forYouRecs.length > 0 && (
+          <View style={styles.forYouSection}>
+            <View style={styles.forYouGradient}>
+              <View style={styles.forYouHeader}>
+                <View style={styles.forYouTitleRow}>
+                  <View style={styles.forYouIconBox}>
+                    <Text style={styles.forYouIcon}>✨</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.forYouTitle}>For You</Text>
+                    <Text style={styles.forYouSubtitle}>Based on your preferences</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/(customer)/search')} activeOpacity={0.7}>
+                  <Text style={styles.seeAll}>See all</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={forYouRecs}
+                keyExtractor={(item, idx) => `${item.type}-${item.id}-${idx}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.forYouList}
+                ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.forYouCard}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (item.type === 'shop') {
+                        router.push(`/(customer)/shop/${item.id}`);
+                      } else {
+                        router.push(`/(customer)/product/${item.id}`);
+                      }
+                    }}
+                  >
+                    <View style={styles.forYouImageWrap}>
+                      {item.image_url ? (
+                        <Image source={{ uri: item.image_url }} style={styles.forYouImage} />
+                      ) : (
+                        <View style={styles.forYouImagePlaceholder}>
+                          <Text style={styles.forYouImageEmoji}>{item.type === 'shop' ? '🏪' : '📦'}</Text>
+                        </View>
+                      )}
+                      <View style={[styles.forYouBadge, 
+                        item.reason === 'reorder' ? styles.forYouBadgeReorder :
+                        item.reason === 'favorite_shop' ? styles.forYouBadgeFavorite :
+                        styles.forYouBadgeDefault
+                      ]}>
+                        <Text style={[styles.forYouBadgeText,
+                          item.reason === 'reorder' ? styles.forYouBadgeTextReorder :
+                          item.reason === 'favorite_shop' ? styles.forYouBadgeTextFavorite :
+                          styles.forYouBadgeTextDefault
+                        ]}>
+                          {item.type === 'shop' ? 'Shop' : 
+                           item.reason === 'reorder' ? '🔄 Reorder' :
+                           item.reason === 'favorite_shop' ? '❤️ Favorite' :
+                           '✨ For You'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.forYouCardContent}>
+                      <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
+                      {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
+                      {item.shop_name && <Text style={styles.forYouCardShop} numberOfLines={1}>{item.shop_name}</Text>}
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* ── Recommended For You - Collaborative ───────────────── */}
+        {user && cfRecs.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.aiTitleRow}>
+                <Text style={styles.aiTitleIcon}>🤝</Text>
+                <Text style={styles.sectionTitle}>Recommended For You</Text>
+              </View>
+            </View>
+            <FlatList
+              data={cfRecs}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.forYouList}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.forYouCard}
+                  activeOpacity={0.8}
+                  onPress={() => router.push(`/(customer)/product/${item.id}`)}
+                >
+                  <View style={styles.forYouImageWrap}>
+                    {item.images?.[0] ? (
+                      <Image source={{ uri: item.images[0] }} style={styles.forYouImage} />
+                    ) : (
+                      <View style={styles.forYouImagePlaceholder}>
+                        <Text style={styles.forYouImageEmoji}>📦</Text>
+                      </View>
+                    )}
+                    <View style={[styles.forYouBadge, styles.cfBadge]}>
+                      <Text style={[styles.forYouBadgeText, styles.cfBadgeText]}>Nearby Match</Text>
+                    </View>
+                  </View>
+                  <View style={styles.forYouCardContent}>
+                    <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
+                    {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
+                    <Text style={styles.aiReason} numberOfLines={2}>{item.reason || 'People near you also bought this'}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
+        {/* ── Recent Searches ────────────────────────────────────── */}
+        {user && recentSearches.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.recentSearchTitleRow}>
+                <Text style={styles.recentSearchIcon}>🕐</Text>
+                <Text style={styles.recentSearchTitle}>Recent Searches</Text>
+              </View>
+            </View>
+            <View style={styles.recentSearchList}>
+              {recentSearches.map((query, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.recentSearchPill}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/(customer)/search?q=${encodeURIComponent(query)}`)}
+                >
+                  <Text style={styles.recentSearchPillIcon}>🔍</Text>
+                  <Text style={styles.recentSearchPillText}>{query}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
@@ -500,6 +733,194 @@ const styles = StyleSheet.create({
 
   bottomSpacing: {
     height: 32,
+  },
+
+  // For You Section
+  forYouSection: {
+    marginTop: 20,
+    marginHorizontal: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  forYouGradient: {
+    paddingVertical: 16,
+    backgroundColor: '#F8F3FF',
+  },
+  forYouHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  forYouTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  forYouIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  forYouIcon: {
+    fontSize: 16,
+  },
+  forYouTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.gray900,
+  },
+  forYouSubtitle: {
+    fontSize: 11,
+    color: COLORS.gray500,
+    marginTop: 1,
+  },
+  forYouList: {
+    paddingHorizontal: 16,
+  },
+  forYouCard: {
+    width: 140,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    overflow: 'hidden',
+    ...SHADOWS.card,
+  },
+  forYouImageWrap: {
+    height: 96,
+    backgroundColor: COLORS.gray100,
+    position: 'relative',
+  },
+  forYouImage: {
+    width: '100%',
+    height: '100%',
+  },
+  forYouImagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  forYouImageEmoji: {
+    fontSize: 28,
+    opacity: 0.5,
+  },
+  forYouBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  forYouBadgeDefault: {
+    backgroundColor: '#F3E8FF',
+  },
+  forYouBadgeReorder: {
+    backgroundColor: '#DCFCE7',
+  },
+  forYouBadgeFavorite: {
+    backgroundColor: '#FCE7F3',
+  },
+  forYouBadgeText: {
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  forYouBadgeTextDefault: {
+    color: '#7C3AED',
+  },
+  forYouBadgeTextReorder: {
+    color: '#16A34A',
+  },
+  forYouBadgeTextFavorite: {
+    color: '#DB2777',
+  },
+  forYouCardContent: {
+    padding: 10,
+  },
+  forYouCardName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.gray900,
+  },
+  forYouCardPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginTop: 3,
+  },
+  forYouCardShop: {
+    fontSize: 11,
+    color: COLORS.gray500,
+    marginTop: 2,
+  },
+  aiTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aiTitleIcon: {
+    fontSize: 15,
+  },
+  aiReason: {
+    fontSize: 11,
+    color: COLORS.primary,
+    marginTop: 4,
+    lineHeight: 14,
+  },
+  trendingBadge: {
+    backgroundColor: '#FFF7ED',
+  },
+  trendingBadgeText: {
+    color: '#C2410C',
+  },
+  cfBadge: {
+    backgroundColor: '#EEF2FF',
+  },
+  cfBadgeText: {
+    color: '#4338CA',
+  },
+
+  // Recent Searches
+  recentSearchTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recentSearchIcon: {
+    fontSize: 14,
+  },
+  recentSearchTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  recentSearchList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  recentSearchPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    gap: 6,
+  },
+  recentSearchPillIcon: {
+    fontSize: 12,
+  },
+  recentSearchPillText: {
+    fontSize: 13,
+    color: COLORS.gray600,
+    fontWeight: '500',
   },
 
   // Error handling

@@ -79,10 +79,10 @@ export default function DashboardPage() {
   }
 
   const statCards = [
-    { label: 'Views', value: stats?.total_views ?? 0, icon: '👁️' },
-    { label: 'Orders', value: stats?.total_orders ?? 0, icon: '🛍️' },
-    { label: 'Revenue', value: formatPrice(stats?.total_revenue ?? 0), icon: '💰' },
-    { label: 'Visitors', value: stats?.unique_visitors ?? 0, icon: '👥' },
+    { label: 'Views', value: stats?.total_views ?? 0, icon: '👁️', to: '/biz/analytics' },
+    { label: 'Orders', value: stats?.total_orders ?? 0, icon: '🛍️', to: '/biz/orders' },
+    { label: 'Revenue', value: formatPrice(stats?.total_revenue ?? 0), icon: '💰', to: '/biz/analytics' },
+    { label: 'Visitors', value: stats?.unique_visitors ?? 0, icon: '👥', to: '/biz/customers' },
   ]
 
   const quickActions = [
@@ -99,10 +99,11 @@ export default function DashboardPage() {
       {/* Shop header with open/close toggle */}
       <div className={`px-5 py-5 text-white transition-colors ${shopOpen ? 'bg-gradient-to-r from-[#1D9E75] to-[#2DB88A]' : 'bg-gradient-to-r from-gray-600 to-gray-500'}`}>
         <div className="flex items-start justify-between">
-          <div>
+          <button onClick={() => navigate('/biz/settings')} className="text-left hover:opacity-80 transition-opacity">
             <p className="text-sm opacity-80">Welcome back,</p>
-            <h1 className="text-xl font-bold mt-0.5">{user?.name || 'Shop Owner'}</h1>
-          </div>
+            <h1 className="text-xl font-bold mt-0.5">{shop?.name || user?.name || 'Shop Owner'}</h1>
+            <p className="text-xs opacity-60 mt-0.5">Tap to view shop details →</p>
+          </button>
           <button onClick={handleToggleShop} disabled={toggling}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
               shopOpen ? 'bg-white/20 hover:bg-white/30' : 'bg-red-500/30 hover:bg-red-500/40'
@@ -123,11 +124,11 @@ export default function DashboardPage() {
       <div className="px-4 -mt-3">
         <div className="grid grid-cols-4 gap-2">
           {statCards.map(s => (
-            <div key={s.label} className="bg-white rounded-xl p-3 shadow-sm border border-gray-50 text-center">
+            <button key={s.label} onClick={() => navigate(s.to)} className="bg-white rounded-xl p-3 shadow-sm border border-gray-50 text-center hover:shadow-md hover:-translate-y-0.5 transition-all">
               <span className="text-lg">{s.icon}</span>
               <p className="text-base font-extrabold text-gray-900 mt-1">{s.value}</p>
               <p className="text-[10px] font-medium text-gray-400 uppercase">{s.label}</p>
-            </div>
+            </button>
           ))}
         </div>
       </div>

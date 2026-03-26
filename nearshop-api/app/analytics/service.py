@@ -1,9 +1,12 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+import math
 from uuid import UUID
 
 from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.customer_segments import get_customer_segments
 from app.core.exceptions import BadRequestError
 from app.core.geo import within_radius
 from app.auth.models import UserEvent, SearchLog
@@ -179,3 +182,291 @@ async def get_demand_insights(
         {"query": row.query_text, "count": row.search_count}
         for row in rows
     ]
+
+
+def _series_value(series: list[float], start: int, end: int) -> float:
+    window = series[start:end]
+    return sum(window) / len(window) if window else 0.0
+
+
+async def get_phase1_insights(
+    db: AsyncSession,
+    shop_id: UUID,
+    lat: float | None = None,
+    lng: float | None = None,
+) -> dict:
+    """Return low-cost Phase 1 ML-style insights for a shop.
+
+    The implementation is statistical and rules-based:
+    - 7-day sales forecast from rolling averages
+    - reorder alerts from stock + 30-day sales velocity
+    - customer segment summary from existing RFM segmentation
+    - top local demand keywords when location is available
+    """
+    now = datetime.now(timezone.utc)
+    start = now - timedelta(days=30)
+
+    orders_stmt = (
+        select(Order.created_at, Order.total, Order.items)
+        .where(
+            and_(
+                Order.shop_id == shop_id,
+                Order.created_at >= start,
+                Order.status.not_in(["cancelled", "rejected"]),
+            )
+        )
+        .order_by(Order.created_at.asc())
+    )
+    order_rows = (await db.execute(orders_stmt)).all()
+
+    revenue_by_day: dict[str, float] = defaultdict(float)
+    orders_by_day: dict[str, int] = defaultdict(int)
+    units_sold_by_product: dict[str, int] = defaultdict(int)
+
+    for row in order_rows:
+        day = row.created_at.date().isoformat()
+        revenue_by_day[day] += float(row.total or 0)
+        orders_by_day[day] += 1
+
+        items = row.items if isinstance(row.items, list) else []
+        for item in items:
+            product_id = item.get("product_id") or item.get("id")
+            if not product_id:
+                continue
+            quantity = item.get("quantity") or 1
+            try:
+                units_sold_by_product[str(product_id)] += max(int(quantity), 0)
+            except (TypeError, ValueError):
+                units_sold_by_product[str(product_id)] += 1
+
+    day_keys = [(now.date() - timedelta(days=offset)).isoformat() for offset in range(29, -1, -1)]
+    revenue_series = [round(revenue_by_day.get(day, 0.0), 2) for day in day_keys]
+    orders_series = [orders_by_day.get(day, 0) for day in day_keys]
+
+    recent_revenue_avg = _series_value(revenue_series, 23, 30)
+    previous_revenue_avg = _series_value(revenue_series, 16, 23)
+    recent_orders_avg = _series_value([float(v) for v in orders_series], 23, 30)
+    previous_orders_avg = _series_value([float(v) for v in orders_series], 16, 23)
+
+    revenue_trend_pct = (
+        round(((recent_revenue_avg - previous_revenue_avg) / previous_revenue_avg) * 100, 1)
+        if previous_revenue_avg > 0
+        else None
+    )
+    orders_trend_pct = (
+        round(((recent_orders_avg - previous_orders_avg) / previous_orders_avg) * 100, 1)
+        if previous_orders_avg > 0
+        else None
+    )
+
+    products_stmt = (
+        select(
+            Product.id,
+            Product.name,
+            Product.category,
+            Product.stock_quantity,
+            Product.low_stock_threshold,
+            Product.price,
+            Product.is_available,
+        )
+        .where(
+            and_(
+                Product.shop_id == shop_id,
+                Product.is_available == True,
+                Product.stock_quantity.isnot(None),
+            )
+        )
+        .order_by(Product.stock_quantity.asc(), Product.created_at.desc())
+    )
+    product_rows = (await db.execute(products_stmt)).all()
+
+    reorder_alerts = []
+    for row in product_rows:
+        stock_quantity = int(row.stock_quantity or 0)
+        threshold = int(row.low_stock_threshold or 0)
+        sold_last_30_days = units_sold_by_product.get(str(row.id), 0)
+        daily_sales_velocity = round(sold_last_30_days / 30, 2) if sold_last_30_days > 0 else 0.0
+        days_left = round(stock_quantity / daily_sales_velocity, 1) if daily_sales_velocity > 0 else None
+        needs_reorder = stock_quantity <= threshold or (days_left is not None and days_left <= 7)
+        if not needs_reorder:
+            continue
+
+        target_stock_days = 14
+        recommended_reorder_qty = (
+            max(int(math.ceil((daily_sales_velocity * target_stock_days) - stock_quantity)), 1)
+            if daily_sales_velocity > 0
+            else max((threshold * 2) - stock_quantity, 1)
+        )
+
+        reorder_alerts.append(
+            {
+                "product_id": str(row.id),
+                "product_name": row.name,
+                "category": row.category,
+                "stock_quantity": stock_quantity,
+                "low_stock_threshold": threshold,
+                "sold_last_30_days": sold_last_30_days,
+                "daily_sales_velocity": daily_sales_velocity,
+                "days_left": days_left,
+                "recommended_reorder_qty": recommended_reorder_qty,
+                "severity": "high" if stock_quantity <= threshold else "medium",
+                "estimated_revenue_at_risk": round(float(row.price or 0) * max(sold_last_30_days / 4, 1), 2),
+            }
+        )
+
+    reorder_alerts.sort(
+        key=lambda item: (
+            0 if item["severity"] == "high" else 1,
+            item["days_left"] if item["days_left"] is not None else 999,
+            item["stock_quantity"],
+        )
+    )
+
+    segments = await get_customer_segments(db, shop_id)
+    demand = []
+    if lat is not None and lng is not None:
+        demand = await get_demand_insights(db, shop_id, lat, lng)
+
+    segment_summary = segments.get("summary", {})
+    segment_breakdown = segments.get("segments", {})
+    recommended_actions = []
+
+    if reorder_alerts:
+        urgent = reorder_alerts[:3]
+        recommended_actions.append(
+            {
+                "id": "restock-priority-products",
+                "type": "inventory",
+                "priority": "high",
+                "title": "Restock priority products",
+                "description": f"{len(reorder_alerts)} product(s) are at risk of going out of stock soon.",
+                "cta_label": "Review inventory",
+                "target": "inventory",
+                "highlights": [
+                    f"{item['product_name']}: reorder {item['recommended_reorder_qty']}"
+                    for item in urgent
+                ],
+            }
+        )
+
+    if (segment_summary.get("at_risk_count") or 0) > 0:
+        recommended_actions.append(
+            {
+                "id": "win-back-customers",
+                "type": "marketing",
+                "priority": "high",
+                "title": "Win back at-risk customers",
+                "description": (
+                    f"{segment_summary['at_risk_count']} customer(s) have slowed down. "
+                    "Run a targeted offer before they churn."
+                ),
+                "cta_label": "Create broadcast",
+                "target": "marketing",
+                "highlights": [
+                    f"At-risk customers: {segment_summary['at_risk_count']}",
+                    "Suggested audience: shoppers inactive for 30+ days",
+                ],
+            }
+        )
+
+    if (segment_summary.get("champions_count") or 0) > 0:
+        recommended_actions.append(
+            {
+                "id": "reward-champions",
+                "type": "loyalty",
+                "priority": "medium",
+                "title": "Reward your best customers",
+                "description": (
+                    f"{segment_summary['champions_count']} champion customer(s) are ready for "
+                    "an exclusive preview or loyalty bonus."
+                ),
+                "cta_label": "View customers",
+                "target": "customers",
+                "highlights": [
+                    f"Champions: {segment_summary['champions_count']}",
+                    "Suggested action: early-access deal or loyalty points boost",
+                ],
+            }
+        )
+
+    top_demand = demand[:3]
+    if top_demand:
+        recommended_actions.append(
+            {
+                "id": "promote-demand-keywords",
+                "type": "demand",
+                "priority": "medium",
+                "title": "Promote what customers are searching for",
+                "description": "Nearby demand signals show shoppers are actively searching for these terms.",
+                "cta_label": "Plan a deal",
+                "target": "deals",
+                "highlights": [
+                    f"{item['query']} ({item['count']} searches)" for item in top_demand
+                ],
+            }
+        )
+
+    if revenue_trend_pct is not None and revenue_trend_pct < -10:
+        recommended_actions.append(
+            {
+                "id": "boost-sales-this-week",
+                "type": "sales",
+                "priority": "high",
+                "title": "Sales are slowing down this week",
+                "description": (
+                    f"Revenue is down {abs(revenue_trend_pct)}% versus the previous week. "
+                    "A small campaign or product push may help."
+                ),
+                "cta_label": "Create campaign",
+                "target": "marketing",
+                "highlights": [
+                    f"Current daily average: {round(recent_revenue_avg, 2)}",
+                    "Suggested action: 10-15% offer on top-viewed products",
+                ],
+            }
+        )
+
+    if not recommended_actions:
+        recommended_actions.append(
+            {
+                "id": "healthy-shop-checkin",
+                "type": "insight",
+                "priority": "low",
+                "title": "No urgent actions detected",
+                "description": "Inventory and customer activity look stable. Keep monitoring this dashboard daily.",
+                "cta_label": "View analytics",
+                "target": "analytics",
+                "highlights": [
+                    f"7-day revenue forecast: {round(recent_revenue_avg * 7, 2)}",
+                    f"7-day orders forecast: {int(round(recent_orders_avg * 7))}",
+                ],
+            }
+        )
+
+    return {
+        "shop_id": str(shop_id),
+        "sales_forecast": {
+            "next_7_days_revenue": round(recent_revenue_avg * 7, 2),
+            "next_7_days_orders": int(round(recent_orders_avg * 7)),
+            "recent_daily_avg_revenue": round(recent_revenue_avg, 2),
+            "recent_daily_avg_orders": round(recent_orders_avg, 2),
+            "revenue_trend_pct": revenue_trend_pct,
+            "orders_trend_pct": orders_trend_pct,
+            "daily_revenue_last_30_days": [
+                {"date": day, "value": revenue_by_day.get(day, 0.0)}
+                for day in day_keys
+            ],
+            "daily_orders_last_30_days": [
+                {"date": day, "value": orders_by_day.get(day, 0)}
+                for day in day_keys
+            ],
+        },
+        "reorder_alerts": reorder_alerts[:8],
+        "customer_segments": {
+            "summary": segment_summary,
+            "segments": segment_breakdown,
+            "customers": segments.get("customers", [])[:6],
+        },
+        "demand_snapshot": demand[:8],
+        "recommended_actions": recommended_actions[:4],
+    }

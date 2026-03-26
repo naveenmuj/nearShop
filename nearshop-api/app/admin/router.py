@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.auth.permissions import get_current_user
 from app.admin import service
+from app.admin import ai_analytics
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -214,3 +215,70 @@ async def order_detail_admin_endpoint(order_id: UUID, user=Depends(require_admin
     if not data:
         raise HTTPException(status_code=404, detail="Order not found")
     return data
+
+
+# ── AI Usage Analytics ─────────────────────────────────────────────────────
+
+
+@router.get("/ai/overview")
+async def ai_overview(
+    period: str = Query("30d"),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_overview(db, period)
+
+
+@router.get("/ai/cost-by-feature")
+async def ai_cost_by_feature(
+    period: str = Query("30d"),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_cost_by_feature(db, period)
+
+
+@router.get("/ai/cost-by-model")
+async def ai_cost_by_model(
+    period: str = Query("30d"),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_cost_by_model(db, period)
+
+
+@router.get("/ai/daily-trend")
+async def ai_daily_trend(
+    period: str = Query("30d"),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_daily_trend(db, period)
+
+
+@router.get("/ai/recent-calls")
+async def ai_recent_calls(
+    limit: int = Query(50),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_recent_calls(db, limit)
+
+
+@router.get("/ai/hourly-distribution")
+async def ai_hourly_distribution(
+    period: str = Query("7d"),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_hourly_distribution(db, period)
+
+
+@router.get("/ai/top-users")
+async def ai_top_users(
+    period: str = Query("30d"),
+    limit: int = Query(20),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ai_analytics.get_ai_top_users(db, period, limit)

@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, StatusBar, Modal, Animated,
+  TextInput, ActivityIndicator, Alert, StatusBar, Modal, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useCartStore from '../../store/cartStore';
 import useLocationStore from '../../store/locationStore';
-import { createOrder } from '../../lib/orders';
+import { createOrder, createPaymentOrder, confirmPayment } from '../../lib/orders';
+import { validateCoupon, useCoupon } from '../../lib/deals';
+import { listAddresses, createAddress } from '../../lib/auth';
 import { toast } from '../../components/ui/Toast';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
@@ -17,15 +19,109 @@ export default function CheckoutScreen() {
   const router = useRouter();
   const { getShopGroups, getSubtotal, clearShopItems, clearCart } = useCartStore();
   const shopGroups = getShopGroups();
-  const grandTotal = getSubtotal();
+  const grandSubtotal = getSubtotal();
 
-  const { address: locationAddress } = useLocationStore();
+  const { address: locationAddress, latitude, longitude } = useLocationStore();
   const [deliveryType, setDeliveryType] = useState('pickup');
   const [address, setAddress] = useState(locationAddress || '');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
+  
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState('cod');
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  
+  // Address state
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [newAddress, setNewAddress] = useState({ label: 'home', address_line1: '', city: '', pincode: '' });
+
+  const grandTotal = grandSubtotal - couponDiscount;
+
+  // Load saved addresses
+  useEffect(() => {
+    const loadAddresses = async () => {
+      try {
+        const { data } = await listAddresses();
+        setAddresses(data || []);
+        const defaultAddr = data?.find(a => a.is_default);
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id);
+          setAddress(defaultAddr.formatted_address);
+        }
+      } catch (err) {
+        console.error('Failed to load addresses:', err);
+      }
+    };
+    loadAddresses();
+  }, []);
+
+  // Handle coupon validation
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      Alert.alert('Error', 'Please enter a coupon code');
+      return;
+    }
+    
+    setValidatingCoupon(true);
+    try {
+      const shopId = shopGroups.length === 1 ? shopGroups[0].shop_id : null;
+      const { data } = await validateCoupon(couponCode, shopId, grandSubtotal);
+      
+      if (data.valid) {
+        setAppliedCoupon(data.coupon);
+        setCouponDiscount(data.discount_amount);
+        toast.show({ type: 'success', text1: data.message });
+      } else {
+        Alert.alert('Invalid Coupon', data.message);
+        setAppliedCoupon(null);
+        setCouponDiscount(0);
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.detail || 'Failed to validate coupon');
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+  };
+
+  // Save new address
+  const handleSaveAddress = async () => {
+    if (!newAddress.address_line1 || !newAddress.city || !newAddress.pincode) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    
+    try {
+      const { data } = await createAddress({
+        ...newAddress,
+        latitude,
+        longitude,
+        is_default: addresses.length === 0,
+      });
+      setAddresses(prev => [...prev, data]);
+      setSelectedAddressId(data.id);
+      setAddress(data.formatted_address);
+      setShowAddressModal(false);
+      setNewAddress({ label: 'home', address_line1: '', city: '', pincode: '' });
+      toast.show({ type: 'success', text1: 'Address saved!' });
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.detail || 'Failed to save address');
+    }
+  };
 
   const handlePlaceOrder = async () => {
     if (deliveryType === 'delivery' && !address.trim()) {
@@ -41,13 +137,44 @@ export default function CheckoutScreen() {
           items: group.items.map((i) => ({
             product_id: i.product_id,
             quantity: i.quantity,
+            price: i.price,
           })),
           delivery_type: deliveryType,
-          payment_method: 'cod',
+          payment_method: paymentMethod === 'online' ? 'razorpay' : 'cod',
           ...(deliveryType === 'delivery' ? { delivery_address: address.trim() } : {}),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
         };
-        await createOrder(payload);
+        
+        const { data: orderData } = await createOrder(payload);
+        
+        // Handle online payment
+        if (paymentMethod === 'online') {
+          try {
+            const { data: paymentData } = await createPaymentOrder(orderData.id);
+            // Open Razorpay in browser (React Native requires Razorpay SDK for native checkout)
+            const razorpayUrl = `https://api.razorpay.com/v1/checkout/embedded?key_id=${paymentData.razorpay_key_id}&order_id=${paymentData.razorpay_order_id}&amount=${paymentData.amount}&currency=${paymentData.currency}&name=NearShop&description=Order%20${paymentData.order_number}`;
+            
+            // For production, you'd use the Razorpay React Native SDK
+            // For now, we'll mark as COD and show a message
+            Alert.alert(
+              'Payment',
+              'Online payment requires the Razorpay mobile SDK. Order placed as Cash on Delivery.',
+              [{ text: 'OK' }]
+            );
+          } catch (payErr) {
+            console.error('Payment error:', payErr);
+          }
+        }
+        
+        // Record coupon usage
+        if (appliedCoupon) {
+          try {
+            await useCoupon(appliedCoupon.id, orderData.id, couponDiscount / shopGroups.length);
+          } catch (e) {
+            console.error('Failed to record coupon usage:', e);
+          }
+        }
+        
         clearShopItems(group.shop_id);
         successCount++;
       }
@@ -89,6 +216,34 @@ export default function CheckoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Saved Addresses */}
+        {deliveryType === 'delivery' && addresses.length > 0 && (
+          <View style={[styles.card, SHADOWS.card]}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>📍 Delivery Address</Text>
+              <TouchableOpacity onPress={() => setShowAddressModal(true)}>
+                <Text style={styles.addLink}>+ Add New</Text>
+              </TouchableOpacity>
+            </View>
+            {addresses.map((addr) => (
+              <TouchableOpacity
+                key={addr.id}
+                style={[styles.addressItem, selectedAddressId === addr.id && styles.addressItemActive]}
+                onPress={() => {
+                  setSelectedAddressId(addr.id);
+                  setAddress(addr.formatted_address);
+                }}
+              >
+                <View style={[styles.radio, selectedAddressId === addr.id && styles.radioActive]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.addressLabel}>{addr.label.toUpperCase()}</Text>
+                  <Text style={styles.addressText}>{addr.formatted_address}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Order Summary */}
         {shopGroups.map((group) => (
           <View key={group.shop_id} style={[styles.card, SHADOWS.card]}>
@@ -107,6 +262,44 @@ export default function CheckoutScreen() {
           </View>
         ))}
 
+        {/* Coupon Section */}
+        <View style={[styles.card, SHADOWS.card]}>
+          <Text style={styles.sectionTitle}>🏷️ Have a Coupon?</Text>
+          {appliedCoupon ? (
+            <View style={styles.appliedCoupon}>
+              <View>
+                <Text style={styles.couponCodeText}>{appliedCoupon.code}</Text>
+                <Text style={styles.couponSaving}>You save {formatPrice(couponDiscount)}</Text>
+              </View>
+              <TouchableOpacity onPress={handleRemoveCoupon}>
+                <Text style={styles.removeText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.couponRow}>
+              <TextInput
+                style={styles.couponInput}
+                placeholder="Enter code"
+                placeholderTextColor={COLORS.gray400}
+                value={couponCode}
+                onChangeText={(t) => setCouponCode(t.toUpperCase())}
+                autoCapitalize="characters"
+              />
+              <TouchableOpacity 
+                style={styles.applyBtn} 
+                onPress={handleApplyCoupon}
+                disabled={validatingCoupon}
+              >
+                {validatingCoupon ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={styles.applyBtnText}>Apply</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* Delivery Type */}
         <View style={[styles.card, SHADOWS.card]}>
           <Text style={styles.sectionTitle}>Delivery Method</Text>
@@ -123,7 +316,7 @@ export default function CheckoutScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          {deliveryType === 'delivery' && (
+          {deliveryType === 'delivery' && addresses.length === 0 && (
             <TextInput
               style={styles.textInput}
               placeholder="Enter delivery address"
@@ -148,17 +341,37 @@ export default function CheckoutScreen() {
           />
         </View>
 
-        {/* Payment */}
+        {/* Payment Method */}
         <View style={[styles.card, SHADOWS.card]}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
-          <View style={[styles.toggleBtn, styles.toggleBtnActive, { alignSelf: 'flex-start' }]}>
-            <Text style={[styles.toggleText, styles.toggleTextActive]}>💵 Cash on Delivery</Text>
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, paymentMethod === 'cod' && styles.toggleBtnActive]}
+              onPress={() => setPaymentMethod('cod')}
+            >
+              <Text style={[styles.toggleText, paymentMethod === 'cod' && styles.toggleTextActive]}>
+                💵 Cash on Delivery
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, paymentMethod === 'online' && styles.toggleBtnActive]}
+              onPress={() => setPaymentMethod('online')}
+            >
+              <Text style={[styles.toggleText, paymentMethod === 'online' && styles.toggleTextActive]}>
+                💳 Pay Online
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Grand Total */}
         <View style={[styles.totalCard, SHADOWS.card]}>
-          <Text style={styles.grandTotalLabel}>Grand Total</Text>
+          <View>
+            <Text style={styles.grandTotalLabel}>Grand Total</Text>
+            {couponDiscount > 0 && (
+              <Text style={styles.savingsText}>You save {formatPrice(couponDiscount)}</Text>
+            )}
+          </View>
           <Text style={styles.grandTotalValue}>{formatPrice(grandTotal)}</Text>
         </View>
 
@@ -171,10 +384,61 @@ export default function CheckoutScreen() {
           {loading ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
-            <Text style={styles.placeOrderBtnText}>Place Order — {formatPrice(grandTotal)}</Text>
+            <Text style={styles.placeOrderBtnText}>
+              {paymentMethod === 'online' ? 'Pay & Place Order' : 'Place Order'} — {formatPrice(grandTotal)}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Add Address Modal */}
+      <Modal visible={showAddressModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add New Address</Text>
+            <View style={styles.labelRow}>
+              {['home', 'work', 'other'].map((l) => (
+                <TouchableOpacity
+                  key={l}
+                  style={[styles.labelChip, newAddress.label === l && styles.labelChipActive]}
+                  onPress={() => setNewAddress(prev => ({ ...prev, label: l }))}
+                >
+                  <Text style={[styles.labelChipText, newAddress.label === l && styles.labelChipTextActive]}>
+                    {l.charAt(0).toUpperCase() + l.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Address Line 1 *"
+              value={newAddress.address_line1}
+              onChangeText={(t) => setNewAddress(prev => ({ ...prev, address_line1: t }))}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="City *"
+              value={newAddress.city}
+              onChangeText={(t) => setNewAddress(prev => ({ ...prev, city: t }))}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Pincode *"
+              value={newAddress.pincode}
+              onChangeText={(t) => setNewAddress(prev => ({ ...prev, pincode: t }))}
+              keyboardType="numeric"
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddressModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveAddress}>
+                <Text style={styles.modalSaveText}>Save Address</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Success Modal */}
       <Modal visible={showSuccess} transparent animationType="fade">
@@ -214,6 +478,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray900 },
   content: { padding: 16 },
   card: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  addLink: { color: COLORS.primary, fontWeight: '600', fontSize: 13 },
   shopName: { fontSize: 15, fontWeight: '700', color: COLORS.gray900, marginBottom: 10 },
   itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
   itemQty: { fontSize: 13, fontWeight: '600', color: COLORS.gray500, width: 30 },
@@ -229,9 +495,27 @@ const styles = StyleSheet.create({
   toggleText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
   toggleTextActive: { color: COLORS.primary },
   textInput: { borderWidth: 1, borderColor: COLORS.gray200 || '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 14, color: COLORS.gray900, marginTop: 10, minHeight: 60, textAlignVertical: 'top' },
+  // Coupon styles
+  couponRow: { flexDirection: 'row', gap: 8 },
+  couponInput: { flex: 1, borderWidth: 1, borderColor: COLORS.gray200, borderRadius: 12, padding: 12, fontSize: 14 },
+  applyBtn: { backgroundColor: COLORS.primary, borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center' },
+  applyBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  appliedCoupon: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ECFDF5', borderRadius: 12, padding: 12 },
+  couponCodeText: { fontSize: 14, fontWeight: '700', color: '#047857' },
+  couponSaving: { fontSize: 12, color: '#059669', marginTop: 2 },
+  removeText: { color: '#DC2626', fontWeight: '600', fontSize: 13 },
+  // Address styles
+  addressItem: { flexDirection: 'row', alignItems: 'flex-start', padding: 12, borderRadius: 12, borderWidth: 2, borderColor: COLORS.gray200, marginBottom: 8 },
+  addressItemActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: COLORS.gray300, marginRight: 12, marginTop: 2 },
+  radioActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  addressLabel: { fontSize: 11, fontWeight: '700', color: COLORS.gray500, marginBottom: 4 },
+  addressText: { fontSize: 13, color: COLORS.gray700, lineHeight: 18 },
+  // Total card
   totalCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   grandTotalLabel: { fontSize: 16, fontWeight: '600', color: COLORS.gray700 },
   grandTotalValue: { fontSize: 24, fontWeight: '800', color: COLORS.gray900 },
+  savingsText: { fontSize: 12, color: '#059669', marginTop: 2 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.gray100, padding: 16, paddingBottom: 32 },
   placeOrderBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   placeOrderBtnText: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
@@ -240,6 +524,22 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray700, marginBottom: 24 },
   shopBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 32 },
   shopBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+  // Modal styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.gray900, marginBottom: 16 },
+  labelRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  labelChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: COLORS.gray200 },
+  labelChipActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
+  labelChipText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
+  labelChipTextActive: { color: COLORS.primary },
+  modalInput: { borderWidth: 1, borderColor: COLORS.gray200, borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 12 },
+  modalBtns: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalCancelBtn: { flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: COLORS.gray200, alignItems: 'center' },
+  modalCancelText: { color: COLORS.gray600, fontWeight: '600' },
+  modalSaveBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center' },
+  modalSaveText: { color: COLORS.white, fontWeight: '700' },
+  // Success modal
   successOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 32 },
   successCard: { backgroundColor: COLORS.white, borderRadius: 24, padding: 32, alignItems: 'center', width: '100%', maxWidth: 340 },
   successEmoji: { fontSize: 64, marginBottom: 12 },

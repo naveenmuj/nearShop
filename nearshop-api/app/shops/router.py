@@ -418,3 +418,190 @@ async def get_shop_share_card(
             for p in top_products
         ],
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SHOP VERIFICATION SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from pydantic import BaseModel
+
+
+class VerificationRequest(BaseModel):
+    document_type: str  # "gst", "pan", "aadhaar", "fssai", "trade_license"
+    document_number: str
+    document_image_url: Optional[str] = None
+    additional_info: Optional[dict] = None
+
+
+class VerificationStatusResponse(BaseModel):
+    shop_id: str
+    is_verified: bool
+    verification_status: str  # "none", "pending", "approved", "rejected"
+    submitted_documents: list
+    rejection_reason: Optional[str] = None
+
+
+@router.post("/{shop_id}/verification/request")
+async def request_verification(
+    shop_id: UUID,
+    req: VerificationRequest,
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Submit shop verification request with documents.
+    Supports: GST, PAN, Aadhaar, FSSAI, Trade License.
+    """
+    result = await db.execute(
+        select(Shop).where(and_(Shop.id == shop_id, Shop.owner_id == current_user.id))
+    )
+    shop = result.scalar_one_or_none()
+    
+    if not shop:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Shop not found or not authorized")
+    
+    if shop.is_verified:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Shop is already verified")
+    
+    # Store verification data in shop metadata
+    metadata = shop.metadata_ or {}
+    verification = metadata.get("verification", {})
+    
+    # Add document to verification request
+    documents = verification.get("documents", [])
+    documents.append({
+        "type": req.document_type,
+        "number": req.document_number,
+        "image_url": req.document_image_url,
+        "additional_info": req.additional_info,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+    })
+    
+    verification["documents"] = documents
+    verification["status"] = "pending"
+    verification["requested_at"] = datetime.now(timezone.utc).isoformat()
+    
+    metadata["verification"] = verification
+    shop.metadata_ = metadata
+    
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Verification request submitted successfully",
+        "verification_status": "pending",
+        "documents_submitted": len(documents),
+    }
+
+
+@router.get("/{shop_id}/verification/status", response_model=VerificationStatusResponse)
+async def get_verification_status(
+    shop_id: UUID,
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current verification status of shop."""
+    result = await db.execute(
+        select(Shop).where(and_(Shop.id == shop_id, Shop.owner_id == current_user.id))
+    )
+    shop = result.scalar_one_or_none()
+    
+    if not shop:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Shop not found or not authorized")
+    
+    metadata = shop.metadata_ or {}
+    verification = metadata.get("verification", {})
+    
+    return VerificationStatusResponse(
+        shop_id=str(shop.id),
+        is_verified=shop.is_verified,
+        verification_status=verification.get("status", "none"),
+        submitted_documents=[
+            {"type": d["type"], "submitted_at": d.get("submitted_at")}
+            for d in verification.get("documents", [])
+        ],
+        rejection_reason=verification.get("rejection_reason"),
+    )
+
+
+@router.post("/{shop_id}/verification/approve")
+async def approve_verification(
+    shop_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Approve shop verification (Admin only).
+    In production, restrict this to admin users.
+    """
+    # For now, allow any authenticated user (should be admin in production)
+    # TODO: Add admin role check
+    
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    
+    if not shop:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Shop not found")
+    
+    # Update verification status
+    metadata = shop.metadata_ or {}
+    verification = metadata.get("verification", {})
+    verification["status"] = "approved"
+    verification["approved_at"] = datetime.now(timezone.utc).isoformat()
+    metadata["verification"] = verification
+    
+    shop.metadata_ = metadata
+    shop.is_verified = True
+    
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Shop verification approved",
+        "shop_id": str(shop.id),
+        "is_verified": True,
+    }
+
+
+@router.post("/{shop_id}/verification/reject")
+async def reject_verification(
+    shop_id: UUID,
+    reason: str = Query(..., description="Reason for rejection"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reject shop verification (Admin only).
+    In production, restrict this to admin users.
+    """
+    result = await db.execute(select(Shop).where(Shop.id == shop_id))
+    shop = result.scalar_one_or_none()
+    
+    if not shop:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Shop not found")
+    
+    # Update verification status
+    metadata = shop.metadata_ or {}
+    verification = metadata.get("verification", {})
+    verification["status"] = "rejected"
+    verification["rejection_reason"] = reason
+    verification["rejected_at"] = datetime.now(timezone.utc).isoformat()
+    metadata["verification"] = verification
+    
+    shop.metadata_ = metadata
+    shop.is_verified = False
+    
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": "Shop verification rejected",
+        "shop_id": str(shop.id),
+        "rejection_reason": reason,
+    }

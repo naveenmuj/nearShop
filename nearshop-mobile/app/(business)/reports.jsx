@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import client from '../../lib/api';
 import useMyShop from '../../hooks/useMyShop';
+import { exportOrders } from '../../lib/orders';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
 const fmtDate = (d) => d.toISOString().split('T')[0];
@@ -15,6 +18,8 @@ export default function ReportsScreen() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
 
   useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
 
@@ -43,6 +48,49 @@ export default function ReportsScreen() {
     if (!report) return;
     const text = `Daily Report - ${displayDate(date)}\n\nOrders: ${report.total_orders ?? 0}\nRevenue: ${formatPrice(report.total_revenue)}\nAvg Order: ${formatPrice(report.avg_order_value)}\nTop Product: ${report.top_product?.name || 'N/A'}\n\nPayments:\nCash: ${formatPrice(report.cash_total)}\nUPI: ${formatPrice(report.upi_total)}\nCard: ${formatPrice(report.card_total)}`;
     Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`).catch(() => {});
+  };
+
+  const handleExport = async (format) => {
+    if (!shopId) return;
+    setExporting(true);
+    setShowExportOptions(false);
+    
+    try {
+      // Calculate date range (current month)
+      const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
+      const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      const response = await exportOrders(shopId, {
+        format,
+        start_date: fmtDate(startDate),
+        end_date: fmtDate(endDate),
+      });
+      
+      if (response.data) {
+        const ext = format === 'csv' ? 'csv' : 'xlsx';
+        const fileName = `orders-${fmtDate(startDate)}-to-${fmtDate(endDate)}.${ext}`;
+        const fileUri = FileSystem.documentDirectory + fileName;
+        
+        await FileSystem.writeAsStringAsync(fileUri, response.data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const canOpen = await Linking.canOpenURL(fileUri);
+        if (canOpen) {
+          await Linking.openURL(fileUri);
+        }
+        Alert.alert(
+          'Success',
+          canOpen
+            ? `Orders exported to ${fileName}`
+            : `Orders exported to ${fileName}. Open it from your device files if it did not launch automatically.`
+        );
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to export orders. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -90,6 +138,57 @@ export default function ReportsScreen() {
               </View>
             )}
 
+            {/* Export Section */}
+            <View style={s.card}>
+              <Text style={s.sectionLabel}>Export Orders</Text>
+              <Text style={s.exportDesc}>Download your orders as CSV or Excel file</Text>
+              
+              {!showExportOptions ? (
+                <TouchableOpacity 
+                  onPress={() => setShowExportOptions(true)} 
+                  style={s.exportBtn}
+                  disabled={exporting}
+                >
+                  {exporting ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <>
+                      <Text style={s.exportIcon}>📊</Text>
+                      <Text style={s.exportBtnText}>Export This Month's Orders</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={s.exportOptions}>
+                  <TouchableOpacity 
+                    onPress={() => handleExport('csv')} 
+                    style={[s.exportOption, { borderColor: '#22C55E' }]}
+                    disabled={exporting}
+                  >
+                    <Text style={s.exportOptionIcon}>📄</Text>
+                    <View style={s.exportOptionInfo}>
+                      <Text style={s.exportOptionTitle}>CSV File</Text>
+                      <Text style={s.exportOptionDesc}>Best for Excel, Google Sheets</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    onPress={() => handleExport('xlsx')} 
+                    style={[s.exportOption, { borderColor: '#2563EB' }]}
+                    disabled={exporting}
+                  >
+                    <Text style={s.exportOptionIcon}>📊</Text>
+                    <View style={s.exportOptionInfo}>
+                      <Text style={s.exportOptionTitle}>Excel File</Text>
+                      <Text style={s.exportOptionDesc}>Formatted spreadsheet</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowExportOptions(false)} style={s.cancelExportBtn}>
+                    <Text style={s.cancelExportText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
             <TouchableOpacity onPress={shareWhatsApp} style={[s.btn, { backgroundColor: '#25D366' }]}>
               <Text style={s.btnText}>Share on WhatsApp</Text>
             </TouchableOpacity>
@@ -124,4 +223,39 @@ const s = StyleSheet.create({
   topProductSub: { fontSize: 13, color: COLORS.gray500, marginTop: 2 },
   btn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 16 },
   btnText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
+  
+  // Export section
+  exportDesc: { fontSize: 13, color: COLORS.gray500, marginBottom: 12, marginTop: -4 },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primaryLight + '30',
+    borderRadius: 10,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary + '40',
+    gap: 8,
+  },
+  exportIcon: { fontSize: 18 },
+  exportBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.primary },
+  exportOptions: { gap: 10 },
+  exportOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: COLORS.gray50,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 12,
+  },
+  exportOptionIcon: { fontSize: 24 },
+  exportOptionInfo: { flex: 1 },
+  exportOptionTitle: { fontSize: 15, fontWeight: '600', color: COLORS.gray800 },
+  exportOptionDesc: { fontSize: 12, color: COLORS.gray500, marginTop: 2 },
+  cancelExportBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  cancelExportText: { fontSize: 14, fontWeight: '500', color: COLORS.gray500 },
 });

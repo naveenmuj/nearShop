@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, PanResponder, useWindowDimensions } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,22 +23,104 @@ if (NETWORK_LOGGER_ENABLED) {
   }
 }
 
+const LOGGER_BUBBLE_SIZE = 40;
+const LOGGER_EDGE_MARGIN = 12;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
 function NetworkLoggerOverlay() {
   const [visible, setVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const loggerEnabled = NETWORK_LOGGER_ENABLED && !!NetworkLogger;
+  const initialBounds = {
+    minX: LOGGER_EDGE_MARGIN,
+    maxX: Math.max(LOGGER_EDGE_MARGIN, width - LOGGER_BUBBLE_SIZE - LOGGER_EDGE_MARGIN),
+    minY: insets.top + 8,
+    maxY: Math.max(insets.top + 8, height - insets.bottom - LOGGER_BUBBLE_SIZE - LOGGER_EDGE_MARGIN),
+  };
+  const initialPosition = { x: initialBounds.maxX, y: initialBounds.minY };
+  const position = useRef(new Animated.ValueXY(initialPosition)).current;
+  const lastOffset = useRef(initialPosition);
+  const dragStart = useRef(initialPosition);
+  const boundsRef = useRef({
+    minX: LOGGER_EDGE_MARGIN,
+    maxX: LOGGER_EDGE_MARGIN,
+    minY: insets.top + 8,
+    maxY: insets.top + 8,
+  });
 
-  if (!NETWORK_LOGGER_ENABLED || !NetworkLogger) return null;
+  const bounds = {
+    minX: LOGGER_EDGE_MARGIN,
+    maxX: Math.max(LOGGER_EDGE_MARGIN, width - LOGGER_BUBBLE_SIZE - LOGGER_EDGE_MARGIN),
+    minY: insets.top + 8,
+    maxY: Math.max(insets.top + 8, height - insets.bottom - LOGGER_BUBBLE_SIZE - LOGGER_EDGE_MARGIN),
+  };
+  boundsRef.current = bounds;
+
+  useEffect(() => {
+    const nextPosition = {
+      x: clamp(lastOffset.current.x, bounds.minX, bounds.maxX),
+      y: clamp(lastOffset.current.y, bounds.minY, bounds.maxY),
+    };
+
+    lastOffset.current = nextPosition;
+    position.setValue(nextPosition);
+  }, [bounds.maxX, bounds.maxY, bounds.minX, bounds.minY, position]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dx) > 2 || Math.abs(gestureState.dy) > 2,
+      onPanResponderGrant: () => {
+        position.stopAnimation((value) => {
+          lastOffset.current = value;
+          dragStart.current = value;
+        });
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const activeBounds = boundsRef.current;
+        position.setValue({
+          x: clamp(dragStart.current.x + gestureState.dx, activeBounds.minX, activeBounds.maxX),
+          y: clamp(dragStart.current.y + gestureState.dy, activeBounds.minY, activeBounds.maxY),
+        });
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const activeBounds = boundsRef.current;
+        const nextPosition = {
+          x: clamp(dragStart.current.x + gestureState.dx, activeBounds.minX, activeBounds.maxX),
+          y: clamp(dragStart.current.y + gestureState.dy, activeBounds.minY, activeBounds.maxY),
+        };
+        lastOffset.current = nextPosition;
+        position.setValue(nextPosition);
+      },
+      onPanResponderTerminate: (_, gestureState) => {
+        const activeBounds = boundsRef.current;
+        const nextPosition = {
+          x: clamp(dragStart.current.x + gestureState.dx, activeBounds.minX, activeBounds.maxX),
+          y: clamp(dragStart.current.y + gestureState.dy, activeBounds.minY, activeBounds.maxY),
+        };
+        lastOffset.current = nextPosition;
+        position.setValue(nextPosition);
+      },
+    })
+  ).current;
+
+  if (!loggerEnabled) return null;
 
   return (
     <>
       {/* Floating bubble — always on screen */}
-      <TouchableOpacity
-        style={[styles.bubble, { top: insets.top + 8 }]}
-        onPress={() => setVisible(true)}
-        activeOpacity={0.8}
+      <Animated.View
+        style={[styles.bubble, { transform: position.getTranslateTransform() }]}
+        {...panResponder.panHandlers}
       >
-        <Text style={styles.bubbleText}>📡</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => setVisible(true)} activeOpacity={0.8} style={styles.bubbleButton}>
+          <Text style={styles.bubbleText}>📡</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Full-screen logger modal */}
       <Modal visible={visible} animationType="slide" statusBarTranslucent>
@@ -59,19 +141,22 @@ function NetworkLoggerOverlay() {
 const styles = StyleSheet.create({
   bubble: {
     position: 'absolute',
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: LOGGER_BUBBLE_SIZE,
+    height: LOGGER_BUBBLE_SIZE,
+    borderRadius: LOGGER_BUBBLE_SIZE / 2,
     backgroundColor: 'rgba(30,30,30,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
     zIndex: 9999,
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 4,
+  },
+  bubbleButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: LOGGER_BUBBLE_SIZE / 2,
   },
   bubbleText: { fontSize: 18 },
   modalContainer: { flex: 1, backgroundColor: '#1a1a1a' },

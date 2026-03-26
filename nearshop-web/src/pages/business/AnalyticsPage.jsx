@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Eye, Users, ShoppingBag, DollarSign, Search } from 'lucide-react'
-import { getShopStats, getProductAnalytics, getDemandInsights } from '../../api/analytics'
+import { getShopStats, getProductAnalytics, getDemandInsights, getPhase1Insights } from '../../api/analytics'
 import { getShopOrders } from '../../api/orders'
 import useMyShop from '../../hooks/useMyShop'
 import { useLocationStore } from '../../store/locationStore'
@@ -21,12 +22,14 @@ const STATUS_COLORS = {
 }
 
 export default function AnalyticsPage() {
+  const navigate = useNavigate()
   const { shopId } = useMyShop()
   const { latitude, longitude } = useLocationStore()
   const [period, setPeriod] = useState('7d')
   const [stats, setStats] = useState(null)
   const [products, setProducts] = useState([])
   const [demand, setDemand] = useState([])
+  const [phase1, setPhase1] = useState(null)
   const [orderBreakdown, setOrderBreakdown] = useState({})
   const [loading, setLoading] = useState(true)
 
@@ -38,6 +41,7 @@ export default function AnalyticsPage() {
         getShopStats(shopId, period),
         getProductAnalytics(shopId),
         getDemandInsights(shopId, latitude ?? 12.935, longitude ?? 77.624),
+        getPhase1Insights(shopId, latitude ?? 12.935, longitude ?? 77.624),
         getShopOrders(shopId, { per_page: 200 }),
       ])
       if (results[0].status === 'fulfilled') setStats(results[0].value.data)
@@ -49,8 +53,9 @@ export default function AnalyticsPage() {
         const d = results[2].value.data
         setDemand(Array.isArray(d) ? d : d?.items ?? [])
       }
-      if (results[3].status === 'fulfilled') {
-        const orders = results[3].value.data
+      if (results[3].status === 'fulfilled') setPhase1(results[3].value.data ?? null)
+      if (results[4].status === 'fulfilled') {
+        const orders = results[4].value.data
         const list = Array.isArray(orders) ? orders : orders?.items ?? []
         const b = {}
         list.forEach(o => { b[o.status] = (b[o.status] || 0) + 1 })
@@ -63,6 +68,20 @@ export default function AnalyticsPage() {
 
   const conversion = stats?.total_views > 0 ? ((stats.total_orders / stats.total_views) * 100).toFixed(1) : '0'
   const avgOrder = stats?.total_orders > 0 ? (stats.total_revenue / stats.total_orders).toFixed(0) : '0'
+  const forecast = phase1?.sales_forecast
+  const reorderAlerts = phase1?.reorder_alerts ?? []
+  const segmentSummary = phase1?.customer_segments?.summary
+  const segmentBreakdown = phase1?.customer_segments?.segments
+    ? Object.entries(phase1.customer_segments.segments).sort((a, b) => b[1] - a[1])
+    : []
+  const recommendedActions = phase1?.recommended_actions ?? []
+  const actionRouteMap = {
+    analytics: '/biz/analytics',
+    inventory: '/biz/inventory',
+    marketing: '/biz/marketing',
+    deals: '/biz/deals',
+    customers: '/biz/customers',
+  }
 
   if (loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
 
@@ -119,6 +138,130 @@ export default function AnalyticsPage() {
             <p>{stats?.total_orders ?? 0} orders</p>
             <p>from {stats?.total_views ?? 0} views</p>
           </div>
+        </div>
+
+        {forecast && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <p className="text-xs text-gray-400 font-medium">7-Day Revenue Forecast</p>
+              <p className="text-2xl font-extrabold text-[#1D9E75] mt-1">{formatPrice(forecast.next_7_days_revenue)}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Avg/day {formatPrice(forecast.recent_daily_avg_revenue)}
+                {forecast.revenue_trend_pct != null && ` · ${forecast.revenue_trend_pct >= 0 ? '+' : ''}${forecast.revenue_trend_pct}% vs previous week`}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+              <p className="text-xs text-gray-400 font-medium">7-Day Orders Forecast</p>
+              <p className="text-2xl font-extrabold text-[#7F77DD] mt-1">{forecast.next_7_days_orders}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Avg/day {Number(forecast.recent_daily_avg_orders ?? 0).toFixed(1)}
+                {forecast.orders_trend_pct != null && ` · ${forecast.orders_trend_pct >= 0 ? '+' : ''}${forecast.orders_trend_pct}% vs previous week`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {(segmentSummary || segmentBreakdown.length > 0) && (
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-2.5">Customer Segments</h3>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="rounded-xl bg-emerald-50 p-3">
+                  <p className="text-[11px] font-semibold text-emerald-600">Champions</p>
+                  <p className="text-xl font-extrabold text-emerald-700 mt-1">{segmentSummary?.champions_count ?? 0}</p>
+                </div>
+                <div className="rounded-xl bg-amber-50 p-3">
+                  <p className="text-[11px] font-semibold text-amber-600">At Risk</p>
+                  <p className="text-xl font-extrabold text-amber-700 mt-1">{segmentSummary?.at_risk_count ?? 0}</p>
+                </div>
+                <div className="rounded-xl bg-slate-100 p-3">
+                  <p className="text-[11px] font-semibold text-slate-500">Total</p>
+                  <p className="text-xl font-extrabold text-slate-700 mt-1">{segmentSummary?.total ?? 0}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {segmentBreakdown.slice(0, 5).map(([name, count]) => (
+                  <div key={name} className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">{name}</span>
+                    <span className="font-bold text-gray-900">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 mb-2.5">Recommended Actions</h3>
+          <div className="space-y-3">
+            {recommendedActions.map((action) => (
+              <div key={action.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{action.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">{action.description}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                    action.priority === 'high'
+                      ? 'bg-red-100 text-red-700'
+                      : action.priority === 'medium'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {action.priority}
+                  </span>
+                </div>
+                {Array.isArray(action.highlights) && action.highlights.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {action.highlights.map((item) => (
+                      <p key={item} className="text-xs text-gray-700">• {item}</p>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={() => action.target && actionRouteMap[action.target] && navigate(actionRouteMap[action.target])}
+                    className="px-3 py-2 rounded-lg bg-[#1D9E75] text-white text-xs font-semibold"
+                  >
+                    {action.cta_label || 'Open'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-bold text-gray-800 mb-2.5">Reorder Alerts</h3>
+          {reorderAlerts.length === 0 ? (
+            <div className="bg-white rounded-xl p-6 border border-gray-100 text-center">
+              <p className="text-sm text-gray-400">No urgent stock issues detected</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              {reorderAlerts.map((item, index) => (
+                <div key={item.product_id || index} className="px-4 py-3 border-b border-gray-50 last:border-b-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{item.product_name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Stock {item.stock_quantity} · velocity {item.daily_sales_velocity}/day
+                        {item.days_left != null && ` · ${item.days_left} days left`}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.severity === 'high' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {item.severity}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    Suggested reorder: <span className="font-bold text-gray-900">{item.recommended_reorder_qty}</span>
+                    {item.estimated_revenue_at_risk > 0 && ` · Revenue at risk ${formatPrice(item.estimated_revenue_at_risk)}`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Order breakdown */}

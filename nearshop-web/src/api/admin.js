@@ -30,3 +30,12 @@ export const getUserDetail    = (id) => client.get(`${a}/users/${id}`)
 export const getShopDetail    = (id) => client.get(`${a}/shops/${id}`)
 export const getProductDetail = (id) => client.get(`${a}/products/${id}`)
 export const getOrderDetail   = (id) => client.get(`${a}/orders/${id}`)
+
+// AI Usage Analytics
+export const getAiOverview          = (period='30d') => client.get(`${a}/ai/overview`, { params: { period } })
+export const getAiCostByFeature     = (period='30d') => client.get(`${a}/ai/cost-by-feature`, { params: { period } })
+export const getAiCostByModel       = (period='30d') => client.get(`${a}/ai/cost-by-model`, { params: { period } })
+export const getAiDailyTrend        = (period='30d') => client.get(`${a}/ai/daily-trend`, { params: { period } })
+export const getAiRecentCalls       = (limit=50) => client.get(`${a}/ai/recent-calls`, { params: { limit } })
+export const getAiHourlyDistribution= (period='7d') => client.get(`${a}/ai/hourly-distribution`, { params: { period } })
+export const getAiTopUsers          = (period='30d', limit=20) => client.get(`${a}/ai/top-users`, { params: { period, limit } })

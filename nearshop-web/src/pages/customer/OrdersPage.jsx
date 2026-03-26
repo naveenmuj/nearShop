@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { ShoppingBag, ChevronDown, ChevronUp } from 'lucide-react'
+import { ShoppingBag, ChevronDown, ChevronUp, Download, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getMyOrders, cancelOrder } from '../../api/orders'
+import { getMyOrders, cancelOrder, downloadInvoice } from '../../api/orders'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import OrderCardSkeleton from '../../components/ui/OrderCardSkeleton'
@@ -39,6 +39,29 @@ export default function OrdersPage() {
     setCancelling(orderId)
     try { await cancelOrder(orderId); toast.success('Order cancelled'); await fetchOrders() }
     catch (err) { toast.error(err.response?.data?.detail || 'Failed to cancel order') } finally { setCancelling(null) }
+  }
+
+  const [downloadingInvoice, setDownloadingInvoice] = useState(null)
+  
+  const handleDownloadInvoice = async (orderId, orderNumber) => {
+    setDownloadingInvoice(orderId)
+    try {
+      const response = await downloadInvoice(orderId)
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `invoice_${orderNumber || orderId.slice(-8)}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Invoice downloaded!')
+    } catch (err) {
+      toast.error('Failed to download invoice')
+    } finally {
+      setDownloadingInvoice(null)
+    }
   }
 
   const filtered = orders.filter(o => {
@@ -116,6 +139,17 @@ export default function OrdersPage() {
                           >
                             Track {expandedOrder === order.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                           </button>
+                          {/* Invoice Download Button */}
+                          {['completed', 'delivered', 'confirmed', 'preparing', 'ready'].includes(order.status?.toLowerCase()) && (
+                            <button 
+                              onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                              disabled={downloadingInvoice === order.id}
+                              className="text-xs font-semibold text-green-600 hover:underline flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <FileText className="w-3 h-3" />
+                              {downloadingInvoice === order.id ? 'Downloading...' : 'Invoice'}
+                            </button>
+                          )}
                           {['pending', 'confirmed'].includes(order.status?.toLowerCase()) && (
                             <button onClick={() => handleCancel(order.id)} disabled={cancelling === order.id}
                               className="text-xs font-semibold text-brand-red hover:underline disabled:opacity-50">
@@ -128,7 +162,20 @@ export default function OrdersPage() {
                     {expandedOrder === order.id && (
                       <tr>
                         <td colSpan={7} className="px-6 py-4 bg-gray-50">
-                          <OrderTimeline orderId={order.id} status={order.status} />
+                          <div className="flex flex-col gap-4">
+                            <OrderTimeline orderId={order.id} status={order.status} />
+                            {/* Quick Actions in Expanded View */}
+                            <div className="flex gap-2 pt-3 border-t border-gray-200">
+                              <button
+                                onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                                disabled={downloadingInvoice === order.id}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition disabled:opacity-50"
+                              >
+                                <Download className="w-4 h-4" />
+                                {downloadingInvoice === order.id ? 'Downloading...' : 'Download Invoice'}
+                              </button>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -154,14 +201,29 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                {/* Track button */}
-                <button
-                  onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
-                  className="w-full flex items-center justify-center gap-2 mt-2 h-9 border border-brand-purple text-brand-purple rounded-lg text-sm font-medium hover:bg-brand-purple-light transition"
-                >
-                  {expandedOrder === order.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  {expandedOrder === order.id ? 'Hide Tracking' : 'Track Order'}
-                </button>
+                {/* Action Buttons Row */}
+                <div className="flex gap-2 mt-3">
+                  {/* Track button */}
+                  <button
+                    onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}
+                    className="flex-1 flex items-center justify-center gap-2 h-9 border border-brand-purple text-brand-purple rounded-lg text-sm font-medium hover:bg-brand-purple-light transition"
+                  >
+                    {expandedOrder === order.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    {expandedOrder === order.id ? 'Hide' : 'Track'}
+                  </button>
+                  
+                  {/* Invoice Download Button */}
+                  {['completed', 'delivered', 'confirmed', 'preparing', 'ready'].includes(order.status?.toLowerCase()) && (
+                    <button
+                      onClick={() => handleDownloadInvoice(order.id, order.order_number)}
+                      disabled={downloadingInvoice === order.id}
+                      className="flex items-center justify-center gap-1.5 h-9 px-3 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium hover:bg-green-100 transition disabled:opacity-50"
+                    >
+                      <Download className="w-4 h-4" />
+                      {downloadingInvoice === order.id ? '...' : 'Invoice'}
+                    </button>
+                  )}
+                </div>
 
                 {expandedOrder === order.id && (
                   <div className="mt-4 pt-4 border-t border-gray-100">

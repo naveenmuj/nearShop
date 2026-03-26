@@ -74,8 +74,12 @@ async def ai_advisor_chat(
 
     # Order stats (30 days)
     orders_result = await db.execute(
-        select(func.count(), func.sum(Order.total_amount))
-        .where(Order.shop_id == shop.id, Order.created_at >= d30)
+        select(func.count(), func.coalesce(func.sum(Order.total), 0))
+        .where(
+            Order.shop_id == shop.id,
+            Order.created_at >= d30,
+            Order.status.not_in(["cancelled", "rejected"]),
+        )
     )
     ord_row = orders_result.one()
     orders_30d = ord_row[0] or 0
@@ -111,11 +115,9 @@ Top Products: {', '.join(f'{p[0]} (₹{p[1]}, {p[2]} views)' for p in top_produc
 """
 
     try:
-        from app.ai.client import get_openai_client
-        client = get_openai_client()
+        from app.ai.tracker import tracked_chat
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await tracked_chat(
             messages=[
                 {
                     "role": "system",
@@ -134,8 +136,14 @@ Top Products: {', '.join(f'{p[0]} (₹{p[1]}, {p[2]} views)' for p in top_produc
                     "content": f"Here is my shop data:\n{shop_context}\n\nMy question: {body.question}",
                 },
             ],
+            model="gpt-4o-mini",
             max_tokens=500,
             temperature=0.7,
+            feature="advisor_chat",
+            endpoint="/advisor/chat",
+            user_id=user.id,
+            shop_id=shop.id,
+            request_metadata={"question_length": len(body.question)},
         )
 
         answer = response.choices[0].message.content

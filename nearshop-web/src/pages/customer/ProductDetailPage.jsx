@@ -69,6 +69,7 @@ export default function ProductDetailPage() {
       const { data } = await getProduct(productId)
       setProduct(data)
       trackEvent({ event_type: 'view', entity_type: 'product', entity_id: productId }).catch(() => {})
+      trackEvent({ event_type: 'product_view', entity_type: 'product', entity_id: productId }).catch(() => {})
       trackView(productId).catch(() => {})
       try { const { data: simData } = await getSimilarProducts(productId); setSimilar(simData.items || simData || []) } catch {}
     } catch (err) { setError(err.message || 'Failed to load product') } finally { setLoading(false) }

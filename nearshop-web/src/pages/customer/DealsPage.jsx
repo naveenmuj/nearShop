@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Zap, Clock } from 'lucide-react'
+import { Zap, Clock, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getNearbyDeals, claimDeal } from '../../api/deals'
+import { getPersonalisedDeals } from '../../api/ai'
 import { useLocation } from '../../hooks/useLocation'
+import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 
@@ -22,6 +24,7 @@ function getTimeLeft(expiresAt) {
 
 export default function DealsPage() {
   const { latitude, longitude } = useLocation()
+  const { isAuthenticated } = useAuthStore()
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -31,8 +34,23 @@ export default function DealsPage() {
   const fetchDeals = async () => {
     if (!latitude || !longitude) return
     setLoading(true); setError(null)
-    try { const { data } = await getNearbyDeals(latitude, longitude, { limit: 20 }); setDeals(data.items || data || []) }
-    catch (err) { setError(err.message || 'Failed to load deals') } finally { setLoading(false) }
+    try {
+      // Use personalised deals for authenticated users, fallback to nearby
+      let result
+      if (isAuthenticated) {
+        try {
+          const pRes = await getPersonalisedDeals(latitude, longitude, { limit: 20 })
+          result = pRes.data?.deals ?? []
+        } catch {
+          const { data } = await getNearbyDeals(latitude, longitude, { limit: 20 })
+          result = data.items || data || []
+        }
+      } else {
+        const { data } = await getNearbyDeals(latitude, longitude, { limit: 20 })
+        result = data.items || data || []
+      }
+      setDeals(result)
+    } catch (err) { setError(err.message || 'Failed to load deals') } finally { setLoading(false) }
   }
 
   useEffect(() => { fetchDeals() }, [latitude, longitude])
@@ -91,6 +109,7 @@ export default function DealsPage() {
                       <span className="text-sm text-gray-400 line-through">{formatPrice(deal.original_price)}</span>
                     )}
                   </div>
+                  {deal.match_reason && <p className="text-xs text-purple-500 mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" />{deal.match_reason}</p>}
                   {deal.claims_count != null && <p className="text-xs text-gray-400 mt-1">{deal.claims_count} claimed</p>}
                   <button onClick={() => !expired && handleClaim(deal.id)} disabled={expired || claiming === deal.id}
                     className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition ${expired ? 'bg-gray-100 text-gray-400' : 'bg-brand-purple text-white hover:bg-brand-purple-dark'}`}>

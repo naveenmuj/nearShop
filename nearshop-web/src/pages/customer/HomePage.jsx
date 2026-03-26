@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Store, Search, ChevronRight, Zap, ShoppingBag, Star, Truck } from 'lucide-react'
+import { MapPin, Store, Search, ChevronRight, Zap, ShoppingBag, Star, Truck, TrendingUp, Sparkles, Heart, Clock, RefreshCw } from 'lucide-react'
 import { useLocation } from '../../hooks/useLocation'
 import { useAuthStore } from '../../store/authStore'
 import { getNearbyShops } from '../../api/shops'
@@ -8,7 +8,8 @@ import { getNearbyDeals } from '../../api/deals'
 import { getStoriesFeed } from '../../api/stories'
 import { getCategories } from '../../api/categories'
 import { searchProducts } from '../../api/products'
-import { getNearbyDeliverableShops } from '../../api/search'
+import { getNearbyDeliverableShops, getSearchHistory } from '../../api/search'
+import { getTrendingProducts, getCFRecommendations, getRecommendations as getAIRecommendations } from '../../api/ai'
 import StoryCircle from '../../components/StoryCircle'
 import EmptyState from '../../components/ui/EmptyState'
 import ScrollReveal from '../../components/ui/ScrollReveal'
@@ -34,8 +35,20 @@ export default function HomePage() {
   const [stories, setStories] = useState([])
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
+  const [trending, setTrending] = useState([])
+  const [cfRecs, setCfRecs] = useState([])
+  const [forYouRecs, setForYouRecs] = useState([])
+  const [searchHistory, setSearchHistory] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  const mapAIProducts = (items = []) =>
+    items.map((item) => ({
+      ...item,
+      type: 'product',
+      image_url: item.images?.[0] ?? null,
+      reason: item.reason ?? 'ai_match',
+    }))
 
   useEffect(() => {
     if (!latitude || !longitude) return
@@ -50,7 +63,13 @@ export default function HomePage() {
           searchProducts({ per_page: 12 }),
           getNearbyDeliverableShops(latitude, longitude, 5, 10),
         ]
-        if (isAuthenticated) reqs.push(getStoriesFeed())
+        reqs.push(getTrendingProducts(latitude, longitude, { limit: 12 }))
+        if (isAuthenticated) {
+          reqs.push(getStoriesFeed())
+          reqs.push(getCFRecommendations(latitude, longitude, { limit: 12 }))
+          reqs.push(getAIRecommendations({ lat: latitude, lng: longitude, limit: 12 }))
+          reqs.push(getSearchHistory(5))
+        }
         const results = await Promise.allSettled(reqs)
         const val = (r) => r.status === 'fulfilled' ? r.value : null
         const shopsRes = val(results[0])
@@ -58,13 +77,21 @@ export default function HomePage() {
         const catsRes = val(results[2])
         const prodsRes = val(results[3])
         const deliveryRes = val(results[4])
-        const storiesRes = val(results[5])
+        const trendingRes = val(results[5])
+        const storiesRes = isAuthenticated ? val(results[6]) : null
+        const cfRes = isAuthenticated ? val(results[7]) : null
+        const forYouRes = isAuthenticated ? val(results[8]) : null
+        const historyRes = isAuthenticated ? val(results[9]) : null
         if (shopsRes) setShops(shopsRes.data.items ?? shopsRes.data ?? [])
         if (dealsRes) setDeals(dealsRes.data.items ?? dealsRes.data ?? [])
         if (catsRes) setCategories(catsRes.data.items ?? catsRes.data ?? [])
         if (prodsRes) setProducts(prodsRes.data.items ?? prodsRes.data ?? [])
         if (deliveryRes) setDeliveryShops(deliveryRes.data.shops ?? [])
+        if (trendingRes) setTrending(trendingRes.data?.products ?? [])
         if (storiesRes) setStories(storiesRes.data.items ?? storiesRes.data ?? [])
+        if (cfRes) setCfRecs(cfRes.data?.products ?? [])
+        if (forYouRes) setForYouRecs(mapAIProducts(forYouRes.data?.products ?? []))
+        if (historyRes) setSearchHistory(historyRes.data?.history ?? [])
       } catch (err) { setError(err.message || 'Failed to load') } finally { setLoading(false) }
     }
     fetchAll()
@@ -100,6 +127,86 @@ export default function HomePage() {
 
       {/* Recently Viewed */}
       {isAuthenticated && <RecentlyViewed />}
+
+      {/* For You - Personalized Recommendations */}
+      {isAuthenticated && forYouRecs.length > 0 && (
+        <ScrollReveal direction="up" delay={30}>
+          <section className="bg-gradient-to-r from-purple-50 to-pink-50 -mx-4 px-4 py-5 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-brand-purple to-pink-500 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">For You</h2>
+                  <p className="text-xs text-gray-500">Based on your preferences</p>
+                </div>
+              </div>
+              <button onClick={() => navigate('/app/search')} className="text-brand-purple text-sm font-medium flex items-center gap-1 hover:underline">
+                See all <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+              {forYouRecs.map((item, idx) => (
+                <div key={`${item.type}-${item.id}-${idx}`} 
+                  onClick={() => item.type === 'shop' ? navigate(`/app/shop/${item.id}`) : navigate(`/app/product/${item.id}`)}
+                  className="flex-shrink-0 w-[140px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition group">
+                  <div className="relative h-24 bg-gray-100">
+                    {item.image_url ? (
+                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300">
+                        {item.type === 'shop' ? <Store className="w-8 h-8" /> : <ShoppingBag className="w-8 h-8" />}
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2">
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                        item.type === 'shop' ? 'bg-blue-100 text-blue-700' : 
+                        item.reason === 'reorder' ? 'bg-green-100 text-green-700' :
+                        item.reason === 'favorite_shop' ? 'bg-pink-100 text-pink-700' :
+                        'bg-purple-100 text-purple-700'
+                      }`}>
+                        {item.type === 'shop' ? 'Shop' : 
+                         item.reason === 'reorder' ? <><RefreshCw className="w-2.5 h-2.5 inline mr-0.5" />Reorder</> :
+                         item.reason === 'favorite_shop' ? <><Heart className="w-2.5 h-2.5 inline mr-0.5" />Favorite</> :
+                         'For You'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2.5">
+                    <p className="font-medium text-gray-900 text-sm truncate">{item.name}</p>
+                    {item.price && <p className="text-brand-purple font-bold text-sm mt-0.5">₹{item.price}</p>}
+                    {item.shop_name && <p className="text-xs text-gray-500 truncate mt-0.5">{item.shop_name}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
+
+      {/* Recent Searches */}
+      {isAuthenticated && searchHistory.length > 0 && (
+        <ScrollReveal direction="up" delay={40}>
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <h2 className="text-base font-semibold text-gray-700">Recent Searches</h2>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {searchHistory.map((query, idx) => (
+                <button key={idx} onClick={() => navigate(`/app/search?q=${encodeURIComponent(query)}`)}
+                  className="px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm text-gray-600 hover:border-brand-purple hover:text-brand-purple transition flex items-center gap-1.5">
+                  <Search className="w-3.5 h-3.5" />
+                  {query}
+                </button>
+              ))}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
 
       {/* Categories — desktop: row of cards, mobile: scroll */}
       {categories.length > 0 && (
@@ -200,12 +307,96 @@ export default function HomePage() {
         </section>
       </ScrollReveal>
 
-      {/* Trending Products */}
+      {/* AI Trending Products (real trending from events) */}
+      {trending.length > 0 && (
+        <ScrollReveal direction="up" delay={180}>
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-orange-500" />
+                <h2 className="text-lg font-bold text-gray-900">Trending Near You</h2>
+                <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">LIVE</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4">
+              {trending.map((product, i) => {
+                const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
+                return (
+                  <ScrollReveal key={product.id} direction="up" delay={i * 30}>
+                    <button onClick={() => navigate(`/app/product/${product.id}`)}
+                      className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
+                      <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                        {product.images?.[0] ? (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-200" /></div>
+                        )}
+                        {discount && <span className="absolute top-2 left-2 bg-brand-red text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{discount}% OFF</span>}
+                        <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{product.trend_label}</span>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{product.name}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1.5">
+                          <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
+                        </div>
+                        {product.shop_name && <p className="text-xs text-gray-400 mt-1 truncate">🏪 {product.shop_name}</p>}
+                      </div>
+                    </button>
+                  </ScrollReveal>
+                )
+              })}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
+
+      {/* Recommended For You (Collaborative Filtering) */}
+      {cfRecs.length > 0 && (
+        <ScrollReveal direction="up" delay={190}>
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                <h2 className="text-lg font-bold text-gray-900">Recommended For You</h2>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4">
+              {cfRecs.map((product, i) => {
+                const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
+                return (
+                  <ScrollReveal key={product.id} direction="up" delay={i * 30}>
+                    <button onClick={() => navigate(`/app/product/${product.id}`)}
+                      className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
+                      <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                        {product.images?.[0] ? (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-200" /></div>
+                        )}
+                        {discount && <span className="absolute top-2 left-2 bg-brand-red text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{discount}% OFF</span>}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">{product.name}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1.5">
+                          <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
+                        </div>
+                        <p className="text-[10px] text-purple-500 mt-1">{product.reason || 'People near you also bought this'}</p>
+                      </div>
+                    </button>
+                  </ScrollReveal>
+                )
+              })}
+            </div>
+          </section>
+        </ScrollReveal>
+      )}
+
+      {/* All Products */}
       {products.length > 0 && (
         <ScrollReveal direction="up" delay={200}>
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Trending Products</h2>
+              <h2 className="text-lg font-bold text-gray-900">Just In</h2>
               <button onClick={() => navigate('/app/search')} className="flex items-center gap-1 text-sm font-semibold text-brand-purple hover:underline">
                 Browse all <ChevronRight className="w-4 h-4" />
               </button>

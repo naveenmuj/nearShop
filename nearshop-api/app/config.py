@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # Razorpay
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
+    
+    # Payment Test Mode - set to True for development to bypass actual Razorpay
+    PAYMENT_TEST_MODE: bool = True
 
     # CORS — comma-separated list of allowed origins for production
     # e.g. ALLOWED_ORIGINS=https://nearshop.in,https://www.nearshop.in

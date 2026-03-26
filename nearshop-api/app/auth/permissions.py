@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.auth.models import User
 from app.core.firebase import verify_firebase_token
 from app.core.exceptions import UnauthorizedError, ForbiddenError
+import app.shops.models  # noqa: F401
 
 
 async def get_current_user(

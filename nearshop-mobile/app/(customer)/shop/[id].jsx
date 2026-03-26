@@ -16,9 +16,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { getShop, getShopProducts, getShopReviews, followShop, unfollowShop } from '../../../lib/shops';
+import { trackEvent } from '../../../lib/analytics';
 import ProductCard from '../../../components/ProductCard';
 import { COLORS, SHADOWS, CATEGORY_COLORS, formatPrice } from '../../../constants/theme';
 import useAuthStore from '../../../store/authStore';
+import useLocationStore from '../../../store/locationStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 250;
@@ -78,6 +80,7 @@ export default function ShopDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { user } = useAuthStore();
+  const { lat, lng } = useLocationStore();
 
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
@@ -116,19 +119,34 @@ export default function ShopDetailScreen() {
         setShop(shopData);
         setIsFollowed(shopData.is_followed ?? false);
         setFollowerCount(shopData.follower_count ?? 0);
+        trackEvent({
+          event_type: 'view',
+          entity_type: 'shop',
+          entity_id: id,
+          lat,
+          lng,
+        }).catch(() => {});
       }
     } catch (err) {
       // silently fail — empty state handles it
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, lat, lng]);
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
     try {
       const res = await getShopProducts(id);
-      setProducts(res?.data?.products ?? []);
+      const data = res?.data;
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.products)
+            ? data.products
+            : [];
+      setProducts(items);
     } catch {
       setProducts([]);
     } finally {

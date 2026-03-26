@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NearShop — Product Presentation</title>
+<style>
+  :root {
+    --primary: #6C3FF5;
+    --secondary: #FF6B35;
+    --accent: #00D4AA;
+    --dark: #0F0F23;
+    --surface: #1A1A35;
+    --card: #242444;
+    --text: #E8E8F0;
+    --muted: #8888AA;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --border: rgba(108,63,245,0.3);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--dark); color: var(--text); line-height: 1.6; }
+
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(15,15,35,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); padding: 12px 40px; display: flex; align-items: center; justify-content: space-between; }
+  .nav-logo { font-size: 1.4rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.85rem; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--text); }
+
+  /* SECTIONS */
+  section { padding: 80px 40px; max-width: 1200px; margin: 0 auto; }
+  .full-width { max-width: 100%; padding: 80px 60px; }
+  h1 { font-size: 3.5rem; font-weight: 900; line-height: 1.1; }
+  h2 { font-size: 2.2rem; font-weight: 800; margin-bottom: 12px; }
+  h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+  h4 { font-size: 1rem; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+  p { color: var(--muted); margin-bottom: 12px; }
+
+  /* HERO */
+  .hero { min-height: 100vh; display: flex; align-items: center; background: radial-gradient(ellipse at 30% 50%, rgba(108,63,245,0.15) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(0,212,170,0.1) 0%, transparent 50%); padding-top: 80px; }
+  .hero-content { max-width: 1200px; margin: 0 auto; padding: 0 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(108,63,245,0.2); border: 1px solid var(--border); border-radius: 100px; padding: 6px 16px; font-size: 0.8rem; color: var(--accent); margin-bottom: 24px; }
+  .hero h1 span { background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { font-size: 1.1rem; margin: 20px 0 32px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #7C4FF7; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,63,245,0.4); }
+  .btn-outline { border: 1px solid var(--border); color: var(--text); background: transparent; }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+  .hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+
+  /* STAT CARDS */
+  .stats-strip { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 40px 60px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 40px; text-align: center; }
+  .stat-item .num { font-size: 2.5rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-item .label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  .card-grid { display: grid; gap: 20px; }
+  .card-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .card-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .card-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  /* SECTION HEADER */
+  .section-header { text-align: center; margin-bottom: 48px; }
+  .section-badge { display: inline-block; background: rgba(108,63,245,0.15); color: var(--primary); border: 1px solid rgba(108,63,245,0.3); border-radius: 100px; padding: 4px 16px; font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+  .section-header h2 { font-size: 2.5rem; }
+  .section-header p { font-size: 1.05rem; max-width: 600px; margin: 12px auto 0; }
+
+  /* PROBLEM/SOLUTION */
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .problem-card { border-left: 4px solid var(--danger); }
+  .solution-card { border-left: 4px solid var(--success); }
+  .problem-item, .solution-item { display: flex; gap: 12px; margin-bottom: 16px; }
+  .icon-circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .icon-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+  .icon-success { background: rgba(34,197,94,0.15); color: var(--success); }
+
+  /* ARCHITECTURE DIAGRAM */
+  .arch-diagram { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px; }
+  .arch-layer { display: grid; gap: 12px; margin-bottom: 24px; }
+  .arch-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .arch-box { background: rgba(108,63,245,0.1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; text-align: center; font-size: 0.85rem; font-weight: 500; }
+  .arch-box.highlight { background: rgba(108,63,245,0.3); border-color: var(--primary); color: white; }
+  .arch-box.ai { background: rgba(0,212,170,0.15); border-color: var(--accent); color: var(--accent); }
+  .arch-arrow { text-align: center; color: var(--muted); font-size: 1.2rem; }
+  .arch-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* AI FEATURES */
+  .ai-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .ai-card { position: relative; overflow: hidden; }
+  .ai-card::before { content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: radial-gradient(circle, rgba(108,63,245,0.2), transparent); border-radius: 50%; }
+  .ai-icon { font-size: 2rem; margin-bottom: 12px; }
+  .ai-tag { display: inline-block; font-size: 0.7rem; padding: 2px 10px; border-radius: 100px; margin-top: 8px; }
+  .tag-gpt4o { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .tag-ml { background: rgba(108,63,245,0.15); color: var(--primary); }
+  .tag-nlp { background: rgba(255,107,53,0.15); color: var(--secondary); }
+
+  /* FEATURE TABLE */
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: rgba(108,63,245,0.2); color: var(--text); text-align: left; padding: 12px 16px; font-size: 0.85rem; font-weight: 600; }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; color: var(--muted); }
+  tbody tr:hover td { background: rgba(108,63,245,0.05); color: var(--text); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
+  .badge-done { background: rgba(34,197,94,0.15); color: var(--success); }
+  .badge-ai { background: rgba(0,212,170,0.15); color: var(--accent); }
+  .badge-partial { background: rgba(245,158,11,0.15); color: var(--warning); }
+
+  /* BAR CHART */
+  .bar-chart { display: flex; flex-direction: column; gap: 12px; }
+  .bar-item { display: flex; align-items: center; gap: 12px; }
+  .bar-label { width: 180px; font-size: 0.85rem; color: var(--muted); flex-shrink: 0; }
+  .bar-track { flex: 1; background: rgba(255,255,255,0.05); border-radius: 100px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; transition: width 1s ease; }
+  .bar-value { width: 40px; text-align: right; font-size: 0.85rem; font-weight: 600; }
+
+  /* PIE CHART (SVG) */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+  .legend { display: flex; flex-direction: column; gap: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .legend-text { font-size: 0.85rem; color: var(--muted); }
+  .legend-pct { font-size: 0.85rem; font-weight: 700; color: var(--text); margin-left: auto; }
+
+  /* ROADMAP */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, var(--primary), var(--accent)); }
+  .timeline-item { position: relative; margin-bottom: 32px; }
+  .timeline-dot { position: absolute; left: -28px; top: 6px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--primary); background: var(--dark); }
+  .timeline-dot.done { background: var(--primary); }
+  .timeline-dot.next { background: var(--accent); border-color: var(--accent); }
+  .timeline-phase { font-size: 0.75rem; color: var(--primary); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+  .timeline-title { font-size: 1.1rem; font-weight: 700; margin: 4px 0; }
+  .timeline-items { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .pill { padding: 4px 12px; border-radius: 100px; font-size: 0.75rem; background: rgba(108,63,245,0.1); border: 1px solid var(--border); color: var(--muted); }
+
+  /* BENEFITS */
+  .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .benefit-card { text-align: center; }
+  .benefit-icon { font-size: 3rem; margin-bottom: 16px; }
+  .benefit-stat { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  /* VS COMPARISON */
+  .vs-table { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0; }
+  .vs-col { display: flex; flex-direction: column; gap: 0; }
+  .vs-header { padding: 16px 24px; font-weight: 700; font-size: 1.1rem; border-radius: 12px 12px 0 0; }
+  .vs-traditional { background: rgba(239,68,68,0.1); text-align: center; }
+  .vs-nearshop { background: rgba(108,63,245,0.2); text-align: center; }
+  .vs-item { padding: 12px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+  .vs-center { display: flex; flex-direction: column; justify-content: center; }
+  .vs-vs { padding: 12px 8px; font-size: 0.7rem; font-weight: 700; color: var(--muted); text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .vs-check { color: var(--success); }
+  .vs-cross { color: var(--danger); }
+
+  /* FOOTER */
+  footer { background: var(--surface); border-top: 1px solid var(--border); padding: 40px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+  footer .logo { font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+
+  /* DONUT RING */
+  .donut-container { position: relative; width: 200px; height: 200px; margin: 0 auto; }
+  .donut-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .donut-num { font-size: 2rem; font-weight: 900; color: var(--text); }
+  .donut-sub { font-size: 0.75rem; color: var(--muted); }
+
+  /* GRADIENT CARDS */
+  .grad-card { background: linear-gradient(135deg, var(--card), rgba(108,63,245,0.1)); }
+  .grad-card-green { background: linear-gradient(135deg, var(--card), rgba(0,212,170,0.1)); }
+  .grad-card-orange { background: linear-gradient(135deg, var(--card), rgba(255,107,53,0.1)); }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .hero-content { grid-template-columns: 1fr; }
+    .stats-strip { grid-template-columns: repeat(2, 1fr); }
+    .card-grid-3, .ai-grid, .benefits-grid { grid-template-columns: 1fr; }
+    .card-grid-2, .problem-grid { grid-template-columns: 1fr; }
+    section { padding: 60px 20px; }
+    h1 { font-size: 2.4rem; }
+  }
+
+  .highlight-box { background: linear-gradient(135deg, rgba(108,63,245,0.15), rgba(0,212,170,0.1)); border: 1px solid rgba(108,63,245,0.4); border-radius: 16px; padding: 24px; }
+  .text-gradient { background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .text-orange { color: var(--secondary); }
+  .text-green { color: var(--success); }
+  .text-muted { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">NearShop</div>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#solution">Solution</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#ai">AI/ML</a>
+    <a href="#features">Features</a>
+    <a href="#benefits">Benefits</a>
+    <a href="#roadmap">Roadmap</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-content">
+    <div>
+      <div class="hero-badge">🛒 Hyperlocal Commerce Platform</div>
+      <h1>The <span>AI-Powered</span> Local Shopping Revolution</h1>
+      <p>NearShop connects customers to nearby shops with intelligent recommendations, price negotiation, AI-powered cataloging, and real-time business analytics — making local commerce as smart as e-commerce giants.</p>
+      <div class="hero-buttons">
+        <a href="#solution" class="btn btn-primary">See How It Works →</a>
+        <a href="#features" class="btn btn-outline">View All Features</a>
+      </div>
+    </div>
+    <div>
+      <!-- Hero visual: phone mockup as SVG -->
+      <svg viewBox="0 0 360 600" width="100%" style="max-width:340px;display:block;margin:0 auto;">
+        <defs>
+          <linearGradient id="phoneGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#1A1A35"/>
+            <stop offset="100%" style="stop-color:#242444"/>
+          </linearGradient>
+          <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#6C3FF5"/>
+            <stop offset="100%" style="stop-color:#00D4AA"/>
+          </linearGradient>
+          <clipPath id="phoneClip">
+            <rect x="20" y="10" width="320" height="580" rx="36"/>
+          </clipPath>
+        </defs>
+        <!-- Phone body -->
+        <rect x="10" y="0" width="340" height="600" rx="40" fill="#0F0F23" stroke="#6C3FF5" stroke-width="1.5" opacity="0.8"/>
+        <rect x="20" y="10" width="320" height="580" rx="34" fill="url(#phoneGrad)"/>
+        <!-- Header bar -->
+        <rect x="20" y="10" width="320" height="70" rx="0" fill="url(#purpleGrad)" clip-path="url(#phoneClip)"/>
+        <circle cx="40" cy="45" r="18" fill="rgba(255,255,255,0.15)"/>
+        <text x="40" y="50" font-size="14" text-anchor="middle" fill="white">NS</text>
+        <text x="70" y="40" font-size="13" fill="white" font-weight="bold">NearShop</text>
+        <text x="70" y="56" font-size="10" fill="rgba(255,255,255,0.7)">Hi Naveen 👋</text>
+        <circle cx="310" cy="45" r="18" fill="rgba(255,255,255,0.15)"/>
+        <text x="310" y="50" font-size="14" text-anchor="middle" fill="white">🔔</text>
+        <!-- Search bar -->
+        <rect x="30" y="92" width="300" height="36" rx="18" fill="rgba(255,255,255,0.08)" stroke="rgba(108,63,245,0.4)" stroke-width="1"/>
+        <text x="52" y="115" font-size="11" fill="#8888AA">🔍  Search shops, products...</text>
+        <!-- Shop cards -->
+        <rect x="30" y="142" width="135" height="100" rx="12" fill="rgba(108,63,245,0.2)" stroke="rgba(108,63,245,0.3)" stroke-width="1"/>
+        <rect x="30" y="142" width="135" height="50" rx="12" fill="rgba(108,63,245,0.3)" clip-path="url(#phoneClip)"/>
+        <text x="50" y="175" font-size="22">🛍️</text>
+        <text x="40" y="210" font-size="10" fill="white" font-weight="bold">Raj Electronics</text>
+        <text x="40" y="224" font-size="9" fill="#8888AA">⭐ 4.8 · 0.3km</text>
+        <rect x="175" y="142" width="135" height="100" rx="12" fill="rgba(0,212,170,0.15)" stroke="rgba(0,212,170,0.3)" stroke-width="1"/>
+        <rect x="175" y="142" width="135" height="50" rx="12" fill="rgba(0,212,170,0.25)" clip-path="url(#phoneClip)"/>
+        <text x="195" y="175" font-size="22">🥗</text>
+        <text x="185" y="210" font-size="10" fill="white" font-weight="bold">Green Bites Cafe</text>
+        <text x="185" y="224" font-size="9" fill="#8888AA">⭐ 4.6 · 0.8km</text>
+        <!-- AI Section -->
+        <rect x="30" y="256" width="300" height="1" fill="rgba(255,255,255,0.08)"/>
+        <text x="30" y="276" font-size="11" fill="#6C3FF5" font-weight="bold">✨ AI Picks For You</text>
+        <!-- Product cards -->
+        <rect x="30" y="286" width="88" height="110" rx="10" fill="rgba(36,36,68,0.9)" stroke="rgba(108,63,245,0.2)" stroke-width="1"/>
+        <text x="74" y="326" font-size="26" text-anchor="middle">📱</text>
+        <text x="40" y="352" font-size="9" fill="white">Phone Stand</text>
+        <text x="40" y="365" font-size="9" fill="#6C3FF5" font-weight="bold">₹299</text>
+        <rect x="126" y="286" width="88" height="110" rx="10" fill="rgba(36,36,68,0.9)" stroke="rgba(108,63,245,0.2)" stroke-width="1"/>
+        <text x="170" y="326" font-size="26" text-anchor="middle">👟</text>
+        <text x="136" y="352" font-size="9" fill="white">Sport Shoes</text>
+        <text x="136" y="365" font-size="9" fill="#6C3FF5" font-weight="bold">₹1,299</text>
+        <rect x="222" y="286" width="88" height="110" rx="10" fill="rgba(36,36,68,0.9)" stroke="rgba(108,63,245,0.2)" stroke-width="1"/>
+        <text x="266" y="326" font-size="26" text-anchor="middle">🎧</text>
+        <text x="232" y="352" font-size="9" fill="white">Headphones</text>
+        <text x="232" y="365" font-size="9" fill="#6C3FF5" font-weight="bold">₹899</text>
+        <!-- Bottom nav -->
+        <rect x="20" y="550" width="320" height="40" rx="0" fill="rgba(26,26,53,0.95)" clip-path="url(#phoneClip)"/>
+        <text x="58" y="574" font-size="16" text-anchor="middle">🏠</text>
+        <text x="130" y="574" font-size="16" text-anchor="middle">🔍</text>
+        <text x="180" y="571" font-size="22" text-anchor="middle">🛒</text>
+        <text x="230" y="574" font-size="16" text-anchor="middle">❤️</text>
+        <text x="302" y="574" font-size="16" text-anchor="middle">👤</text>
+        <!-- Notch -->
+        <rect x="140" y="10" width="80" height="20" rx="10" fill="#0F0F23"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- STATS STRIP -->
+<div class="stats-strip">
+  <div class="stat-item"><div class="num">95</div><div class="label">API Endpoints</div></div>
+  <div class="stat-item"><div class="num">13</div><div class="label">AI/ML Features</div></div>
+  <div class="stat-item"><div class="num">42+</div><div class="label">Mobile Screens</div></div>
+  <div class="stat-item"><div class="num">23</div><div class="label">Database Tables</div></div>
+  <div class="stat-item"><div class="num">93.7%</div><div class="label">Test Coverage</div></div>
+</div>
+
+<!-- PROBLEM SECTION -->
+<section id="problem">
+  <div class="section-header">
+    <div class="section-badge">The Problem</div>
+    <h2>Local Commerce is <span class="text-gradient">Broken</span></h2>
+    <p>Small local businesses lose billions to big e-commerce platforms every year — not because they can't compete on quality, but because they lack the tools.</p>
+  </div>
+  <div class="problem-grid">
+    <div class="card problem-card">
+      <h3>😤 For Customers</h3>
+      <br>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">🗺️</div>
+        <div><strong>Can't discover</strong> local shops — no way to find what's around them beyond Google Maps</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">💸</div>
+        <div><strong>No price transparency</strong> — can't compare prices across local shops without visiting each one</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">📦</div>
+        <div><strong>Ordering is cumbersome</strong> — phone calls, WhatsApp messages, no tracking</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">🎯</div>
+        <div><strong>No personalization</strong> — same generic experience regardless of preferences</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">❓</div>
+        <div><strong>No trust signals</strong> — hard to know if a local shop is reliable or good quality</div>
+      </div>
+    </div>
+    <div class="card solution-card">
+      <h3>😫 For Shop Owners</h3>
+      <br>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">📱</div>
+        <div><strong>No digital presence</strong> — expensive to build a website or app; stuck on Justdial</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">📊</div>
+        <div><strong>Zero business intelligence</strong> — no analytics on who buys, when, what's trending</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">📸</div>
+        <div><strong>Catalog creation is painful</strong> — taking photos, writing descriptions, pricing takes hours</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">🏷️</div>
+        <div><strong>Pricing guesswork</strong> — no visibility into what competitors are charging nearby</div>
+      </div>
+      <div class="problem-item">
+        <div class="icon-circle icon-danger">📣</div>
+        <div><strong>Customer retention is hard</strong> — no tools to reach customers with offers or updates</div>
+      </div>
+    </div>
+  </div>
+  <br>
+  <div class="highlight-box" style="text-align:center;margin-top:20px;">
+    <p style="font-size:1.1rem;color:var(--text);margin:0;">
+      <strong>India has 63 million+ MSMEs.</strong> Only <span class="text-gradient" style="font-weight:900">~12%</span> have any digital commerce presence. NearShop bridges this gap.
+    </p>
+  </div>
+</section>
+
+<!-- SOLUTION OVERVIEW -->
+<section id="solution">
+  <div class="section-header">
+    <div class="section-badge">The Solution</div>
+    <h2>One Platform. <span class="text-gradient">Two Superpowers.</span></h2>
+    <p>NearShop gives customers a personalized local shopping experience AND gives shop owners enterprise-grade tools — at zero technical overhead.</p>
+  </div>
+  <div class="card-grid card-grid-2">
+    <div class="card grad-card">
+      <div style="font-size:3rem;margin-bottom:16px;">👤</div>
+      <h3>For Customers</h3>
+      <p>Discover nearby shops, get AI-personalized product recommendations, negotiate prices, track orders, earn loyalty coins, and participate in community Q&amp;A — all within 500m of home.</p>
+      <br>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <span class="pill">🗺️ Geo Discovery</span>
+        <span class="pill">🤖 AI Recommendations</span>
+        <span class="pill">💬 Price Haggle</span>
+        <span class="pill">🏆 Loyalty Coins</span>
+        <span class="pill">📦 Order Tracking</span>
+        <span class="pill">🎁 Deals &amp; Coupons</span>
+      </div>
+    </div>
+    <div class="card grad-card-green">
+      <div style="font-size:3rem;margin-bottom:16px;">🏪</div>
+      <h3>For Shop Owners</h3>
+      <p>Snap a product photo and AI auto-fills your catalog. Get competitive pricing suggestions. Talk to an AI business advisor. Broadcast offers, track revenue, manage inventory — from a phone.</p>
+      <br>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <span class="pill">📸 AI Cataloging</span>
+        <span class="pill">💡 Price Intelligence</span>
+        <span class="pill">🧠 AI Advisor</span>
+        <span class="pill">📊 Analytics Dashboard</span>
+        <span class="pill">📢 Broadcast</span>
+        <span class="pill">📦 Inventory</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VS COMPARISON -->
+<section>
+  <div class="section-header">
+    <div class="section-badge">Competitive Edge</div>
+    <h2>NearShop vs <span class="text-gradient">Traditional Commerce</span></h2>
+  </div>
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Kirana / Traditional Shop</th>
+          <th>JustDial / IndiaMART</th>
+          <th>Swiggy / Zomato</th>
+          <th>NearShop ✨</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Digital Product Catalog</td><td class="vs-cross">❌ None</td><td class="vs-check">✅ Basic</td><td class="vs-check">✅ Menu only</td><td class="vs-check">✅ AI-generated</td></tr>
+        <tr><td>Hyperlocal Discovery</td><td class="vs-cross">❌</td><td class="vs-check">✅ Directory</td><td class="vs-check">✅ Food only</td><td class="vs-check">✅ All categories</td></tr>
+        <tr><td>AI Recommendations</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ Basic</td><td class="vs-check">✅ Advanced ML</td></tr>
+        <tr><td>Price Negotiation</td><td class="vs-check">✅ Manual</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ In-app Haggle</td></tr>
+        <tr><td>Business Analytics</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ Basic</td><td class="vs-check">✅ RFM + AI Insights</td></tr>
+        <tr><td>AI Business Advisor</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ GPT-4o Chat</td></tr>
+        <tr><td>Loyalty Program</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ Credits</td><td class="vs-check">✅ Coins + Badges</td></tr>
+        <tr><td>AI Catalog Creation</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ Snap &amp; List</td></tr>
+        <tr><td>Community Q&amp;A</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ Local Feed</td></tr>
+        <tr><td>Competitive Pricing AI</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-cross">❌</td><td class="vs-check">✅ Market Analysis</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="section-header">
+    <div class="section-badge">Technical Architecture</div>
+    <h2>Enterprise-Grade <span class="text-gradient">3-Tier Platform</span></h2>
+    <p>Built for scale with async I/O, Redis caching, dual authentication, and cloud-native deployment.</p>
+  </div>
+  <div class="arch-diagram">
+    <!-- Clients Layer -->
+    <div class="arch-label">📱 Client Layer</div>
+    <div class="arch-layer" style="grid-template-columns:repeat(3,1fr);">
+      <div class="arch-box highlight">📱 React Native Mobile<br><small style="color:#aaa">Expo · 42+ Screens</small></div>
+      <div class="arch-box highlight">🌐 React Web App<br><small style="color:#aaa">React 19 · Tailwind CSS</small></div>
+      <div class="arch-box" style="background:rgba(255,107,53,0.1);border-color:rgba(255,107,53,0.4);">🛡️ Admin Dashboard<br><small style="color:#aaa">Platform Management</small></div>
+    </div>
+    <div class="arch-arrow">↕ HTTPS / WebSockets</div>
+    <!-- API Layer -->
+    <div class="arch-label">⚡ API Layer</div>
+    <div class="arch-layer" style="grid-template-columns:repeat(4,1fr);">
+      <div class="arch-box" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);">🔒 Auth Middleware<br><small style="color:#aaa">Firebase + JWT</small></div>
+      <div class="arch-box" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);">🚦 Rate Limiter<br><small style="color:#aaa">Redis-backed</small></div>
+      <div class="arch-box" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);">📝 Request Logger<br><small style="color:#aaa">Structlog</small></div>
+      <div class="arch-box" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);">🌐 CORS Handler<br><small style="color:#aaa">Multi-origin</small></div>
+    </div>
+    <div class="arch-arrow">↕</div>
+    <!-- Core API -->
+    <div class="arch-label">🏗️ FastAPI Core (32 Modules · ~95 Endpoints)</div>
+    <div class="arch-row" style="flex-wrap:wrap;margin-bottom:16px;">
+      <div class="arch-box" style="flex:1;min-width:120px;">🛍️ Shops</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">📦 Products</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">📋 Orders</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">💳 Payments</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">🔖 Deals</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">⭐ Reviews</div>
+      <div class="arch-box ai" style="flex:1;min-width:120px;">🤖 AI/ML Engine</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">📊 Analytics</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">🏆 Loyalty</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">🤝 Community</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">🔔 Notifications</div>
+      <div class="arch-box" style="flex:1;min-width:120px;">🔍 Search</div>
+    </div>
+    <div class="arch-arrow">↕</div>
+    <!-- Data Layer -->
+    <div class="arch-label">🗄️ Data &amp; Services Layer</div>
+    <div class="arch-layer" style="grid-template-columns:repeat(5,1fr);">
+      <div class="arch-box" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);">🐘 PostgreSQL 13+<br><small style="color:#aaa">23 Tables · GIN FTS</small></div>
+      <div class="arch-box" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);">⚡ Redis<br><small style="color:#aaa">Cache · Rate Limit</small></div>
+      <div class="arch-box" style="background:rgba(0,212,170,0.1);border-color:rgba(0,212,170,0.3);">🔥 Firebase<br><small style="color:#aaa">Auth · FCM Push</small></div>
+      <div class="arch-box" style="background:rgba(108,63,245,0.2);border-color:rgba(108,63,245,0.4);">☁️ Cloudflare R2<br><small style="color:#aaa">Media Storage</small></div>
+      <div class="arch-box" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);">💰 Razorpay<br><small style="color:#aaa">Payments · Refunds</small></div>
+    </div>
+    <div class="arch-arrow">↕ OpenAI API</div>
+    <div class="arch-layer" style="grid-template-columns:1fr;">
+      <div class="arch-box ai">🧠 GPT-4o &amp; GPT-4o-mini — Vision · NLP · Recommendations · Pricing · Sentiment · Segmentation</div>
+    </div>
+  </div>
+</section>
+
+<!-- AI/ML FEATURES -->
+<section id="ai">
+  <div class="section-header">
+    <div class="section-badge">AI / ML Engine</div>
+    <h2>13 AI Features Powered by <span class="text-gradient">GPT-4o</span></h2>
+    <p>Every AI call is tracked for cost and latency. The system uses GPT-4o for vision/complex tasks and GPT-4o-mini for fast NLP — optimizing intelligence vs. cost.</p>
+  </div>
+  <div class="ai-grid">
+    <div class="card ai-card">
+      <div class="ai-icon">📸</div>
+      <h3>Snap-and-List Cataloging</h3>
+      <p>Take a photo of any product. GPT-4o Vision extracts name, category, price range, attributes, tags, and confidence score. Shelf scan detects multiple products at once.</p>
+      <span class="ai-tag tag-gpt4o">GPT-4o Vision</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">🔍</div>
+      <h3>Conversational Search</h3>
+      <p>Type "red Nike shoes under 2000" in plain English. GPT-4o-mini parses it into structured filters: keywords, category, price, color, brand, sort order.</p>
+      <span class="ai-tag tag-nlp">NLP Parsing</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">🎯</div>
+      <h3>Content-Based Recommendations</h3>
+      <p>Builds interest profiles from views, wishlist, purchases. Matches product category/subcategory/tags to user preferences. Falls back to local popularity.</p>
+      <span class="ai-tag tag-ml">Collaborative ML</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">👥</div>
+      <h3>Collaborative Filtering</h3>
+      <p>"People near you also bought" — co-purchase matrix from order history. Diversity-aware selection to avoid clustering recommendations from the same shop.</p>
+      <span class="ai-tag tag-ml">Matrix Factorization</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">📈</div>
+      <h3>Trending Detection</h3>
+      <p>Hyperlocal trending within adjustable radius. Weighted event scoring in 24h window: view=1, wishlist=3, add_to_cart=5, purchase=10.</p>
+      <span class="ai-tag tag-ml">Time-Series Events</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">💰</div>
+      <h3>AI Pricing Intelligence</h3>
+      <p>Suggests competitive prices using local market comparables, demand signals (views/wishlist ratio), and elasticity notes. Real-time competitive analysis.</p>
+      <span class="ai-tag tag-gpt4o">GPT-4o + Analytics</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">😊</div>
+      <h3>Review Sentiment Analysis</h3>
+      <p>Extracts positives, negatives, and improvement suggestions from customer reviews. 6-hour response cache for performance. Actionable for shop owners.</p>
+      <span class="ai-tag tag-nlp">GPT-4o-mini NLP</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">🎪</div>
+      <h3>RFM Customer Segmentation</h3>
+      <p>Recency/Frequency/Monetary segmentation into Champions, Loyal, At Risk, Lost, etc. Absolute thresholds for stability. Shop owners can target each segment.</p>
+      <span class="ai-tag tag-ml">RFM Model</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">🔦</div>
+      <h3>Demand Gap Analysis</h3>
+      <p>Identifies unfulfilled local demand by aggregating low-result search queries. Tells shops "customers near you are searching for X but not finding it."</p>
+      <span class="ai-tag tag-ml">Search Log Mining</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">🛒</div>
+      <h3>Personalized Deals</h3>
+      <p>Ranks deals by: discount depth × shop rating × interest match × visit history × recency × scarcity signal. Each user sees a different deal order.</p>
+      <span class="ai-tag tag-ml">Multi-Factor Scoring</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">📊</div>
+      <h3>Catalogue Suggestions</h3>
+      <p>Market basket analysis on order history. Finds high-confidence category co-occurrence pairs. Tells shops which product categories to add next.</p>
+      <span class="ai-tag tag-ml">Association Rules</span>
+    </div>
+    <div class="card ai-card">
+      <div class="ai-icon">🧑‍💼</div>
+      <h3>AI Business Advisor</h3>
+      <p>GPT-4o chat with full shop context: products, orders, revenue trends, top items. Answers "how do I increase sales this week?" with data-backed advice.</p>
+      <span class="ai-tag tag-gpt4o">GPT-4o Chat</span>
+    </div>
+    <div class="card ai-card" style="grid-column:span 1;">
+      <div class="ai-icon">🔬</div>
+      <h3>AI Cost Tracker</h3>
+      <p>Every OpenAI call is logged: tokens, cost (USD), response time, error status. Admin dashboard shows spend by feature. Prevents runaway AI costs.</p>
+      <span class="ai-tag tag-gpt4o">Cost Telemetry</span>
+    </div>
+  </div>
+
+  <!-- AI Cost breakdown chart -->
+  <br><br>
+  <div class="card">
+    <h3>AI Model Usage by Feature</h3>
+    <p>GPT-4o-mini used for high-volume, fast tasks. GPT-4o reserved for complex vision/reasoning.</p>
+    <br>
+    <div class="bar-chart">
+      <div class="bar-item">
+        <div class="bar-label">Snap Cataloging (GPT-4o)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:85%;background:linear-gradient(90deg,#6C3FF5,#00D4AA);"></div></div>
+        <div class="bar-value" style="color:#6C3FF5">HIGH</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-label">Smart Search (4o-mini)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:95%;background:linear-gradient(90deg,#00D4AA,#6C3FF5);"></div></div>
+        <div class="bar-value" style="color:#00D4AA">FAST</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-label">AI Advisor Chat (GPT-4o)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:75%;background:linear-gradient(90deg,#6C3FF5,#FF6B35);"></div></div>
+        <div class="bar-value" style="color:#FF6B35">MED</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-label">Sentiment (4o-mini + cache)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:60%;background:linear-gradient(90deg,#22C55E,#00D4AA);"></div></div>
+        <div class="bar-value" style="color:#22C55E">LOW</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-label">Collaborative Filter (pure ML)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#22C55E,#6C3FF5);"></div></div>
+        <div class="bar-value" style="color:#22C55E">FREE</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-label">RFM Segmentation (pure ML)</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:linear-gradient(90deg,#22C55E,#6C3FF5);"></div></div>
+        <div class="bar-value" style="color:#22C55E">FREE</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES TABLE -->
+<section id="features">
+  <div class="section-header">
+    <div class="section-badge">Feature Matrix</div>
+    <h2>Complete Feature <span class="text-gradient">Overview</span></h2>
+  </div>
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr><th>Feature Category</th><th>Features</th><th>For</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>🔐 Authentication</td><td>OTP Login, Firebase Auth, Role Switching, Profile Setup, Referral Codes</td><td>Both</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🏪 Shop Management</td><td>Create shop, geo-search, follow/unfollow, stories, shop profile</td><td>Business</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>📦 Product Catalog</td><td>CRUD, full-text search, categories, images, price history, stock</td><td>Business</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>📸 AI Cataloging</td><td>Snap-and-list, shelf scan, auto description generation, bulk upload</td><td>Business</td><td><span class="badge badge-ai">✅ AI</span></td></tr>
+        <tr><td>📋 Orders &amp; Payments</td><td>Order creation, status tracking, Razorpay, refunds, coupons, delivery</td><td>Both</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🏷️ Deals &amp; Offers</td><td>Time-limited deals, claim limits, coupon codes (%, fixed), first-order promo</td><td>Both</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>⭐ Reviews &amp; Ratings</td><td>1-5 star, comments, business replies, AI sentiment analysis</td><td>Both</td><td><span class="badge badge-ai">✅ AI</span></td></tr>
+        <tr><td>💬 Price Haggling</td><td>Customer offers → shop counter → accept/reject in-app negotiation</td><td>Both</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🏆 Loyalty &amp; Gamification</td><td>Coins, badges, achievements, daily spin wheel, leaderboards, streaks</td><td>Customers</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>👥 Community</td><td>Local Q&amp;A feed, posts, answers, upvotes, resolution marking</td><td>Customers</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🤖 AI Recommendations</td><td>Content-based, collaborative filtering, trending, personalized deals</td><td>Customers</td><td><span class="badge badge-ai">✅ AI + ML</span></td></tr>
+        <tr><td>🔍 Smart Search</td><td>Full-text, NL conversational, visual (CLIP), demand gap analysis</td><td>Customers</td><td><span class="badge badge-ai">✅ AI</span></td></tr>
+        <tr><td>📊 Business Analytics</td><td>7d/30d/90d stats, top products, customer behavior, RFM segments</td><td>Business</td><td><span class="badge badge-ai">✅ AI + ML</span></td></tr>
+        <tr><td>🧑‍💼 AI Advisor</td><td>GPT-4o chat with shop context for business growth coaching</td><td>Business</td><td><span class="badge badge-ai">✅ AI</span></td></tr>
+        <tr><td>💰 Pricing Intelligence</td><td>Local market comparables, demand elasticity, competitive analysis</td><td>Business</td><td><span class="badge badge-ai">✅ AI</span></td></tr>
+        <tr><td>📣 Broadcast &amp; Marketing</td><td>Push campaigns to customer segments, festival calendar, SMS</td><td>Business</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>📦 Inventory Management</td><td>Stock levels, low-stock alerts, threshold settings</td><td>Business</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>💳 Udhaar Ledger</td><td>Informal credit tracking between shop and regular customers</td><td>Business</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🚀 Stories</td><td>24-hour expiring shop content (Instagram-style), view tracking</td><td>Both</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🔔 Notifications</td><td>Firebase FCM push notifications, in-app notification feed</td><td>Both</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+        <tr><td>🛡️ Admin Panel</td><td>Platform analytics, user/shop management, AI cost tracking</td><td>Admin</td><td><span class="badge badge-done">✅ Done</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- BENEFITS -->
+<section id="benefits">
+  <div class="section-header">
+    <div class="section-badge">Business Value</div>
+    <h2>Why This <span class="text-gradient">Makes Life Simpler</span></h2>
+  </div>
+  <div class="benefits-grid">
+    <div class="card benefit-card grad-card">
+      <div class="benefit-icon">⚡</div>
+      <div class="benefit-stat">5 min</div>
+      <h3>Catalog Setup Time</h3>
+      <p>Snap a product photo → AI fills everything in. What used to take hours of typing now takes seconds per product.</p>
+    </div>
+    <div class="card benefit-card grad-card-green">
+      <div class="benefit-icon">🎯</div>
+      <div class="benefit-stat">3x</div>
+      <h3>Higher Conversion Rate</h3>
+      <p>AI-personalized recommendations show customers exactly what they want, when they want it — dramatically increasing purchase intent.</p>
+    </div>
+    <div class="card benefit-card grad-card-orange">
+      <div class="benefit-icon">📊</div>
+      <div class="benefit-stat">Zero</div>
+      <h3>Technical Overhead for Shops</h3>
+      <p>No coding, no website management, no database. Shops get full analytics and AI features through a simple mobile app interface.</p>
+    </div>
+    <div class="card benefit-card">
+      <div class="benefit-icon">💡</div>
+      <div class="benefit-stat">Real-time</div>
+      <h3>Competitive Intelligence</h3>
+      <p>Know exactly what nearby competitors are charging. AI suggests optimal prices based on demand signals and local market data.</p>
+    </div>
+    <div class="card benefit-card">
+      <div class="benefit-icon">🤝</div>
+      <div class="benefit-stat">In-App</div>
+      <h3>Price Negotiation</h3>
+      <p>The Haggle feature brings the tradition of bargaining online — customers negotiate, shops respond, all tracked and transparent.</p>
+    </div>
+    <div class="card benefit-card">
+      <div class="benefit-icon">🔒</div>
+      <div class="benefit-stat">Full</div>
+      <h3>Data Ownership</h3>
+      <p>Shops own their customer data. No data sold to third parties. Built-in analytics means shops aren't dependent on Google or Meta for insights.</p>
+    </div>
+  </div>
+
+  <br><br>
+  <!-- Simple vs complex -->
+  <div class="highlight-box">
+    <h3 style="margin-bottom:16px;">🤔 Will This Make Life Simple or Difficult?</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+      <div>
+        <h4>✅ Simpler for Shop Owners</h4>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">AI writes product descriptions automatically</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">No more guessing what price to set</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">Reach customers who would never walk past the shop</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">Know which customers are loyal vs. at risk of leaving</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">AI business coach available 24/7 on mobile</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>✅ Simpler for Customers</h4>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">Discover local shops they didn't know existed</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">Order from multiple local shops in one app</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">Negotiate prices without awkward in-person bargaining</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">AI shows products matching exact taste and budget</span></li>
+          <li style="display:flex;gap:10px;"><span style="color:var(--success)">✓</span> <span style="color:var(--muted)">Earn rewards for buying local — feels like Amazon Prime</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK VISUAL -->
+<section>
+  <div class="section-header">
+    <div class="section-badge">Technology Stack</div>
+    <h2>Production-Ready <span class="text-gradient">Tech Choices</span></h2>
+  </div>
+  <div class="card-grid card-grid-4">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">⚡</div>
+      <h4>Backend</h4>
+      <p style="font-size:0.85rem;">FastAPI · Python 3.11 · Uvicorn · Gunicorn · Async SQLAlchemy · Alembic</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🗄️</div>
+      <h4>Database</h4>
+      <p style="font-size:0.85rem;">PostgreSQL 13+ · GIN Full-Text Search · JSONB · Redis Cache · 8 Migrations</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">📱</div>
+      <h4>Mobile</h4>
+      <p style="font-size:0.85rem;">React Native · Expo 55 · Expo Router · Firebase Auth · Async Storage</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🌐</div>
+      <h4>Web</h4>
+      <p style="font-size:0.85rem;">React 19 · Vite · Tailwind CSS 4 · Zustand · React Query · Firebase</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🧠</div>
+      <h4>AI / ML</h4>
+      <p style="font-size:0.85rem;">OpenAI GPT-4o · GPT-4o-mini · Vision API · Async client · Cost tracking</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">🔒</div>
+      <h4>Auth &amp; Security</h4>
+      <p style="font-size:0.85rem;">Firebase Admin SDK · RS256 JWT · HS256 internal tokens · Rate limiting · OTP</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">☁️</div>
+      <h4>Cloud &amp; Storage</h4>
+      <p style="font-size:0.85rem;">Cloudflare R2 (S3) · Firebase FCM · Docker · docker-compose · DigitalOcean DB</p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">💳</div>
+      <h4>Payments</h4>
+      <p style="font-size:0.85rem;">Razorpay · Test mode · Refunds · Coupon engine · Subscription billing</p>
+    </div>
+  </div>
+</section>
+
+<!-- DATA FLOWS (SVG Diagram) -->
+<section>
+  <div class="section-header">
+    <div class="section-badge">User Journeys</div>
+    <h2>How <span class="text-gradient">Users Experience</span> NearShop</h2>
+  </div>
+  <div class="card-grid card-grid-2">
+    <!-- Customer Journey -->
+    <div class="card">
+      <h3>🛍️ Customer Journey</h3>
+      <br>
+      <svg viewBox="0 0 360 400" width="100%">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#6C3FF5"/>
+          </marker>
+        </defs>
+        <!-- Steps -->
+        <rect x="20" y="10" width="320" height="50" rx="10" fill="rgba(108,63,245,0.15)" stroke="rgba(108,63,245,0.4)" stroke-width="1"/>
+        <text x="180" y="32" text-anchor="middle" fill="white" font-size="12" font-weight="bold">1. Open App → Location Granted</text>
+        <text x="180" y="50" text-anchor="middle" fill="#8888AA" font-size="10">App finds shops within chosen radius</text>
+        <line x1="180" y1="60" x2="180" y2="80" stroke="#6C3FF5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="20" y="80" width="320" height="50" rx="10" fill="rgba(0,212,170,0.1)" stroke="rgba(0,212,170,0.3)" stroke-width="1"/>
+        <text x="180" y="102" text-anchor="middle" fill="white" font-size="12" font-weight="bold">2. Browse AI-Personalized Feed</text>
+        <text x="180" y="120" text-anchor="middle" fill="#8888AA" font-size="10">Content-based + collaborative + trending</text>
+        <line x1="180" y1="130" x2="180" y2="150" stroke="#6C3FF5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="20" y="150" width="320" height="50" rx="10" fill="rgba(108,63,245,0.15)" stroke="rgba(108,63,245,0.4)" stroke-width="1"/>
+        <text x="180" y="172" text-anchor="middle" fill="white" font-size="12" font-weight="bold">3. Search / Discover Product</text>
+        <text x="180" y="190" text-anchor="middle" fill="#8888AA" font-size="10">Full-text, conversational NL, or visual search</text>
+        <line x1="180" y1="200" x2="180" y2="220" stroke="#6C3FF5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="20" y="220" width="148" height="50" rx="10" fill="rgba(255,107,53,0.1)" stroke="rgba(255,107,53,0.3)" stroke-width="1"/>
+        <text x="94" y="242" text-anchor="middle" fill="white" font-size="11" font-weight="bold">4a. Buy Now</text>
+        <text x="94" y="260" text-anchor="middle" fill="#8888AA" font-size="9">Razorpay · Coupon · Loyalty coins</text>
+
+        <rect x="192" y="220" width="148" height="50" rx="10" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+        <text x="266" y="242" text-anchor="middle" fill="white" font-size="11" font-weight="bold">4b. Haggle Price</text>
+        <text x="266" y="260" text-anchor="middle" fill="#8888AA" font-size="9">Send offer → shop counters → deal!</text>
+
+        <line x1="94" y1="270" x2="180" y2="290" stroke="#6C3FF5" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <line x1="266" y1="270" x2="180" y2="290" stroke="#6C3FF5" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+        <rect x="20" y="290" width="320" height="50" rx="10" fill="rgba(34,197,94,0.1)" stroke="rgba(34,197,94,0.3)" stroke-width="1"/>
+        <text x="180" y="312" text-anchor="middle" fill="white" font-size="12" font-weight="bold">5. Order Tracked + Coins Earned</text>
+        <text x="180" y="330" text-anchor="middle" fill="#8888AA" font-size="10">Real-time status · Loyalty rewards · Review prompt</text>
+
+        <rect x="80" y="352" width="200" height="36" rx="18" fill="rgba(108,63,245,0.2)" stroke="rgba(108,63,245,0.4)" stroke-width="1"/>
+        <text x="180" y="375" text-anchor="middle" fill="#6C3FF5" font-size="11" font-weight="bold">Loop → Better Personalization</text>
+      </svg>
+    </div>
+    <!-- Business Journey -->
+    <div class="card">
+      <h3>🏪 Business Owner Journey</h3>
+      <br>
+      <svg viewBox="0 0 360 400" width="100%">
+        <defs>
+          <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#00D4AA"/>
+          </marker>
+        </defs>
+        <rect x="20" y="10" width="320" height="50" rx="10" fill="rgba(0,212,170,0.1)" stroke="rgba(0,212,170,0.3)" stroke-width="1"/>
+        <text x="180" y="32" text-anchor="middle" fill="white" font-size="12" font-weight="bold">1. Register Shop (5 minutes)</text>
+        <text x="180" y="50" text-anchor="middle" fill="#8888AA" font-size="10">OTP login → fill shop details → go live</text>
+        <line x1="180" y1="60" x2="180" y2="80" stroke="#00D4AA" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="20" y="80" width="320" height="50" rx="10" fill="rgba(108,63,245,0.15)" stroke="rgba(108,63,245,0.4)" stroke-width="1"/>
+        <text x="180" y="102" text-anchor="middle" fill="white" font-size="12" font-weight="bold">2. Snap Products → AI Catalogs</text>
+        <text x="180" y="120" text-anchor="middle" fill="#8888AA" font-size="10">Photo → GPT-4o → name, price, tags, category</text>
+        <line x1="180" y1="130" x2="180" y2="150" stroke="#00D4AA" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="20" y="150" width="320" height="50" rx="10" fill="rgba(0,212,170,0.1)" stroke="rgba(0,212,170,0.3)" stroke-width="1"/>
+        <text x="180" y="172" text-anchor="middle" fill="white" font-size="12" font-weight="bold">3. AI Sets Optimal Price</text>
+        <text x="180" y="190" text-anchor="middle" fill="#8888AA" font-size="10">Market comparables + demand signals + elasticity</text>
+        <line x1="180" y1="200" x2="180" y2="220" stroke="#00D4AA" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="20" y="220" width="320" height="50" rx="10" fill="rgba(245,158,11,0.1)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+        <text x="180" y="242" text-anchor="middle" fill="white" font-size="12" font-weight="bold">4. Orders Come In → Fulfill</text>
+        <text x="180" y="260" text-anchor="middle" fill="#8888AA" font-size="10">Dashboard → status update → payment received</text>
+        <line x1="180" y1="270" x2="180" y2="290" stroke="#00D4AA" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+        <rect x="20" y="290" width="320" height="50" rx="10" fill="rgba(108,63,245,0.15)" stroke="rgba(108,63,245,0.4)" stroke-width="1"/>
+        <text x="180" y="312" text-anchor="middle" fill="white" font-size="12" font-weight="bold">5. Analytics + AI Advisor Insights</text>
+        <text x="180" y="330" text-anchor="middle" fill="#8888AA" font-size="10">RFM segments, demand gaps, broadcast campaigns</text>
+
+        <rect x="60" y="352" width="240" height="36" rx="18" fill="rgba(0,212,170,0.15)" stroke="rgba(0,212,170,0.4)" stroke-width="1"/>
+        <text x="180" y="375" text-anchor="middle" fill="#00D4AA" font-size="11" font-weight="bold">Loop → Data-Driven Growth</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- IMPROVEMENT OPPORTUNITIES -->
+<section>
+  <div class="section-header">
+    <div class="section-badge">What Can Be Improved</div>
+    <h2>Current Gaps &amp; <span class="text-gradient">Quick Wins</span></h2>
+  </div>
+  <div class="card-grid card-grid-3">
+    <div class="card" style="border-top:3px solid var(--danger);">
+      <h4 style="color:var(--danger);">🔴 Critical Fixes</h4>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <li style="color:var(--muted);font-size:0.9rem;">• Schema mismatch: <code style="color:var(--warning)">image_url</code> vs <code style="color:var(--warning)">images[]</code> in Product model breaking unified search</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Visual search (CLIP embeddings) — stored but no query path implemented</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Mobile delivery carousel not yet wired to backend delivery zones API</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Order tracking real-time updates (WebSocket connected but not wired to mobile)</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:3px solid var(--warning);">
+      <h4 style="color:var(--warning);">🟡 Performance &amp; Scale</h4>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <li style="color:var(--muted);font-size:0.9rem;">• No PostGIS — Haversine in Python doesn't scale beyond ~50k shops</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• AI recommendations recalculated on every request — needs background job + cache</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• No CDN for product images — all served from R2 origin</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Collaborative filter builds matrix in-memory — needs Redis precomputation</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:3px solid var(--accent);">
+      <h4 style="color:var(--accent);">🟢 UX Improvements</h4>
+      <ul style="list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <li style="color:var(--muted);font-size:0.9rem;">• Map view for shops (ShopsMapPage exists but needs Mapbox/Google Maps integration)</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Dark/light theme toggle for web app</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Onboarding tutorial for first-time business owners</li>
+        <li style="color:var(--muted);font-size:0.9rem;">• Social sharing for deals and products (WhatsApp deeplinks)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="section-header">
+    <div class="section-badge">Product Roadmap</div>
+    <h2>Future <span class="text-gradient">Feature Roadmap</span></h2>
+    <p>What we can build next to 10x the platform's value</p>
+  </div>
+  <div class="card-grid card-grid-2">
+    <div class="card">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot done"></div>
+          <div class="timeline-phase">Phase 1 — Complete ✅</div>
+          <div class="timeline-title">Core Platform</div>
+          <div class="timeline-items">
+            <span class="pill">Auth</span><span class="pill">Shops &amp; Products</span><span class="pill">Orders</span>
+            <span class="pill">Payments</span><span class="pill">AI Cataloging</span><span class="pill">Basic Analytics</span>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot done"></div>
+          <div class="timeline-phase">Phase 2 — Complete ✅</div>
+          <div class="timeline-title">AI &amp; Engagement Layer</div>
+          <div class="timeline-items">
+            <span class="pill">13 AI Features</span><span class="pill">Loyalty Coins</span><span class="pill">Haggle</span>
+            <span class="pill">Community</span><span class="pill">RFM Segments</span><span class="pill">AI Advisor</span>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot next"></div>
+          <div class="timeline-phase">Phase 3 — Next Up 🚀</div>
+          <div class="timeline-title">Scale &amp; Intelligence</div>
+          <div class="timeline-items">
+            <span class="pill">PostGIS geo queries</span><span class="pill">CLIP visual search</span>
+            <span class="pill">Real-time WebSockets</span><span class="pill">CDN images</span>
+            <span class="pill">Celery background jobs</span>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-phase">Phase 4 — Future 🔮</div>
+          <div class="timeline-title">Network Effects</div>
+          <div class="timeline-items">
+            <span class="pill">Multi-city launch</span><span class="pill">Shop-to-shop B2B</span>
+            <span class="pill">Supplier marketplace</span><span class="pill">Franchise tools</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:24px;">💡 High-Impact New Features</h3>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card grad-card" style="padding:16px;">
+          <h4>🎥 Video Commerce</h4>
+          <p style="font-size:0.85rem;">TikTok/Reels-style short product videos with in-video purchase buttons. Shop owners film, AI generates captions and tags.</p>
+        </div>
+        <div class="card grad-card-green" style="padding:16px;">
+          <h4>🤝 Group Buying</h4>
+          <p style="font-size:0.85rem;">Customers in a locality pool together for bulk discount — e.g., "10 neighbours want the same TV, get 15% off." Social + commerce.</p>
+        </div>
+        <div class="card" style="padding:16px;">
+          <h4>🚴 Delivery Network</h4>
+          <p style="font-size:0.85rem;">On-demand local delivery via independent gig riders. Shops get delivery without owning a fleet. Customer gets 30-min local delivery.</p>
+        </div>
+        <div class="card" style="padding:16px;background:rgba(36,36,68,0.8);">
+          <h4>🏪 B2B Marketplace</h4>
+          <p style="font-size:0.85rem;">Shops can order wholesale from suppliers directly through NearShop. Closes the loop from manufacturer → distributor → retailer → customer.</p>
+        </div>
+        <div class="card" style="padding:16px;">
+          <h4>🌐 WhatsApp Integration</h4>
+          <p style="font-size:0.85rem;">Shop owners receive orders via WhatsApp Business API. Customers who don't use the app can still order. Widens the funnel massively in India.</p>
+        </div>
+        <div class="card grad-card-orange" style="padding:16px;">
+          <h4>🏆 Neighbourhood Leaderboards</h4>
+          <p style="font-size:0.85rem;">Gamified neighbourhood rankings for shops (most orders, best rating, fastest delivery). Drives organic competition and PR for shops.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section>
+  <div class="section-header">
+    <div class="section-badge">Summary</div>
+    <h2>The <span class="text-gradient">NearShop</span> Advantage</h2>
+  </div>
+  <div class="highlight-box" style="padding:40px;text-align:center;">
+    <p style="font-size:1.2rem;color:var(--text);max-width:800px;margin:0 auto 24px;">
+      NearShop is not just an app — it's an AI-powered operating system for local commerce. It democratizes tools that only Amazon, Flipkart, and Zomato could afford — and puts them in every local shop owner's pocket.
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:32px;">
+      <div>
+        <div style="font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#6C3FF5,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">63M+</div>
+        <div style="font-size:0.85rem;color:var(--muted);">MSMEs in India<br>to onboard</div>
+      </div>
+      <div>
+        <div style="font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#6C3FF5,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">$750B</div>
+        <div style="font-size:0.85rem;color:var(--muted);">India hyperlocal<br>market by 2030</div>
+      </div>
+      <div>
+        <div style="font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#6C3FF5,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">13</div>
+        <div style="font-size:0.85rem;color:var(--muted);">AI features<br>already built</div>
+      </div>
+      <div>
+        <div style="font-size:2.5rem;font-weight:900;background:linear-gradient(135deg,#6C3FF5,#00D4AA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">93.7%</div>
+        <div style="font-size:0.85rem;color:var(--muted);">API test<br>coverage</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="logo">NearShop</div>
+  <p>AI-Powered Hyperlocal Commerce · Built with FastAPI · React · React Native · GPT-4o</p>
+  <p style="margin-top:8px;">Prepared for: Developers · Product Users · Stakeholders · Sales Team</p>
+</footer>
+
+</body>
+</html>

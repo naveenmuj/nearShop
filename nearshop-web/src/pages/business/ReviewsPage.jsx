@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Star, MessageSquare } from 'lucide-react'
+import { Star, MessageSquare, Brain } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useMyShop from '../../hooks/useMyShop'
 import client from '../../api/client'
+import { getReviewSentiment } from '../../api/ai'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 
 export default function ReviewsPage() {
@@ -11,6 +12,8 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true)
   const [replyText, setReplyText] = useState({})
   const [replying, setReplying] = useState(null)
+  const [sentiment, setSentiment] = useState(null)
+  const [sentimentLoading, setSentimentLoading] = useState(false)
 
   const handleReply = async (reviewId) => {
     const text = replyText[reviewId]?.trim()
@@ -37,7 +40,17 @@ export default function ReviewsPage() {
     } catch {} finally { setLoading(false) }
   }, [shopId])
 
+  const loadSentiment = useCallback(async () => {
+    if (!shopId) return
+    setSentimentLoading(true)
+    try {
+      const res = await getReviewSentiment(shopId)
+      setSentiment(res.data)
+    } catch {} finally { setSentimentLoading(false) }
+  }, [shopId])
+
   useEffect(() => { load() }, [load])
+  useEffect(() => { loadSentiment() }, [loadSentiment])
 
   const avgRating = reviews.length > 0
     ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1) : '0'
@@ -83,6 +96,52 @@ export default function ReviewsPage() {
             </div>
           </div>
         </div>
+
+        {/* AI Sentiment Insights */}
+        {sentiment && sentiment.analysed_reviews > 0 && (
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border border-indigo-100">
+            <div className="flex items-center gap-2 mb-3">
+              <Brain className="w-5 h-5 text-indigo-600" />
+              <p className="text-sm font-bold text-indigo-800">AI Sentiment Analysis</p>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                sentiment.overall_sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                sentiment.overall_sentiment === 'negative' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+              }`}>{sentiment.overall_sentiment}</span>
+            </div>
+
+            {sentiment.summary && (
+              <p className="text-xs text-gray-600 leading-relaxed mb-3">{sentiment.summary}</p>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {sentiment.key_positives?.length > 0 && (
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-[10px] font-bold text-green-600 uppercase tracking-wider mb-1">Positives</p>
+                  {sentiment.key_positives.map((p, i) => (
+                    <p key={i} className="text-xs text-gray-700 py-0.5">✅ {p}</p>
+                  ))}
+                </div>
+              )}
+              {sentiment.key_negatives?.length > 0 && (
+                <div className="bg-white rounded-lg p-3">
+                  <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Needs Attention</p>
+                  {sentiment.key_negatives.map((n, i) => (
+                    <p key={i} className="text-xs text-gray-700 py-0.5">⚠️ {n}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {sentiment.improvement_suggestions?.length > 0 && (
+              <div className="mt-3 bg-white rounded-lg p-3">
+                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1">Suggestions</p>
+                {sentiment.improvement_suggestions.map((s, i) => (
+                  <p key={i} className="text-xs text-gray-700 py-0.5">💡 {s}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Reviews list */}
         {reviews.length === 0 ? (

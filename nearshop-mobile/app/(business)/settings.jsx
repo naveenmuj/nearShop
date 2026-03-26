@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import useMyShop from '../../hooks/useMyShop';
 import useAuthStore from '../../store/authStore';
-import { updateShop } from '../../lib/shops';
+import { updateShop, requestVerification, getVerificationStatus } from '../../lib/shops';
 import { switchRole as apiSwitchRole } from '../../lib/auth';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
@@ -20,6 +20,14 @@ const DELIVERY_OPTIONS = [
 const CATEGORIES = [
   'grocery', 'electronics', 'clothing', 'food', 'bakery',
   'pharmacy', 'restaurant', 'furniture', 'jewellery', 'general',
+];
+
+const DOCUMENT_TYPES = [
+  { key: 'gst', label: 'GST Certificate', icon: '📋', required: false },
+  { key: 'pan', label: 'PAN Card', icon: '🪪', required: true },
+  { key: 'aadhaar', label: 'Aadhaar Card', icon: '🆔', required: true },
+  { key: 'fssai', label: 'FSSAI License', icon: '🍽️', required: false },
+  { key: 'trade', label: 'Trade License', icon: '📄', required: false },
 ];
 
 export default function SettingsScreen() {
@@ -42,6 +50,12 @@ export default function SettingsScreen() {
   const [minOrder, setMinOrder] = useState('');
 
   const [saving, setSaving] = useState(false);
+  
+  // Verification state
+  const [verificationStatus, setVerificationStatus] = useState('none');
+  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [submittingVerification, setSubmittingVerification] = useState(false);
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
 
   // Load shop data into form
   useEffect(() => {
@@ -60,6 +74,18 @@ export default function SettingsScreen() {
     }
   }, [shop]);
 
+  // Load verification status
+  useEffect(() => {
+    if (shopId) {
+      getVerificationStatus(shopId)
+        .then((res) => {
+          const data = res?.data;
+          setVerificationStatus(data?.status || 'none');
+        })
+        .catch(() => setVerificationStatus('none'));
+    }
+  }, [shopId]);
+
   const toggleDeliveryOption = (key) => {
     setDeliveryOptions((prev) => {
       if (prev.includes(key)) {
@@ -68,6 +94,44 @@ export default function SettingsScreen() {
       }
       return [...prev, key];
     });
+  };
+  
+  const toggleDocumentSelection = (key) => {
+    setSelectedDocs((prev) => {
+      if (prev.includes(key)) {
+        return prev.filter((d) => d !== key);
+      }
+      return [...prev, key];
+    });
+  };
+
+  const handleSubmitVerification = async () => {
+    if (selectedDocs.length === 0) {
+      Alert.alert('Required', 'Please select at least one document type');
+      return;
+    }
+    
+    const requiredDocs = DOCUMENT_TYPES.filter(d => d.required).map(d => d.key);
+    const missingRequired = requiredDocs.filter(d => !selectedDocs.includes(d));
+    
+    if (missingRequired.length > 0) {
+      const missing = DOCUMENT_TYPES.filter(d => missingRequired.includes(d.key)).map(d => d.label);
+      Alert.alert('Required Documents', `Please select: ${missing.join(', ')}`);
+      return;
+    }
+    
+    setSubmittingVerification(true);
+    try {
+      await requestVerification(shopId, selectedDocs);
+      setVerificationStatus('pending');
+      setShowVerificationForm(false);
+      Alert.alert('Success', 'Verification request submitted! We\'ll review your documents within 2-3 business days.');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      Alert.alert('Error', typeof detail === 'string' ? detail : 'Failed to submit verification');
+    } finally {
+      setSubmittingVerification(false);
+    }
   };
 
   const hasDelivery = deliveryOptions.includes('delivery');
@@ -292,6 +356,139 @@ export default function SettingsScreen() {
           )}
         </TouchableOpacity>
 
+        {/* ── Shop Verification Section ──────────────────────────────── */}
+        <Text style={styles.sectionLabel}>SHOP VERIFICATION</Text>
+        <View style={styles.card}>
+          {/* Status Banner */}
+          {verificationStatus === 'approved' && (
+            <View style={styles.verificationBanner}>
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedIcon}>✓</Text>
+              </View>
+              <View style={styles.verificationBannerText}>
+                <Text style={styles.verifiedTitle}>Verified Shop</Text>
+                <Text style={styles.verifiedSubtitle}>Your shop is verified and trusted</Text>
+              </View>
+            </View>
+          )}
+          
+          {verificationStatus === 'pending' && (
+            <View style={[styles.verificationBanner, styles.pendingBanner]}>
+              <Text style={styles.pendingIcon}>⏳</Text>
+              <View style={styles.verificationBannerText}>
+                <Text style={styles.pendingTitle}>Verification Pending</Text>
+                <Text style={styles.pendingSubtitle}>We're reviewing your documents (2-3 business days)</Text>
+              </View>
+            </View>
+          )}
+          
+          {verificationStatus === 'rejected' && (
+            <View style={[styles.verificationBanner, styles.rejectedBanner]}>
+              <Text style={styles.rejectedIcon}>✗</Text>
+              <View style={styles.verificationBannerText}>
+                <Text style={styles.rejectedTitle}>Verification Rejected</Text>
+                <Text style={styles.rejectedSubtitle}>Please resubmit with correct documents</Text>
+              </View>
+            </View>
+          )}
+          
+          {/* Apply for Verification or Reapply */}
+          {(verificationStatus === 'none' || verificationStatus === 'rejected') && (
+            <>
+              {!showVerificationForm ? (
+                <TouchableOpacity
+                  style={styles.verificationCTA}
+                  onPress={() => setShowVerificationForm(true)}
+                >
+                  <View style={styles.verificationCTAIcon}>
+                    <Text style={{ fontSize: 24 }}>🛡️</Text>
+                  </View>
+                  <View style={styles.verificationCTAContent}>
+                    <Text style={styles.verificationCTATitle}>
+                      {verificationStatus === 'rejected' ? 'Reapply for Verification' : 'Get Your Shop Verified'}
+                    </Text>
+                    <Text style={styles.verificationCTADesc}>
+                      Build trust with customers by verifying your business
+                    </Text>
+                  </View>
+                  <Text style={styles.menuChevron}>›</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.verificationForm}>
+                  <Text style={styles.verificationFormTitle}>Select Documents to Submit</Text>
+                  <Text style={styles.verificationFormDesc}>
+                    Please have these documents ready for verification
+                  </Text>
+                  
+                  {DOCUMENT_TYPES.map(({ key, label, icon, required }) => {
+                    const isSelected = selectedDocs.includes(key);
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[styles.docOption, isSelected && styles.docOptionActive]}
+                        onPress={() => toggleDocumentSelection(key)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.docIcon}>{icon}</Text>
+                        <View style={styles.docInfo}>
+                          <Text style={[styles.docLabel, isSelected && styles.docLabelActive]}>
+                            {label}
+                          </Text>
+                          {required && <Text style={styles.docRequired}>Required</Text>}
+                        </View>
+                        <View style={[styles.docCheckbox, isSelected && styles.docCheckboxActive]}>
+                          {isSelected && <Text style={styles.docCheckmark}>✓</Text>}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  
+                  <View style={styles.verificationActions}>
+                    <TouchableOpacity
+                      style={styles.cancelVerificationBtn}
+                      onPress={() => {
+                        setShowVerificationForm(false);
+                        setSelectedDocs([]);
+                      }}
+                    >
+                      <Text style={styles.cancelVerificationText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.submitVerificationBtn, submittingVerification && { opacity: 0.7 }]}
+                      onPress={handleSubmitVerification}
+                      disabled={submittingVerification}
+                    >
+                      {submittingVerification ? (
+                        <ActivityIndicator color={COLORS.white} size="small" />
+                      ) : (
+                        <Text style={styles.submitVerificationText}>Submit Request</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </>
+          )}
+          
+          {verificationStatus === 'approved' && (
+            <View style={styles.verificationBenefits}>
+              <Text style={styles.benefitsTitle}>Verified Shop Benefits</Text>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>✓</Text>
+                <Text style={styles.benefitText}>Verified badge on your shop</Text>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>✓</Text>
+                <Text style={styles.benefitText}>Higher visibility in search</Text>
+              </View>
+              <View style={styles.benefitRow}>
+                <Text style={styles.benefitIcon}>✓</Text>
+                <Text style={styles.benefitText}>Increased customer trust</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* ── Account Section ──────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.card}>
@@ -385,4 +582,230 @@ const styles = StyleSheet.create({
   menuIcon: { fontSize: 20, width: 28, textAlign: 'center' },
   menuLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.gray800 },
   menuChevron: { fontSize: 22, color: COLORS.gray300 },
+
+  // Verification Section
+  verificationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    gap: 12,
+  },
+  pendingBanner: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+  },
+  rejectedBanner: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FECACA',
+  },
+  verificationBannerText: {
+    flex: 1,
+  },
+  verifiedBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#22C55E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verifiedIcon: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  verifiedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#166534',
+  },
+  verifiedSubtitle: {
+    fontSize: 12,
+    color: '#22C55E',
+    marginTop: 2,
+  },
+  pendingIcon: {
+    fontSize: 28,
+  },
+  pendingTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  pendingSubtitle: {
+    fontSize: 12,
+    color: '#B45309',
+    marginTop: 2,
+  },
+  rejectedIcon: {
+    fontSize: 28,
+    color: '#DC2626',
+  },
+  rejectedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  rejectedSubtitle: {
+    fontSize: 12,
+    color: '#DC2626',
+    marginTop: 2,
+  },
+  verificationCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: COLORS.primaryLight + '30',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary + '50',
+    gap: 12,
+  },
+  verificationCTAIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  verificationCTAContent: {
+    flex: 1,
+  },
+  verificationCTATitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primaryDark,
+  },
+  verificationCTADesc: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    marginTop: 2,
+  },
+  verificationForm: {
+    marginTop: 4,
+  },
+  verificationFormTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    marginBottom: 4,
+  },
+  verificationFormDesc: {
+    fontSize: 13,
+    color: COLORS.gray500,
+    marginBottom: 16,
+  },
+  docOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: COLORS.gray50,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    gap: 12,
+  },
+  docOptionActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight + '40',
+  },
+  docIcon: {
+    fontSize: 22,
+  },
+  docInfo: {
+    flex: 1,
+  },
+  docLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  docLabelActive: {
+    color: COLORS.primaryDark,
+  },
+  docRequired: {
+    fontSize: 11,
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  docCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.gray300,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  docCheckboxActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  docCheckmark: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  verificationActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  cancelVerificationBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray300,
+    alignItems: 'center',
+  },
+  cancelVerificationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray600,
+  },
+  submitVerificationBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  submitVerificationText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  verificationBenefits: {
+    marginTop: 4,
+  },
+  benefitsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray700,
+    marginBottom: 10,
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 10,
+  },
+  benefitIcon: {
+    color: '#22C55E',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  benefitText: {
+    fontSize: 13,
+    color: COLORS.gray600,
+  },
 });

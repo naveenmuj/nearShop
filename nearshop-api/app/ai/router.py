@@ -12,6 +12,7 @@ from app.auth.permissions import get_current_user, require_business, require_cus
 from app.config import get_settings
 
 from app.ai.client import get_openai_client
+from app.ai.tracker import tracked_chat
 from app.ai.cataloging import (
     analyze_product_image,
     analyze_product_image_bytes,
@@ -22,6 +23,13 @@ from app.ai.visual_search import generate_image_embedding, search_similar_produc
 from app.ai.smart_search import parse_search_query
 from app.ai.pricing import suggest_price
 from app.ai.recommendations import get_recommendations
+from app.ai.demand_gaps import get_demand_gaps
+from app.ai.customer_segments import get_customer_segments
+from app.ai.trending import get_trending_products
+from app.ai.sentiment import get_sentiment_insights
+from app.ai.collaborative_filter import get_cf_recommendations
+from app.ai.personalized_deals import get_personalized_deals
+from app.ai.catalogue_suggestions import get_catalogue_suggestions
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +121,7 @@ async def conversational_search(
     current_user: User = Depends(get_current_user),
 ):
     """Parse a natural language search query into structured filters."""
-    filters = await parse_search_query(body.query)
+    filters = await parse_search_query(body.query, user_id=current_user.id)
     return {"filters": filters, "original_query": body.query}
 
 
@@ -127,7 +135,7 @@ async def pricing_suggest(
     current_user: User = Depends(require_business),
     db: AsyncSession = Depends(get_db),
 ):
-    """Suggest a competitive price for a product based on nearby comparables."""
+    """Suggest a competitive price for a product based on nearby comparables and demand signals."""
     result = await suggest_price(db, product_id, shop_id)
     if "error" in result:
         raise BadRequestError(result["error"])
@@ -145,9 +153,135 @@ async def recommendations(
     current_user: User = Depends(require_customer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get personalized product recommendations for the current user."""
+    """Get content-based product recommendations for the current user."""
     products = await get_recommendations(db, current_user.id, lat, lng, limit)
     return {"products": products, "count": len(products)}
+
+
+@router.get("/recommendations/collaborative")
+async def cf_recommendations(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(require_customer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get collaborative-filtering recommendations (people near you also bought)."""
+    products = await get_cf_recommendations(
+        db, current_user.id, lat, lng, radius_km, limit
+    )
+    return {"products": products, "count": len(products), "type": "collaborative"}
+
+
+# ── Trending feed endpoint (Feature 9) ─────────────────────────────────────
+
+
+@router.get("/trending")
+async def trending_products(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
+    hours: int = Query(24, ge=1, le=72),
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get hyperlocal trending products based on recent event velocity."""
+    products = await get_trending_products(db, lat, lng, radius_km, hours, limit)
+    return {"products": products, "count": len(products)}
+
+
+# ── Demand gap analysis (Feature 2) ────────────────────────────────────────
+
+
+@router.get("/demand-gaps")
+async def demand_gaps(
+    shop_id: UUID = Query(...),
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
+    days: int = Query(30, ge=1, le=90),
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Unfulfilled demand alerts: search terms near your shop that returned few results,
+    revealing products you could add to capture existing local demand.
+    """
+    gaps = await get_demand_gaps(db, shop_id, lat, lng, radius_km, days)
+    return {"gaps": gaps, "count": len(gaps)}
+
+
+# ── Customer segmentation (Feature 4) ──────────────────────────────────────
+
+
+@router.get("/customer-segments")
+async def customer_segments(
+    shop_id: UUID = Query(...),
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    RFM-based customer segmentation: Champions, Loyal, At Risk, Lost, etc.
+    Helps identify customers who need a win-back offer.
+    """
+    result = await get_customer_segments(db, shop_id)
+    return result
+
+
+# ── Review sentiment intelligence (Feature 8) ──────────────────────────────
+
+
+@router.get("/review-sentiment")
+async def review_sentiment(
+    shop_id: UUID = Query(...),
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    AI-powered review sentiment analysis: key positives, negatives, and
+    improvement suggestions extracted from customer reviews.
+    """
+    result = await get_sentiment_insights(db, shop_id)
+    return result
+
+
+# ── Personalised deal feed (Feature 7) ─────────────────────────────────────
+
+
+@router.get("/deals/personalised")
+async def personalised_deals(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(require_customer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get personalised deal feed ranked by user interests and engagement history."""
+    deals = await get_personalized_deals(db, current_user.id, lat, lng, radius_km, limit)
+    return {"deals": deals, "count": len(deals)}
+
+
+# ── Catalogue completion suggestions (Feature 10) ──────────────────────────
+
+
+@router.get("/catalogue-suggestions")
+async def catalogue_suggestions(
+    shop_id: UUID = Query(...),
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Smart catalogue completion: market basket analysis on local orders to find
+    product categories you're missing that customers frequently buy together.
+    """
+    result = await get_catalogue_suggestions(db, shop_id, lat, lng, radius_km)
+    return result
 
 
 # ── Description generation endpoint ───────────────────────────────────────
@@ -163,8 +297,6 @@ async def generate_shop_description(
 
     if not settings.OPENAI_API_KEY:
         raise HTTPException(status_code=503, detail="AI service not configured")
-
-    client = get_openai_client()
 
     prompt = (
         "Generate a professional, inviting shop description for a local business "
@@ -182,11 +314,15 @@ async def generate_shop_description(
     )
 
     try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = await tracked_chat(
             messages=[{"role": "user", "content": prompt}],
+            model="gpt-4o-mini",
             max_tokens=200,
             temperature=0.7,
+            feature="description_gen",
+            endpoint="/ai/generate-description",
+            user_id=current_user.id,
+            request_metadata={"shop_name": body.shop_name, "category": body.category},
         )
         description = response.choices[0].message.content.strip().strip('"')
         return {"description": description}

@@ -1,4 +1,5 @@
 import ssl
+from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -44,6 +45,22 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Context manager for getting a database session outside of FastAPI dependency injection.
+    Useful for WebSocket handlers and background tasks.
+    """
+    async with async_session_factory() as session:
+        try:
+            yield session
         except Exception:
             await session.rollback()
             raise

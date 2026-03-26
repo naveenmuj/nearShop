@@ -1,0 +1,56 @@
+import client from '../api';
+
+const a = '/admin';
+
+// Overview
+export const getOverview = () => client.get(`${a}/overview`);
+
+// Users
+export const getUserGrowth = (period = '30d', interval = 'daily') => client.get(`${a}/users/growth`, { params: { period, interval } });
+export const getUserSegmentation = () => client.get(`${a}/users/segmentation`);
+export const getRecentUsers = (limit = 20) => client.get(`${a}/users/recent`, { params: { limit } });
+
+// Shops
+export const getShopLeaderboard = (sort = 'score', limit = 50) => client.get(`${a}/shops/leaderboard`, { params: { sort_by: sort, limit } });
+export const getShopCategories = () => client.get(`${a}/shops/categories`);
+export const getShopGrowth = (period = '30d') => client.get(`${a}/shops/growth`, { params: { period } });
+export const getShopsHealth = () => client.get(`${a}/shops/health`);
+
+// Products
+export const getProductsByCategory = () => client.get(`${a}/products/by-category`);
+export const getTopViewed = (limit = 20) => client.get(`${a}/products/top-viewed`, { params: { limit } });
+export const getTopWishlisted = (limit = 20) => client.get(`${a}/products/top-wishlisted`, { params: { limit } });
+export const getProductsGrowth = (period = '30d') => client.get(`${a}/products/growth`, { params: { period } });
+export const getPriceDistribution = () => client.get(`${a}/products/price-distribution`);
+export const getAiStats = () => client.get(`${a}/products/ai-stats`);
+export const getRatingDistribution = () => client.get(`${a}/products/rating-distribution`);
+
+// Orders
+export const getOrdersTrend = (period = '30d') => client.get(`${a}/orders/trend`, { params: { period } });
+export const getOrderFunnel = () => client.get(`${a}/orders/funnel`);
+export const getRecentOrders = (limit = 50) => client.get(`${a}/orders/recent`, { params: { limit } });
+
+// Engagement
+export const getFeatureUsage = () => client.get(`${a}/engagement/features`);
+export const getTopSearches = (limit = 30) => client.get(`${a}/engagement/searches`, { params: { limit } });
+export const getDemandGaps = (limit = 20) => client.get(`${a}/engagement/demand-gaps`, { params: { limit } });
+export const getHaggleStats = () => client.get(`${a}/engagement/haggles`);
+export const getDealPerformance = () => client.get(`${a}/engagement/deals`);
+
+// Financial
+export const getShopcoinsEconomy = (period = '30d') => client.get(`${a}/financial/shopcoins`, { params: { period } });
+
+// Detail views
+export const getUserDetail = (id) => client.get(`${a}/users/${id}`);
+export const getShopDetail = (id) => client.get(`${a}/shops/${id}`);
+export const getProductDetail = (id) => client.get(`${a}/products/${id}`);
+export const getOrderDetail = (id) => client.get(`${a}/orders/${id}`);
+
+// AI Usage Analytics
+export const getAiOverview = (period = '30d') => client.get(`${a}/ai/overview`, { params: { period } });
+export const getAiCostByFeature = (period = '30d') => client.get(`${a}/ai/cost-by-feature`, { params: { period } });
+export const getAiCostByModel = (period = '30d') => client.get(`${a}/ai/cost-by-model`, { params: { period } });
+export const getAiDailyTrend = (period = '30d') => client.get(`${a}/ai/daily-trend`, { params: { period } });
+export const getAiRecentCalls = (limit = 50) => client.get(`${a}/ai/recent-calls`, { params: { limit } });
+export const getAiHourlyDistribution = (period = '7d') => client.get(`${a}/ai/hourly-distribution`, { params: { period } });
+export const getAiTopUsers = (period = '30d', limit = 20) => client.get(`${a}/ai/top-users`, { params: { period, limit } });

@@ -1,8 +1,8 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Dev: Android Emulator 10.0.2.2, Production: real API server
-const API_BASE = 'http://165.232.182.130';
+// Android emulator reaches the host machine through 10.0.2.2.
+const API_BASE = 'http://10.0.2.2:8010';
 
 const client = axios.create({
   baseURL: API_BASE + '/api/v1',

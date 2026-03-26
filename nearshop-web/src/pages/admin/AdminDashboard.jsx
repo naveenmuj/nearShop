@@ -162,6 +162,7 @@ const SECS = [
   { id: 'orders', icon: '🛒', label: 'Orders' },
   { id: 'engagement', icon: '💡', label: 'Engagement' },
   { id: 'financial', icon: '💰', label: 'Financial' },
+  { id: 'ai_usage', icon: '🤖', label: 'AI Usage' },
 ]
 
 const Sidebar = ({ section, setSection }) => (
@@ -1291,6 +1292,250 @@ function FinancialSection({ data }) {
   )
 }
 
+// ─── Section: AI Usage ────────────────────────────────────────────────────────
+const fmtUSD = v => `$${(parseFloat(v) || 0).toFixed(4)}`
+const FEAT_CLR = {
+  smart_search: '#3B8BD4', cataloging_snap: '#7F77DD', cataloging_shelf: '#D4537E',
+  sentiment_analysis: '#1D9E75', advisor_chat: '#EF9F27', description_gen: '#D85A30',
+  cataloging_snap_url: '#5DCAA5', cataloging_shelf_url: '#6B7280',
+}
+
+function AiUsageSection({ data }) {
+  const ov = data.aiOverview || {}
+  const byFeature = data.aiByFeature || []
+  const byModel = data.aiByModel || []
+  const trend = data.aiDailyTrend || []
+  const recent = data.aiRecentCalls || []
+  const hourly = data.aiHourly || []
+  const topUsers = data.aiTopUsers || []
+
+  const [recentPage, setRecentPage] = useState(1)
+  const perPage = 15
+  const pagedRecent = recent.slice((recentPage - 1) * perPage, recentPage * perPage)
+
+  if (!ov.total_calls && ov.total_calls !== 0) {
+    return (
+      <Card className="text-center py-16">
+        <div className="text-5xl mb-3">🤖</div>
+        <div className="font-semibold text-gray-600">Loading AI Usage data...</div>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard icon="📞" label="Total API Calls" value={ov.total_calls} sub={`${ov.error_count || 0} errors (${ov.error_rate || 0}%)`} />
+        <KpiCard icon="🪙" label="Total Tokens Used" value={ov.total_tokens} sub={`${fmtNum(ov.total_prompt_tokens || 0)} in / ${fmtNum(ov.total_completion_tokens || 0)} out`} />
+        <KpiCard icon="💵" label="Total Cost (USD)" value={ov.total_cost_usd} fmt="number" sub={fmtUSD(ov.total_cost_usd)} />
+        <KpiCard icon="⚡" label="Avg Response Time" value={ov.avg_response_ms} sub={`${ov.unique_users || 0} unique users`} />
+      </div>
+
+      {/* Daily Trend Chart */}
+      {trend.length > 0 && (
+        <Card>
+          <SecTitle icon="📈">Daily API Usage & Cost</SecTitle>
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={trend}>
+              <defs>
+                <linearGradient id="gCalls" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={C.primary} stopOpacity={0.3} /><stop offset="95%" stopColor={C.primary} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gTokens" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={C.purple} stopOpacity={0.2} /><stop offset="95%" stopColor={C.purple} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="date" tickFormatter={fmtDateSh} tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+              <Tooltip content={<TTip />} />
+              <Legend />
+              <Area yAxisId="left" type="monotone" dataKey="calls" stroke={C.primary} fill="url(#gCalls)" name="Calls" strokeWidth={2} animationDuration={800} />
+              <Area yAxisId="left" type="monotone" dataKey="tokens" stroke={C.purple} fill="url(#gTokens)" name="Tokens" strokeWidth={2} animationDuration={800} />
+              <Line yAxisId="right" type="monotone" dataKey="errors" stroke={C.red} name="Errors" strokeWidth={2} dot={false} animationDuration={800} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Cost by Feature */}
+        {byFeature.length > 0 && (
+          <Card>
+            <SecTitle icon="🧩">Cost by Feature</SecTitle>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={byFeature} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="feature" type="category" tick={{ fontSize: 10 }} width={120} />
+                <Tooltip formatter={(v) => fmtUSD(v)} />
+                <Bar dataKey="cost_usd" name="Cost (USD)" radius={[0, 6, 6, 0]} animationDuration={800}>
+                  {byFeature.map((entry, i) => (
+                    <Cell key={i} fill={FEAT_CLR[entry.feature] || PIE[i % PIE.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-3 space-y-1.5">
+              {byFeature.map((f, i) => (
+                <div key={i} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: FEAT_CLR[f.feature] || PIE[i % PIE.length] }} />
+                    <span className="text-gray-700 font-medium">{f.feature.replace(/_/g, ' ')}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>{fmtNum(f.calls)} calls</span>
+                    <span>{fmtNum(f.tokens)} tokens</span>
+                    <span className="font-semibold text-gray-800">{fmtUSD(f.cost_usd)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Cost by Model */}
+        {byModel.length > 0 && (
+          <Card>
+            <SecTitle icon="🧠">Usage by Model</SecTitle>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={byModel} dataKey="cost_usd" nameKey="model" cx="50%" cy="50%" outerRadius={80} label={({ model, cost_usd }) => `${model}: ${fmtUSD(cost_usd)}`}>
+                  {byModel.map((_, i) => <Cell key={i} fill={PIE[i % PIE.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v) => fmtUSD(v)} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="mt-3 space-y-2">
+              {byModel.map((m, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PIE[i % PIE.length] }} />
+                    <span className="font-semibold text-gray-800">{m.model}</span>
+                  </div>
+                  <div className="flex gap-4 text-xs text-gray-500">
+                    <span>{fmtNum(m.calls)} calls</span>
+                    <span>{fmtNum(m.prompt_tokens)} in</span>
+                    <span>{fmtNum(m.completion_tokens)} out</span>
+                    <span className="font-bold text-gray-800">{fmtUSD(m.cost_usd)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Hourly Distribution */}
+        {hourly.length > 0 && (
+          <Card>
+            <SecTitle icon="🕐">Usage by Hour of Day</SecTitle>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={hourly}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="hour" tick={{ fontSize: 11 }} tickFormatter={h => `${h}:00`} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v, name) => name === 'cost_usd' ? fmtUSD(v) : fmtNum(v)} />
+                <Bar dataKey="calls" name="Calls" fill={C.primary} radius={[4, 4, 0, 0]} animationDuration={800} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        )}
+
+        {/* Top AI Users */}
+        {topUsers.length > 0 && (
+          <Card>
+            <SecTitle icon="👤">Top AI Users by Cost</SecTitle>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">User</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Calls</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Tokens</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topUsers.slice(0, 10).map((u, i) => (
+                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <Avt name={u.name} size="sm" />
+                          <div>
+                            <div className="font-medium text-gray-800">{u.name}</div>
+                            <div className="text-xs text-gray-400">{u.phone || 'No phone'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium">{fmtNum(u.calls)}</td>
+                      <td className="px-3 py-2 text-right text-gray-600">{fmtNum(u.tokens)}</td>
+                      <td className="px-3 py-2 text-right font-bold text-gray-800">{fmtUSD(u.cost_usd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+
+      {/* Recent API Calls Log */}
+      {recent.length > 0 && (
+        <Card>
+          <SecTitle icon="📋">Recent API Calls</SecTitle>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Time</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Feature</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Model</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Tokens</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Cost</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Latency</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-gray-500">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedRecent.map((call, i) => (
+                  <tr key={call.id || i} className="border-b border-gray-50 hover:bg-gray-50/50">
+                    <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{fmtDate(call.created_at)}</td>
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: FEAT_CLR[call.feature] || C.gray }} />
+                        <span className="font-medium text-gray-700">{call.feature?.replace(/_/g, ' ')}</span>
+                        {call.has_image && <span className="text-xs">📷</span>}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-gray-600">{call.model}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmtNum(call.total_tokens)}</td>
+                    <td className="px-3 py-2 text-right font-medium tabular-nums">{fmtUSD(call.cost_usd)}</td>
+                    <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{call.response_time_ms}ms</td>
+                    <td className="px-3 py-2 text-center">
+                      <Bdg color={call.status === 'success' ? C.green : C.red}>{call.status}</Bdg>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pages page={recentPage} total={recent.length} pp={perPage} onChange={setRecentPage} />
+        </Card>
+      )}
+
+      {ov.total_calls === 0 && (
+        <Card className="text-center py-16">
+          <div className="text-5xl mb-3">🤖</div>
+          <div className="font-semibold text-gray-600">No AI API calls recorded yet</div>
+          <div className="text-sm text-gray-400 mt-1">Usage data will appear as users interact with AI features</div>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [section, setSection] = useState('overview')
@@ -1365,6 +1610,16 @@ export default function AdminDashboard() {
         )
       } else if (sec === 'financial') {
         calls.push(api.getShopcoinsEconomy(per).then(r => { res.shopcoins = r.data }))
+      } else if (sec === 'ai_usage') {
+        calls.push(
+          api.getAiOverview(per).then(r => { res.aiOverview = r.data }),
+          api.getAiCostByFeature(per).then(r => { res.aiByFeature = r.data }),
+          api.getAiCostByModel(per).then(r => { res.aiByModel = r.data }),
+          api.getAiDailyTrend(per).then(r => { res.aiDailyTrend = r.data }),
+          api.getAiRecentCalls(50).then(r => { res.aiRecentCalls = r.data }),
+          api.getAiHourlyDistribution(per).then(r => { res.aiHourly = r.data }),
+          api.getAiTopUsers(per).then(r => { res.aiTopUsers = r.data }),
+        )
       }
       await Promise.allSettled(calls)
     } catch { /* no-op */ }
@@ -1415,6 +1670,7 @@ export default function AdminDashboard() {
           {section === 'orders' && <OrdersSection {...secProps} />}
           {section === 'engagement' && <EngagementSection {...secProps} />}
           {section === 'financial' && <FinancialSection {...secProps} />}
+          {section === 'ai_usage' && <AiUsageSection {...secProps} />}
         </main>
       </div>
       {slideOver && (

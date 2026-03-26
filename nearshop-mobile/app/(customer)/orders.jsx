@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { getMyOrders, cancelOrder } from '../../lib/orders';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { getMyOrders, cancelOrder, downloadInvoice } from '../../lib/orders';
 import { COLORS, STATUS_COLORS, SHADOWS, formatPrice, formatDate } from '../../constants/theme';
 
 const FILTERS = [
@@ -55,9 +57,10 @@ function StatusBadge({ status }) {
   );
 }
 
-function OrderCard({ order, onCancel, onPress }) {
+function OrderCard({ order, onCancel, onDownloadInvoice, onPress, downloadingInvoice }) {
   const statusColor = STATUS_COLORS[order.status] || COLORS.gray400;
   const canCancel = CANCELLABLE_STATUSES.includes(order.status);
+  const canDownloadInvoice = order.status === 'completed';
 
   return (
     <TouchableOpacity
@@ -89,18 +92,34 @@ function OrderCard({ order, onCancel, onPress }) {
         <Text style={styles.totalAmount}>{formatPrice(order.total_amount)}</Text>
       </View>
 
-      {/* Bottom row: status badge + cancel button */}
+      {/* Bottom row: status badge + actions */}
       <View style={styles.cardBottomRow}>
         <StatusBadge status={order.status} />
-        {canCancel && (
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={() => onCancel(order)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.cardActions}>
+          {canDownloadInvoice && (
+            <TouchableOpacity
+              style={[styles.invoiceBtn, downloadingInvoice === order.id && styles.invoiceBtnDisabled]}
+              onPress={() => onDownloadInvoice(order)}
+              activeOpacity={0.7}
+              disabled={downloadingInvoice === order.id}
+            >
+              {downloadingInvoice === order.id ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Text style={styles.invoiceBtnText}>📄 Invoice</Text>
+              )}
+            </TouchableOpacity>
+          )}
+          {canCancel && (
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => onCancel(order)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -123,6 +142,7 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(null);
   const [error, setError] = useState(null);
 
   const fetchOrders = useCallback(async (isRefresh = false) => {
@@ -182,6 +202,35 @@ export default function OrdersScreen() {
     );
   }, [fetchOrders]);
 
+  const handleDownloadInvoice = useCallback(async (order) => {
+    setDownloadingInvoice(order.id);
+    try {
+      const response = await downloadInvoice(order.id);
+      if (response.data) {
+        // Save the file temporarily
+        const fileUri = FileSystem.documentDirectory + `invoice-${shortId(order.id)}.pdf`;
+        await FileSystem.writeAsStringAsync(fileUri, response.data, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        const canOpen = await Linking.canOpenURL(fileUri);
+        if (canOpen) {
+          await Linking.openURL(fileUri);
+        }
+        Alert.alert(
+          'Success',
+          canOpen
+            ? 'Invoice downloaded successfully!'
+            : 'Invoice downloaded. Open it from your device files if it did not launch automatically.'
+        );
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Could not download invoice. Please try again.');
+    } finally {
+      setDownloadingInvoice(null);
+    }
+  }, []);
+
   const handleCardPress = useCallback((order) => {
     router.push(`/(customer)/order-detail/${order.id}`);
   }, [router]);
@@ -190,9 +239,11 @@ export default function OrdersScreen() {
     <OrderCard
       order={item}
       onCancel={handleCancel}
+      onDownloadInvoice={handleDownloadInvoice}
       onPress={() => handleCardPress(item)}
+      downloadingInvoice={downloadingInvoice}
     />
-  ), [handleCancel, handleCardPress]);
+  ), [handleCancel, handleDownloadInvoice, handleCardPress, downloadingInvoice]);
 
   const renderEmpty = () => {
     if (loading) return null;
@@ -482,6 +533,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.red,
+  },
+
+  /* ── Card Actions ── */
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  /* ── Invoice button ── */
+  invoiceBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + '10',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  invoiceBtnDisabled: {
+    opacity: 0.6,
+  },
+  invoiceBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 
   /* ── Loader ── */

@@ -204,3 +204,278 @@ def _check_is_open_now(opening_hours: dict | None) -> bool:
         return open_time <= now.time() <= close_time
     except (ValueError, AttributeError):
         return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SEARCH PERSONALIZATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from sqlalchemy import select, func, desc
+from pydantic import BaseModel
+from typing import List
+
+from app.auth.models import User
+from app.orders.models import Order
+from app.products.models import Product
+from app.shops.models import Shop
+
+
+class SearchHistoryEntry(BaseModel):
+    query: str
+    timestamp: str
+
+
+class PersonalizedRecommendation(BaseModel):
+    type: str  # "product", "shop", "category"
+    id: str
+    name: str
+    reason: str  # "Previously purchased", "Similar to your orders", etc.
+    image: str | None = None
+    price: float | None = None
+
+
+@router.post("/search/log")
+async def log_search(
+    q: str = Query(..., min_length=1, max_length=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Log user search query for personalization.
+    Stores in user metadata for future recommendations.
+    """
+    if not current_user:
+        return {"status": "skipped", "reason": "anonymous user"}
+    
+    from datetime import datetime, timezone
+    
+    # Get current search history from user metadata
+    metadata = current_user.metadata_ or {}
+    search_history = metadata.get("search_history", [])
+    
+    # Add new search (keep last 50)
+    search_history.insert(0, {
+        "query": q.lower().strip(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    search_history = search_history[:50]
+    
+    # Update user metadata
+    metadata["search_history"] = search_history
+    current_user.metadata_ = metadata
+    
+    await db.commit()
+    
+    return {"status": "logged", "query": q}
+
+
+@router.get("/search/history")
+async def get_search_history(
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get user's recent search history."""
+    if not current_user:
+        return {"history": []}
+    
+    metadata = current_user.metadata_ or {}
+    search_history = metadata.get("search_history", [])
+    
+    # Return unique recent searches
+    seen = set()
+    unique_history = []
+    for entry in search_history:
+        query = entry.get("query", "")
+        if query and query not in seen:
+            seen.add(query)
+            unique_history.append(entry)
+            if len(unique_history) >= limit:
+                break
+    
+    return {"history": unique_history}
+
+
+@router.delete("/search/history")
+async def clear_search_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Clear user's search history."""
+    if not current_user:
+        return {"status": "skipped"}
+    
+    metadata = current_user.metadata_ or {}
+    metadata["search_history"] = []
+    current_user.metadata_ = metadata
+    
+    await db.commit()
+    
+    return {"status": "cleared"}
+
+
+@router.get("/recommendations/for-you")
+async def get_personalized_recommendations(
+    lat: float | None = Query(None, ge=-90, le=90),
+    lng: float | None = Query(None, ge=-180, le=180),
+    limit: int = Query(10, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get personalized product and shop recommendations based on:
+    - Order history
+    - Search history
+    - Browsing patterns
+    """
+    recommendations = []
+    
+    if not current_user:
+        # Return popular items for anonymous users
+        popular_products = await db.execute(
+            select(Product.id, Product.name, Product.price, Product.images, Product.category)
+            .where(Product.is_available == True)
+            .order_by(Product.view_count.desc())
+            .limit(limit)
+        )
+        
+        for prod in popular_products.fetchall():
+            recommendations.append({
+                "type": "product",
+                "id": str(prod[0]),
+                "name": prod[1],
+                "price": float(prod[2]),
+                "image": prod[3][0] if prod[3] else None,
+                "category": prod[4],
+                "reason": "Popular in your area",
+            })
+        
+        return {"recommendations": recommendations, "personalized": False}
+    
+    # Get user's order history for recommendations
+    orders_result = await db.execute(
+        select(Order)
+        .where(Order.customer_id == current_user.id)
+        .order_by(Order.created_at.desc())
+        .limit(20)
+    )
+    orders = orders_result.scalars().all()
+    
+    # Extract frequently ordered products
+    product_counts = {}
+    shop_counts = {}
+    categories_ordered = set()
+    
+    for order in orders:
+        shop_counts[str(order.shop_id)] = shop_counts.get(str(order.shop_id), 0) + 1
+        
+        items = order.items or []
+        if isinstance(items, str):
+            import json
+            items = json.loads(items)
+        
+        for item in items:
+            product_id = item.get("product_id")
+            if product_id:
+                product_counts[product_id] = product_counts.get(product_id, 0) + item.get("quantity", 1)
+            category = item.get("category")
+            if category:
+                categories_ordered.add(category)
+    
+    # Recommend frequently ordered products (reorder suggestions)
+    if product_counts:
+        top_product_ids = sorted(product_counts, key=product_counts.get, reverse=True)[:5]
+        
+        for prod_id in top_product_ids:
+            try:
+                prod_result = await db.execute(
+                    select(Product.id, Product.name, Product.price, Product.images, Product.category)
+                    .where(Product.id == prod_id, Product.is_available == True)
+                )
+                prod = prod_result.first()
+                if prod:
+                    recommendations.append({
+                        "type": "product",
+                        "id": str(prod[0]),
+                        "name": prod[1],
+                        "price": float(prod[2]),
+                        "image": prod[3][0] if prod[3] else None,
+                        "category": prod[4],
+                        "reason": "Buy again",
+                    })
+            except Exception:
+                pass
+    
+    # Recommend favorite shops
+    if shop_counts:
+        top_shop_ids = sorted(shop_counts, key=shop_counts.get, reverse=True)[:3]
+        
+        for shop_id in top_shop_ids:
+            try:
+                from uuid import UUID as UUIDType
+                shop_result = await db.execute(
+                    select(Shop.id, Shop.name, Shop.category, Shop.logo_url)
+                    .where(Shop.id == UUIDType(shop_id), Shop.is_active == True)
+                )
+                shop = shop_result.first()
+                if shop:
+                    recommendations.append({
+                        "type": "shop",
+                        "id": str(shop[0]),
+                        "name": shop[1],
+                        "category": shop[2],
+                        "image": shop[3],
+                        "reason": f"Ordered {shop_counts[shop_id]} times",
+                    })
+            except Exception:
+                pass
+    
+    # Recommend products from categories user orders from
+    if categories_ordered and len(recommendations) < limit:
+        for category in list(categories_ordered)[:3]:
+            cat_products = await db.execute(
+                select(Product.id, Product.name, Product.price, Product.images, Product.category)
+                .where(
+                    Product.is_available == True,
+                    Product.category.ilike(f"%{category}%"),
+                )
+                .order_by(Product.view_count.desc())
+                .limit(3)
+            )
+            
+            existing_ids = {r["id"] for r in recommendations}
+            for prod in cat_products.fetchall():
+                if str(prod[0]) not in existing_ids and len(recommendations) < limit:
+                    recommendations.append({
+                        "type": "product",
+                        "id": str(prod[0]),
+                        "name": prod[1],
+                        "price": float(prod[2]),
+                        "image": prod[3][0] if prod[3] else None,
+                        "category": prod[4],
+                        "reason": f"Because you like {category}",
+                    })
+    
+    # Fill remaining with popular products
+    if len(recommendations) < limit:
+        existing_ids = {r["id"] for r in recommendations}
+        popular_products = await db.execute(
+            select(Product.id, Product.name, Product.price, Product.images, Product.category)
+            .where(Product.is_available == True)
+            .order_by(Product.view_count.desc())
+            .limit(limit - len(recommendations) + 5)
+        )
+        
+        for prod in popular_products.fetchall():
+            if str(prod[0]) not in existing_ids and len(recommendations) < limit:
+                recommendations.append({
+                    "type": "product",
+                    "id": str(prod[0]),
+                    "name": prod[1],
+                    "price": float(prod[2]),
+                    "image": prod[3][0] if prod[3] else None,
+                    "category": prod[4],
+                    "reason": "Popular near you",
+                })
+    
+    return {"recommendations": recommendations[:limit], "personalized": True}

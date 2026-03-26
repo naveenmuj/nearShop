@@ -59,6 +59,7 @@ const ReportsPage = lazy(() => import('./pages/business/ReportsPage'))
 const BroadcastPage = lazy(() => import('./pages/business/BroadcastPage'))
 const AdvisorPage = lazy(() => import('./pages/business/AdvisorPage'))
 const FestivalCalendarPage = lazy(() => import('./pages/business/FestivalCalendarPage'))
+const BulkUploadPage = lazy(() => import('./pages/business/BulkUploadPage'))
 const ShopWebsite = lazy(() => import('./pages/public/ShopWebsite'))
 
 function ProtectedRoute({ children, requiredRole }) {
@@ -180,6 +181,7 @@ export default function App() {
           <Route path="broadcast" element={<BroadcastPage />} />
           <Route path="advisor" element={<AdvisorPage />} />
           <Route path="festivals" element={<FestivalCalendarPage />} />
+          <Route path="catalog/bulk" element={<BulkUploadPage />} />
         </Route>
 
         {/* Admin */}

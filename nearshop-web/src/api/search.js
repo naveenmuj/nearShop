@@ -62,3 +62,35 @@ export const validateCart = (items, lat, lng) => {
     items,
   })
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCH PERSONALIZATION APIs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Log search query for personalization
+ */
+export const logSearch = (query) => 
+  client.post('/search/log', null, { params: { q: query } })
+
+/**
+ * Get user's search history
+ */
+export const getSearchHistory = (limit = 10) => 
+  client.get('/search/history', { params: { limit } })
+
+/**
+ * Clear user's search history
+ */
+export const clearSearchHistory = () => 
+  client.delete('/search/history')
+
+/**
+ * Get personalized recommendations (For You)
+ */
+export const getRecommendations = (lat = null, lng = null, limit = 10) => {
+  const params = { limit }
+  if (lat != null) params.lat = lat
+  if (lng != null) params.lng = lng
+  return client.get('/recommendations/for-you', { params })
+}

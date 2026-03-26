@@ -12,6 +12,24 @@ from app.haggle.schemas import StartHaggleRequest, HaggleOfferRequest
 from app.notifications.service import create_notification
 from app.products.models import Product
 from app.shops.models import Shop
+from app.auth.models import User
+from app.core.firebase import send_push_notification
+
+
+async def _send_haggle_push(db: AsyncSession, user_id: UUID, title: str, body: str, data: dict = None):
+    """Send push notification for haggle events if user has FCM token."""
+    try:
+        result = await db.execute(select(User.fcm_token).where(User.id == user_id))
+        row = result.first()
+        if row and row[0]:
+            send_push_notification(
+                token=row[0],
+                title=title,
+                body=body,
+                data=data or {},
+            )
+    except Exception:
+        pass  # Silently ignore push failures
 
 
 async def start_haggle(
@@ -168,6 +186,13 @@ async def send_offer(
                 customer_name="A customer",
                 product_name=product_name,
             )
+            # Send push notification to shop owner
+            await _send_haggle_push(
+                db, shop.owner_id,
+                "New Price Offer 💰",
+                f"A customer made an offer of ₹{data.offer_amount} on {product_name}",
+                {"type": "haggle_offer", "session_id": str(session.id)}
+            )
         except Exception:
             pass
     elif sender_role == "business":
@@ -179,6 +204,13 @@ async def send_offer(
                 reference_type="haggle_session",
                 reference_id=session.id,
                 product_name=product_name,
+            )
+            # Send push notification to customer
+            await _send_haggle_push(
+                db, session.customer_id,
+                "Counter-Offer Received 🤝",
+                f"The shop responded with ₹{data.offer_amount} for {product_name}",
+                {"type": "haggle_counter_offer", "session_id": str(session.id)}
             )
         except Exception:
             pass
@@ -244,6 +276,7 @@ async def accept_haggle(
     )
     product = product_result.scalar_one_or_none()
     product_name = product.name if product else "a product"
+    final_price = float(session.final_price) if session.final_price else 0
 
     # Notify the OTHER party
     if is_customer and shop:
@@ -257,6 +290,12 @@ async def accept_haggle(
                 reference_id=session.id,
                 product_name=product_name,
             )
+            await _send_haggle_push(
+                db, shop.owner_id,
+                "Offer Accepted! 🎉",
+                f"Customer accepted your offer of ₹{final_price} for {product_name}",
+                {"type": "haggle_accepted", "session_id": str(session.id)}
+            )
         except Exception:
             pass
     elif is_business:
@@ -269,6 +308,12 @@ async def accept_haggle(
                 reference_type="haggle_session",
                 reference_id=session.id,
                 product_name=product_name,
+            )
+            await _send_haggle_push(
+                db, session.customer_id,
+                "Offer Accepted! 🎉",
+                f"The shop accepted your offer of ₹{final_price} for {product_name}",
+                {"type": "haggle_accepted", "session_id": str(session.id)}
             )
         except Exception:
             pass
@@ -329,6 +374,12 @@ async def reject_haggle(
             reference_type="haggle_session",
             reference_id=session.id,
             product_name=product_name,
+        )
+        await _send_haggle_push(
+            db, session.customer_id,
+            "Offer Declined 😔",
+            f"The shop declined your offer on {product_name}",
+            {"type": "haggle_rejected", "session_id": str(session.id)}
         )
     except Exception:
         pass

@@ -120,6 +120,9 @@ export default function CatalogPage() {
             <p className="text-xs text-gray-400">{products.length} total · {products.filter(p => p.is_available).length} active</p>
           </div>
           <div className="flex gap-2">
+            <button onClick={() => navigate('/biz/catalog/bulk')} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">
+              <Upload className="w-3.5 h-3.5" /> Bulk
+            </button>
             <button onClick={() => navigate('/biz/snap')} className="flex items-center gap-1.5 bg-[#1D9E75] text-white px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-[#178a65] transition-colors">
               <Plus className="w-3.5 h-3.5" /> Add
             </button>
@@ -261,8 +264,10 @@ export default function CatalogPage() {
               </div>
               <div className="flex flex-col gap-1.5 flex-shrink-0">
                 <button onClick={() => handleToggle(product)} disabled={acting === product.id}
-                  className="text-[10px] font-semibold text-gray-500 bg-gray-50 px-2 py-1 rounded hover:bg-gray-100 transition-colors">
-                  {isLive ? 'Hide' : 'Show'}
+                  className={`text-[10px] font-semibold px-2 py-1 rounded transition-colors ${
+                    isLive ? 'text-gray-500 bg-gray-50 hover:bg-gray-100' : 'text-white bg-green-600 hover:bg-green-700'
+                  }`}>
+                  {isLive ? 'Hide' : 'Make Live'}
                 </button>
                 <button onClick={() => handleDelete(product)} disabled={acting === product.id}
                   className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition-colors">

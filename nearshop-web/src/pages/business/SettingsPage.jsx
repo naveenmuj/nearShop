@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { User, Store } from 'lucide-react'
+import { User, Store, ShieldCheck, FileText, Upload, CheckCircle, XCircle, Clock, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
-import { getShop, updateShop, create as createShop } from '../../api/shops'
+import { getShop, updateShop, create as createShop, requestVerification, getVerificationStatus } from '../../api/shops'
+import { exportOrders } from '../../api/orders'
 import useMyShop from '../../hooks/useMyShop'
 import client from '../../api/client'
 import Button from '../../components/ui/Button'
@@ -12,6 +13,14 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 const CATEGORIES = [
   'grocery', 'electronics', 'clothing', 'footwear', 'pharmacy',
   'restaurant', 'furniture', 'jewellery', 'stationery', 'general',
+]
+
+const DOCUMENT_TYPES = [
+  { key: 'gst', label: 'GST Certificate', icon: '📋', desc: 'Goods and Services Tax registration' },
+  { key: 'pan', label: 'PAN Card', icon: '🪪', desc: 'Permanent Account Number' },
+  { key: 'fssai', label: 'FSSAI License', icon: '🍽️', desc: 'Food safety license (for restaurants)' },
+  { key: 'trade_license', label: 'Trade License', icon: '🏪', desc: 'Municipal trade license' },
+  { key: 'aadhaar', label: 'Aadhaar Card', icon: '🆔', desc: 'Owner identity proof' },
 ]
 
 function getLocation() {
@@ -343,18 +352,26 @@ export default function SettingsPage() {
           </form>
 
           {shopId && (
-            <div className="mb-6">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Shop QR Code</p>
-              <div className="bg-white rounded-2xl shadow-card p-6 flex flex-col items-center">
-                <img
-                  src={`/api/v1/shops/${shopId}/qr-code`}
-                  alt="QR Code"
-                  className="w-48 h-48 rounded-2xl"
-                  onError={(e) => { e.target.style.display = 'none' }}
-                />
-                <p className="text-xs text-gray-400 mt-3 text-center">Scan to visit your shop</p>
+            <>
+              <div className="mb-6">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Shop QR Code</p>
+                <div className="bg-white rounded-2xl shadow-card p-6 flex flex-col items-center">
+                  <img
+                    src={`/api/v1/shops/${shopId}/qr-code`}
+                    alt="QR Code"
+                    className="w-48 h-48 rounded-2xl"
+                    onError={(e) => { e.target.style.display = 'none' }}
+                  />
+                  <p className="text-xs text-gray-400 mt-3 text-center">Scan to visit your shop</p>
+                </div>
               </div>
-            </div>
+
+              {/* Shop Verification Section */}
+              <ShopVerificationSection shopId={shopId} isVerified={shop?.is_verified} />
+
+              {/* Export Orders Section */}
+              <ExportOrdersSection shopId={shopId} shopName={shop?.name} />
+            </>
           )}
         </>
       )}
@@ -383,6 +400,324 @@ export default function SettingsPage() {
           {switchingRole ? 'Switching...' : 'Switch to Customer'}
         </Button>
         <Button variant="danger" onClick={logout} className="w-full">Logout</Button>
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SHOP VERIFICATION COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ShopVerificationSection({ shopId, isVerified }) {
+  const [verificationStatus, setVerificationStatus] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [docForm, setDocForm] = useState({
+    document_type: 'gst',
+    document_number: '',
+    document_image_url: '',
+  })
+
+  useEffect(() => {
+    if (shopId) fetchStatus()
+  }, [shopId])
+
+  const fetchStatus = async () => {
+    try {
+      const { data } = await getVerificationStatus(shopId)
+      setVerificationStatus(data)
+    } catch (err) {
+      // Not verified yet is OK
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!docForm.document_number.trim()) {
+      toast.error('Please enter document number')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await requestVerification(shopId, docForm)
+      toast.success('Verification request submitted!')
+      setShowForm(false)
+      await fetchStatus()
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to submit')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const statusIcon = {
+    none: <Clock className="w-5 h-5 text-gray-400" />,
+    pending: <Clock className="w-5 h-5 text-amber-500" />,
+    approved: <CheckCircle className="w-5 h-5 text-green-500" />,
+    rejected: <XCircle className="w-5 h-5 text-red-500" />,
+  }
+
+  const statusText = {
+    none: 'Not verified',
+    pending: 'Verification pending',
+    approved: 'Verified',
+    rejected: 'Verification rejected',
+  }
+
+  const statusColor = {
+    none: 'bg-gray-50 border-gray-200 text-gray-600',
+    pending: 'bg-amber-50 border-amber-200 text-amber-700',
+    approved: 'bg-green-50 border-green-200 text-green-700',
+    rejected: 'bg-red-50 border-red-200 text-red-700',
+  }
+
+  const status = verificationStatus?.verification_status || 'none'
+
+  return (
+    <div className="mb-6">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <ShieldCheck className="w-4 h-4" />
+        Shop Verification
+      </p>
+      <div className="bg-white rounded-2xl shadow-card p-5">
+        {/* Status Banner */}
+        <div className={`flex items-center gap-3 p-3 rounded-xl border ${statusColor[status]} mb-4`}>
+          {statusIcon[status]}
+          <div className="flex-1">
+            <p className="font-semibold text-sm">{statusText[status]}</p>
+            {status === 'rejected' && verificationStatus?.rejection_reason && (
+              <p className="text-xs mt-0.5 opacity-80">Reason: {verificationStatus.rejection_reason}</p>
+            )}
+          </div>
+          {isVerified && (
+            <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
+              <ShieldCheck className="w-3 h-3" /> Verified
+            </span>
+          )}
+        </div>
+
+        {/* Documents Submitted */}
+        {verificationStatus?.submitted_documents?.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-2">Documents Submitted</p>
+            <div className="space-y-2">
+              {verificationStatus.submitted_documents.map((doc, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2">
+                  <FileText className="w-4 h-4 text-brand-purple" />
+                  <span className="capitalize font-medium">{doc.type?.replace('_', ' ')}</span>
+                  <span className="text-gray-400 text-xs ml-auto">
+                    {doc.submitted_at ? new Date(doc.submitted_at).toLocaleDateString() : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Add Document Button or Form */}
+        {status !== 'approved' && (
+          <>
+            {!showForm ? (
+              <button
+                onClick={() => setShowForm(true)}
+                className="w-full flex items-center justify-center gap-2 h-11 border-2 border-dashed border-brand-purple/30 text-brand-purple rounded-xl text-sm font-semibold hover:bg-brand-purple-light transition"
+              >
+                <Upload className="w-4 h-4" />
+                Submit Verification Document
+              </button>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-3 pt-2 border-t border-gray-100 mt-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">Document Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DOCUMENT_TYPES.slice(0, 4).map(({ key, label, icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setDocForm(p => ({ ...p, document_type: key }))}
+                        className={`flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition ${docForm.document_type === key ? 'border-brand-purple bg-brand-purple-light' : 'border-gray-200 hover:border-gray-300'}`}
+                      >
+                        <span>{icon}</span>
+                        <span className="text-xs font-medium">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 block mb-1.5">Document Number</label>
+                  <input
+                    type="text"
+                    value={docForm.document_number}
+                    onChange={(e) => setDocForm(p => ({ ...p, document_number: e.target.value }))}
+                    placeholder="e.g. 22AAAAA0000A1Z5"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl h-11 px-4 text-sm outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="flex-1 h-10 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 h-10 bg-brand-purple text-white rounded-lg text-sm font-semibold hover:bg-brand-purple-dark transition disabled:opacity-50"
+                  >
+                    {submitting ? 'Submitting...' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXPORT ORDERS COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ExportOrdersSection({ shopId, shopName }) {
+  const [exporting, setExporting] = useState(false)
+  const [showOptions, setShowOptions] = useState(false)
+  const [exportOptions, setExportOptions] = useState({
+    format: 'csv',
+    startDate: '',
+    endDate: '',
+    status: '',
+  })
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const response = await exportOrders(shopId, exportOptions)
+      const blob = new Blob([response.data], { 
+        type: exportOptions.format === 'xlsx' 
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+          : 'text/csv' 
+      })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const dateStr = new Date().toISOString().split('T')[0]
+      link.download = `orders_${shopName?.replace(/\s+/g, '_') || 'export'}_${dateStr}.${exportOptions.format}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Orders exported successfully!')
+      setShowOptions(false)
+    } catch (err) {
+      toast.error('Failed to export orders')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  return (
+    <div className="mb-6">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <Download className="w-4 h-4" />
+        Export Orders
+      </p>
+      <div className="bg-white rounded-2xl shadow-card p-5">
+        {!showOptions ? (
+          <button
+            onClick={() => setShowOptions(true)}
+            className="w-full flex items-center justify-center gap-2 h-11 bg-green-50 text-green-700 border border-green-200 rounded-xl text-sm font-semibold hover:bg-green-100 transition"
+          >
+            <Download className="w-4 h-4" />
+            Export Orders to CSV/Excel
+          </button>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm font-semibold text-gray-700">Export Options</p>
+            
+            {/* Format Selection */}
+            <div className="flex gap-2">
+              {[
+                { key: 'csv', label: 'CSV', icon: '📄' },
+                { key: 'xlsx', label: 'Excel', icon: '📊' },
+              ].map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setExportOptions(p => ({ ...p, format: key }))}
+                  className={`flex-1 flex items-center justify-center gap-2 h-10 rounded-lg border-2 text-sm font-medium transition ${exportOptions.format === key ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 hover:border-gray-300'}`}
+                >
+                  <span>{icon}</span> {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date Range */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">Start Date</label>
+                <input
+                  type="date"
+                  value={exportOptions.startDate}
+                  onChange={(e) => setExportOptions(p => ({ ...p, startDate: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg h-10 px-3 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 block mb-1">End Date</label>
+                <input
+                  type="date"
+                  value={exportOptions.endDate}
+                  onChange={(e) => setExportOptions(p => ({ ...p, endDate: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg h-10 px-3 text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">Filter by Status</label>
+              <select
+                value={exportOptions.status}
+                onChange={(e) => setExportOptions(p => ({ ...p, status: e.target.value }))}
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg h-10 px-3 text-sm"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="preparing">Preparing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowOptions(false)}
+                className="flex-1 h-10 border border-gray-200 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex-1 h-10 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                {exporting ? 'Exporting...' : 'Download'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

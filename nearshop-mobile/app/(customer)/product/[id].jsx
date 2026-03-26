@@ -11,11 +11,13 @@ import { getProduct, getSimilarProducts } from '../../../lib/products';
 import DealCountdown from '../../../components/DealCountdown';
 import { addToWishlist, removeFromWishlist } from '../../../lib/wishlists';
 import { trackView } from '../../../lib/engagement';
+import { trackEvent } from '../../../lib/analytics';
 import { startHaggle } from '../../../lib/haggle';
 import { createOrder } from '../../../lib/orders';
 import { toast } from '../../../components/ui/Toast';
 import useAuthStore from '../../../store/authStore';
 import useCartStore from '../../../store/cartStore';
+import useLocationStore from '../../../store/locationStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -240,6 +242,7 @@ const sheet = StyleSheet.create({
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams();
   const { user } = useAuthStore();
+  const { lat, lng } = useLocationStore();
   const [product, setProduct] = useState(null);
   const [similar, setSimilar] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -258,12 +261,19 @@ export default function ProductDetailScreen() {
         if (sRes.status === 'fulfilled') setSimilar(sRes.value.data?.items ?? sRes.value.data ?? []);
         // Track this product view for recently viewed
         trackView(id).catch(() => {});
+        trackEvent({
+          event_type: 'product_view',
+          entity_type: 'product',
+          entity_id: id,
+          lat,
+          lng,
+        }).catch(() => {});
       } finally {
         setIsLoading(false);
       }
     };
     load();
-  }, [id]);
+  }, [id, lat, lng]);
 
   const toggleWishlist = async () => {
     try {

@@ -1,0 +1,48 @@
+{
+  "run_date": "2026-03-26",
+  "environment": {
+    "device": "emulator-5554",
+    "app_package": "com.nearshop.app",
+    "api_base": "http://10.0.2.2:8010/api/v1",
+    "backend_mode": "local uvicorn spawned for test run"
+  },
+  "summary": {
+    "executed": 13,
+    "passed": 7,
+    "failed": 0,
+    "blocked": 6,
+    "confirmed_product_bugs": 0
+  },
+  "results": [
+    {"case_id":"SAN-001","status":"PASS","title":"Unauthenticated user lands on login"},
+    {"case_id":"SAN-016","status":"PASS","title":"Open email login from auth screen"},
+    {"case_id":"SAN-009","status":"PASS","title":"Customer email login succeeds"},
+    {"case_id":"SAN-013","status":"PASS","title":"Customer home loads core UI"},
+    {"case_id":"SAN-015","status":"PASS","title":"Customer search opens"},
+    {"case_id":"SAN-017","status":"PASS","title":"Customer search query executes"},
+    {"case_id":"SAN-039","status":"PASS","title":"Customer profile loads"},
+    {"case_id":"SAN-052","status":"BLOCKED","title":"Customer sign out works","details":"Initial failure came from the runner tapping the dialog title text instead of the uppercase confirmation button. Not counted as a product bug."},
+    {"case_id":"SAN-007","status":"BLOCKED","title":"Business email login succeeds","details":"Business flow was attempted after the contaminated sign-out step and in a separate fresh-state run UiAutomator returned a null-root dump. Inconclusive."},
+    {"case_id":"SAN-040","status":"BLOCKED","title":"Business dashboard loads","details":"Blocked by inconclusive business login execution."},
+    {"case_id":"SAN-044","status":"BLOCKED","title":"Business catalog loads","details":"Blocked by inconclusive business login execution."},
+    {"case_id":"SAN-046","status":"BLOCKED","title":"Business orders loads","details":"Blocked by inconclusive business login execution."},
+    {"case_id":"SAN-051","status":"BLOCKED","title":"Business advisor opens","details":"Blocked by inconclusive business login execution."}
+  ],
+  "bugs": [],
+  "notes": [
+    "Customer flow execution is valid and backed by live emulator XML captures.",
+    "No confirmed app defect was reproduced in the executed customer subset.",
+    "Business coverage needs one more clean pass with a hardened UiAutomator runner or Appium/Detox harness."
+  ],
+  "artifacts": [
+    "d:/Local_shop/emulator_login_screen.xml",
+    "d:/Local_shop/emulator_email_login_screen.xml",
+    "d:/Local_shop/emulator_customer_email_form.xml",
+    "d:/Local_shop/emulator_customer_email_filled.xml",
+    "d:/Local_shop/emulator_customer_home.xml",
+    "d:/Local_shop/emulator_search_screen.xml",
+    "d:/Local_shop/emulator_search_results.xml",
+    "d:/Local_shop/emulator_customer_profile.xml",
+    "d:/Local_shop/emulator_signout_confirm.xml"
+  ]
+}

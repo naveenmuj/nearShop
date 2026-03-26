@@ -7,6 +7,7 @@ import logging
 from PIL import Image
 
 from app.ai.client import get_openai_client
+from app.ai.tracker import tracked_chat
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +81,10 @@ def _parse_json(text: str):
     return json.loads(text)
 
 
-async def _call_vision(image_data_url: str, prompt: str, max_tokens: int = 1024) -> str:
+async def _call_vision(image_data_url: str, prompt: str, max_tokens: int = 1024, feature: str = "cataloging") -> str:
     """Call GPT-4o with an image and return the raw text response."""
-    client = get_openai_client()
     try:
-        response = await client.chat.completions.create(
-            model=_VISION_MODEL,
-            max_tokens=max_tokens,
-            timeout=_CALL_TIMEOUT,
+        response = await tracked_chat(
             messages=[
                 {
                     "role": "user",
@@ -100,6 +97,14 @@ async def _call_vision(image_data_url: str, prompt: str, max_tokens: int = 1024)
                     ],
                 }
             ],
+            model=_VISION_MODEL,
+            max_tokens=max_tokens,
+            temperature=0.7,
+            timeout=_CALL_TIMEOUT,
+            feature=feature,
+            endpoint=f"/ai/catalog/{feature.split('_')[-1] if '_' in feature else 'snap'}",
+            has_image=True,
+            request_metadata={"prompt_length": len(prompt)},
         )
         choice = response.choices[0]
         finish = choice.finish_reason
@@ -125,7 +130,7 @@ async def analyze_product_image_bytes(
         return {**_FALLBACK_SINGLE, "error": "Empty image received"}
 
     data_url, _ = _resize_and_encode(image_bytes, media_type)
-    raw = await _call_vision(data_url, _SINGLE_PRODUCT_PROMPT, max_tokens=1024)
+    raw = await _call_vision(data_url, _SINGLE_PRODUCT_PROMPT, max_tokens=1024, feature="cataloging_snap")
 
     if not raw:
         return _FALLBACK_SINGLE
@@ -145,7 +150,7 @@ async def analyze_shelf_image_bytes(
         return []
 
     data_url, _ = _resize_and_encode(image_bytes, media_type)
-    raw = await _call_vision(data_url, _SHELF_PROMPT, max_tokens=4096)
+    raw = await _call_vision(data_url, _SHELF_PROMPT, max_tokens=4096, feature="cataloging_shelf")
 
     if not raw:
         return []
@@ -166,12 +171,8 @@ async def analyze_shelf_image_bytes(
 
 async def analyze_product_image(image_url: str) -> dict:
     """Analyze a product image from a public URL."""
-    client = get_openai_client()
     try:
-        response = await client.chat.completions.create(
-            model=_VISION_MODEL,
-            max_tokens=1024,
-            timeout=_CALL_TIMEOUT,
+        response = await tracked_chat(
             messages=[
                 {
                     "role": "user",
@@ -181,6 +182,13 @@ async def analyze_product_image(image_url: str) -> dict:
                     ],
                 }
             ],
+            model=_VISION_MODEL,
+            max_tokens=1024,
+            temperature=0.7,
+            timeout=_CALL_TIMEOUT,
+            feature="cataloging_snap_url",
+            endpoint="/ai/catalog/snap",
+            has_image=True,
         )
         raw = response.choices[0].message.content or ""
         return _parse_json(raw) if raw else _FALLBACK_SINGLE
@@ -191,12 +199,8 @@ async def analyze_product_image(image_url: str) -> dict:
 
 async def analyze_shelf_image(image_url: str) -> list[dict]:
     """Analyze a shelf image from a public URL."""
-    client = get_openai_client()
     try:
-        response = await client.chat.completions.create(
-            model=_VISION_MODEL,
-            max_tokens=4096,
-            timeout=_CALL_TIMEOUT,
+        response = await tracked_chat(
             messages=[
                 {
                     "role": "user",
@@ -206,6 +210,13 @@ async def analyze_shelf_image(image_url: str) -> list[dict]:
                     ],
                 }
             ],
+            model=_VISION_MODEL,
+            max_tokens=4096,
+            temperature=0.7,
+            timeout=_CALL_TIMEOUT,
+            feature="cataloging_shelf_url",
+            endpoint="/ai/catalog/shelf",
+            has_image=True,
         )
         raw = response.choices[0].message.content or ""
         if not raw:
