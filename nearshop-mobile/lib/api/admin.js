@@ -1,4 +1,4 @@
-import { authGet } from '../api';
+import { authGet, authPost, authPut } from '../api';
 
 const a = '/admin';
 
@@ -56,3 +56,9 @@ export const getAiHourlyDistribution = (period = '7d') => authGet(`${a}/ai/hourl
 export const getAiTopUsers = (period = '30d', limit = 20) => authGet(`${a}/ai/top-users`, { params: { period, limit } });
 export const getRankingDiagnostics = () => authGet(`${a}/ai/ranking-diagnostics`);
 export const getRankingOutcomes = (period = '30d') => authGet(`${a}/ai/ranking-outcomes`, { params: { period } });
+export const getRankingConfig = () => authGet(`${a}/ai/ranking-config`);
+export const updateRankingConfig = (surface, profile_id = null) => authPut(`${a}/ai/ranking-config`, { surface, profile_id });
+export const updateRankingExperiments = (surface, experiment_id = null, variants = null) =>
+  authPut(`${a}/ai/ranking-experiments`, { surface, experiment_id, variants });
+export const promoteRankingExperiment = (surface, experiment_id, winner_profile_id) =>
+  authPost(`${a}/ai/ranking-experiments/promote`, { surface, experiment_id, winner_profile_id });

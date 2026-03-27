@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import select, and_, or_, func, exists
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import joinedload, load_only
 
 import math
 
@@ -14,6 +14,8 @@ from app.ranking.service import (
     product_score_breakdown,
     rank_products,
     rank_shops,
+    resolve_ranking_profile_id,
+    resolve_ranking_selection,
     score_product,
     score_shop,
     top_product_reason,
@@ -49,12 +51,38 @@ def _query_terms(query: str) -> list[str]:
     return terms
 
 
+INTENT_TERM_EXPANSIONS = {
+    "audio": {"earbuds", "speaker", "headphones", "bluetooth", "headset", "mic"},
+    "earbuds": {"audio", "headphones", "bluetooth"},
+    "speaker": {"audio", "bluetooth"},
+    "headphones": {"audio", "bluetooth", "earbuds"},
+    "bluetooth": {"audio", "speaker", "earbuds", "headphones"},
+    "streaming": {"webcam", "microphone", "ring", "light", "usb"},
+    "webcam": {"streaming", "usb"},
+    "microphone": {"streaming", "audio", "mic", "usb"},
+    "gaming": {"keyboard", "mouse", "headset", "mousepad"},
+    "keyboard": {"gaming"},
+    "mouse": {"gaming", "mousepad"},
+}
+
+
+def _expanded_query_terms(query: str) -> list[str]:
+    expanded: list[str] = []
+    for term in _query_terms(query):
+        if term not in expanded:
+            expanded.append(term)
+        for synonym in sorted(INTENT_TERM_EXPANSIONS.get(term, set())):
+            if synonym not in expanded:
+                expanded.append(synonym)
+    return expanded
+
+
 def _phrase_and_token_patterns(query: str) -> list[str]:
     patterns: list[str] = []
     phrase = (query or "").strip().lower()
     if phrase:
         patterns.append(f"%{phrase}%")
-    for term in _query_terms(query):
+    for term in _expanded_query_terms(query):
         pattern = f"%{term}%"
         if pattern not in patterns:
             patterns.append(pattern)
@@ -69,6 +97,7 @@ async def search_unified(
     product_limit: int = 10,
     shop_limit: int = 8,
     user_id: UUID | None = None,
+    profile_id: str | None = None,
     include_debug: bool = False,
 ) -> dict:
     """
@@ -81,13 +110,18 @@ async def search_unified(
             return {"products": [], "shops": []}
 
         profile = await build_user_preference_profile(db, user_id)
+        selection = resolve_ranking_selection("unified_search", str(user_id) if user_id else None, profile_id)
         ranking_context = RankingContext(
             lat=lat,
             lng=lng,
             query=query,
             radius_km=5.0,
             surface="unified_search",
+            profile_id=selection["profile_id"],
+            user_id=str(user_id) if user_id else None,
+            expanded_query_terms=set(_expanded_query_terms(query)),
         )
+        resolved_profile_id = resolve_ranking_profile_id(ranking_context.surface, ranking_context.profile_id)
 
         ts_query = func.websearch_to_tsquery("english", query)
         ts_vector = func.to_tsvector(
@@ -115,7 +149,18 @@ async def search_unified(
         product_stmt = (
             select(Product)
             .join(Shop, Product.shop_id == Shop.id)
-            .options(contains_eager(Product.shop))
+            .options(
+                joinedload(Product.shop).load_only(
+                    Shop.id,
+                    Shop.name,
+                    Shop.slug,
+                    Shop.logo_url,
+                    Shop.latitude,
+                    Shop.longitude,
+                    Shop.avg_rating,
+                    Shop.score,
+                )
+            )
             .where(
                 and_(
                     Product.is_available == True,
@@ -146,6 +191,9 @@ async def search_unified(
                 "subcategory": product.subcategory,
                 "shop_id": str(product.shop_id),
                 "reason": top_product_reason(product, shop, profile, ranking_context),
+                "ranking_profile": resolved_profile_id,
+                "ranking_experiment": selection["experiment_id"],
+                "ranking_variant": selection["variant_id"],
             }
             if include_debug:
                 item["ranking_score"] = score_product(product, shop, profile, ranking_context)
@@ -190,7 +238,25 @@ async def search_unified(
             )
         shop_recall_clause = or_(*(shop_match_clauses + product_exists_clauses))
 
-        shop_stmt = select(Shop).where(
+        shop_stmt = select(Shop).options(
+            load_only(
+                Shop.id,
+                Shop.name,
+                Shop.category,
+                Shop.cover_image,
+                Shop.logo_url,
+                Shop.avg_rating,
+                Shop.total_reviews,
+                Shop.latitude,
+                Shop.longitude,
+                Shop.delivery_options,
+                Shop.delivery_fee,
+                Shop.min_order,
+                Shop.description,
+                Shop.score,
+                Shop.subcategories,
+            )
+        ).where(
             and_(
                 Shop.is_active == True,
                 shop_recall_clause,
@@ -225,6 +291,9 @@ async def search_unified(
                 "delivery_fee": float(shop.delivery_fee) if shop.delivery_fee else 0,
                 "min_order": float(shop.min_order) if shop.min_order else None,
                 "reason": top_shop_reason(shop, profile, ranking_context),
+                "ranking_profile": resolved_profile_id,
+                "ranking_experiment": selection["experiment_id"],
+                "ranking_variant": selection["variant_id"],
             }
             if include_debug:
                 item["ranking_score"] = score_shop(shop, profile, ranking_context)

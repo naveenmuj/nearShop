@@ -41,3 +41,9 @@ export const getAiHourlyDistribution= (period='7d') => client.get(`${a}/ai/hourl
 export const getAiTopUsers          = (period='30d', limit=20) => client.get(`${a}/ai/top-users`, { params: { period, limit } })
 export const getRankingDiagnostics  = () => client.get(`${a}/ai/ranking-diagnostics`)
 export const getRankingOutcomes     = (period='30d') => client.get(`${a}/ai/ranking-outcomes`, { params: { period } })
+export const getRankingConfig       = () => client.get(`${a}/ai/ranking-config`)
+export const updateRankingConfig    = (surface, profile_id = null) => client.put(`${a}/ai/ranking-config`, { surface, profile_id })
+export const updateRankingExperiments = (surface, experiment_id = null, variants = null) =>
+  client.put(`${a}/ai/ranking-experiments`, { surface, experiment_id, variants })
+export const promoteRankingExperiment = (surface, experiment_id, winner_profile_id) =>
+  client.post(`${a}/ai/ranking-experiments/promote`, { surface, experiment_id, winner_profile_id })

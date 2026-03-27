@@ -35,6 +35,10 @@ class DealResponse(BaseModel):
     product_name: Optional[str] = None
     image_url: Optional[str] = None  # Product image URL for display
     category: Optional[str] = None  # Product category
+    reason: Optional[str] = None
+    ranking_profile: Optional[str] = None
+    ranking_experiment: Optional[str] = None
+    ranking_variant: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

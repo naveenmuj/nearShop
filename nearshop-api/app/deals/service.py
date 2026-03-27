@@ -10,7 +10,7 @@ from app.core.geo import within_radius
 from app.deals.models import Deal
 from app.deals.schemas import DealCreate
 from app.products.models import Product
-from app.ranking.service import RankingContext, build_user_preference_profile, rank_deals
+from app.ranking.service import RankingContext, build_user_preference_profile, rank_deals, resolve_ranking_profile_id, resolve_ranking_selection
 from app.shops.models import Shop
 
 
@@ -118,14 +118,16 @@ async def get_nearby_deals(
     should_rank = user_id is not None
 
     if should_rank:
+        selection = resolve_ranking_selection("nearby_deals", str(user_id) if user_id else None)
         result = await db.execute(base_query.limit(min(max(per_page * 5, 80), 200)))
         rows = result.all()
         profile = await build_user_preference_profile(db, user_id)
         ranked_rows = rank_deals(
             rows,
             profile,
-            RankingContext(lat=lat, lng=lng, radius_km=radius_km, surface="nearby_deals"),
+            RankingContext(lat=lat, lng=lng, radius_km=radius_km, surface="nearby_deals", profile_id=selection["profile_id"], user_id=str(user_id) if user_id else None),
         )
+        resolved_profile_id = resolve_ranking_profile_id("nearby_deals")
         deals = []
         for row in ranked_rows[offset : offset + per_page]:
             deal, shop, product = row
@@ -139,6 +141,10 @@ async def get_nearby_deals(
                 deal.product_name = None  # type: ignore[attr-defined]
                 deal.image_url = None  # type: ignore[attr-defined]
                 deal.category = None  # type: ignore[attr-defined]
+            deal.reason = "Recommended for this shopper"  # type: ignore[attr-defined]
+            deal.ranking_profile = resolved_profile_id  # type: ignore[attr-defined]
+            deal.ranking_experiment = selection["experiment_id"]  # type: ignore[attr-defined]
+            deal.ranking_variant = selection["variant_id"]  # type: ignore[attr-defined]
             deals.append(deal)
     else:
         ordered_query = base_query.order_by(Deal.expires_at.asc()).offset(offset).limit(per_page)

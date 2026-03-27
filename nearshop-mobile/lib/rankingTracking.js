@@ -12,6 +12,7 @@ export function extractRankingContextFromParams(params = {}) {
   return {
     ranking_surface: toStringOrNull(params.surface),
     ranking_reason: toStringOrNull(params.reason),
+    ranking_profile: toStringOrNull(params.profile),
     query: toStringOrNull(params.query),
     source_screen: toStringOrNull(params.source_screen),
     position: Number.isFinite(position) ? position : null,
@@ -22,6 +23,7 @@ export function rankingRouteParams(context = {}) {
   return {
     surface: context.ranking_surface || '',
     reason: context.ranking_reason || '',
+    profile: context.ranking_profile || '',
     query: context.query || '',
     source_screen: context.source_screen || '',
     position: context.position != null ? String(context.position) : '',
@@ -32,6 +34,7 @@ export function buildRankingMetadata(item, context = {}) {
   return {
     ranking_surface: context.ranking_surface || item?.ranking_surface || null,
     ranking_reason: context.ranking_reason || item?.reason || null,
+    ranking_profile: context.ranking_profile || item?.ranking_profile || null,
     query: context.query || null,
     source_screen: context.source_screen || null,
     position: context.position ?? null,

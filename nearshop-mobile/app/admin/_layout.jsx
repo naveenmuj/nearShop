@@ -850,6 +850,12 @@ function AiUsageScreen({ period }) {
                 <Text style={cs.listRowTitle}>Version</Text>
                 <Badge label={data.ranking.version} color={COLORS.primary} />
               </View>
+              {data.ranking.active_profile?.label ? (
+                <View style={cs.listRow}>
+                  <Text style={cs.listRowTitle}>Active Profile</Text>
+                  <Badge label={data.ranking.active_profile.label} color={COLORS.green} />
+                </View>
+              ) : null}
               <View style={cs.listRow}>
                 <Text style={cs.listRowTitle}>Personas Evaluated</Text>
                 <Text style={cs.listRowValue}>{fmtNum(data.ranking.summary?.persona_count || 0)}</Text>
@@ -869,6 +875,65 @@ function AiUsageScreen({ period }) {
                   <Text style={cs.listRowValue}>{item.unified_shop_count} shops</Text>
                 </View>
               ))}
+              {(data.ranking.available_profiles || []).length > 0 ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {data.ranking.available_profiles.map((profile) => (
+                    <Badge key={profile.id} label={profile.label} color={profile.active ? COLORS.green : COLORS.gray} />
+                  ))}
+                </View>
+              ) : null}
+              {Object.keys(data.ranking.surface_profiles || {}).length > 0 ? (
+                <View style={[cs.sectionCard, { backgroundColor: '#F9FAFB', padding: 12 }]}>
+                  <Text style={[cs.sectionTitle, { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', color: '#6B7280' }]}>
+                    Surface Profiles
+                  </Text>
+                  {Object.entries(data.ranking.surface_profiles).map(([surface, profile]) => (
+                    <View key={surface} style={cs.listRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={cs.listRowTitle}>{surface.replace(/_/g, ' ')}</Text>
+                      </View>
+                      <Badge label={profile.label} color={profile.overridden ? COLORS.purple : COLORS.gray} />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {Object.keys(data.ranking.surface_experiments || {}).length > 0 ? (
+                <View style={[cs.sectionCard, { backgroundColor: '#F9FAFB', padding: 12 }]}>
+                  <Text style={[cs.sectionTitle, { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', color: '#6B7280' }]}>
+                    Surface Experiments
+                  </Text>
+                  {Object.entries(data.ranking.surface_experiments).map(([surface, experiment]) => (
+                    <View key={surface} style={[cs.listRow, { alignItems: 'flex-start' }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={cs.listRowTitle}>{surface.replace(/_/g, ' ')}</Text>
+                        <Text style={cs.listRowSub}>{experiment.experiment_id}</Text>
+                        <Text style={[cs.listRowSub, { marginTop: 4 }]}>
+                          {experiment.variants.map((variant) => `${variant.label} ${Math.round((variant.weight || 0) * 100)}%`).join(' · ')}
+                        </Text>
+                      </View>
+                      <Badge label={`${experiment.variants.length} vars`} color={COLORS.amber} />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {(data.ranking.history || []).length > 0 ? (
+                <View style={[cs.sectionCard, { backgroundColor: '#F9FAFB', padding: 12 }]}>
+                  <Text style={[cs.sectionTitle, { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', color: '#6B7280' }]}>
+                    Recent Ranking Changes
+                  </Text>
+                  {data.ranking.history.slice(0, 5).map((item, index) => (
+                    <View key={`${item.created_at}-${index}`} style={cs.listRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={cs.listRowTitle}>{item.event_type.replace(/_/g, ' ')}</Text>
+                        <Text style={cs.listRowSub}>
+                          {[item.surface, item.experiment_id, item.profile_id || item.winner_profile_id].filter(Boolean).join(' · ')}
+                        </Text>
+                      </View>
+                      <Text style={cs.listRowSub}>{fmtDate(item.created_at)}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           </SectionCard>
         </>
@@ -884,6 +949,27 @@ function AiUsageScreen({ period }) {
           </View>
 
           <SectionCard title="Ranking Outcomes" icon="📈">
+            {(data.outcomes.experiments || []).length > 0 ? (
+              <View style={[cs.sectionCard, { backgroundColor: '#F9FAFB', padding: 12, marginBottom: 12 }]}>
+                <Text style={[cs.sectionTitle, { fontSize: 12, marginBottom: 8, textTransform: 'uppercase', color: '#6B7280' }]}>
+                  Experiment Outcomes
+                </Text>
+                {data.outcomes.experiments.map((experiment) => (
+                  <View key={experiment.experiment_id} style={[cs.listRow, { alignItems: 'flex-start' }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={cs.listRowTitle}>{experiment.experiment_id}</Text>
+                      <Text style={cs.listRowSub}>
+                        {experiment.surface.replace(/_/g, ' ')} · {fmtNum(experiment.impressions)} impressions · CTR {fmtPct(experiment.ctr)} · Purchase {fmtPct(experiment.purchase_rate)}
+                      </Text>
+                      <Text style={[cs.listRowSub, { marginTop: 4 }]}>
+                        {experiment.variants.map((variant) => `${variant.variant_id}: ${fmtPct(variant.ctr)} CTR`).join(' · ')}
+                      </Text>
+                    </View>
+                    <Badge label={`${experiment.variants.length} vars`} color={COLORS.amber} />
+                  </View>
+                ))}
+              </View>
+            ) : null}
             {(data.outcomes.surfaces || []).map((row) => (
               <View key={row.surface} style={[cs.listRow, { alignItems: 'flex-start' }]}>
                 <View style={{ flex: 1 }}>

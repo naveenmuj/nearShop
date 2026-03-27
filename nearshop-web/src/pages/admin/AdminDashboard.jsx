@@ -1312,8 +1312,114 @@ function AiUsageSection({ data }) {
   const outcomes = data.rankingOutcomes || null
 
   const [recentPage, setRecentPage] = useState(1)
+  const [savingSurface, setSavingSurface] = useState(null)
+  const [savingExperiment, setSavingExperiment] = useState(null)
+  const [experimentDrafts, setExperimentDrafts] = useState({})
   const perPage = 15
   const pagedRecent = recent.slice((recentPage - 1) * perPage, recentPage * perPage)
+
+  useEffect(() => {
+    if (!ranking) return
+    const nextDrafts = {}
+    Object.keys(ranking.surface_profiles || {}).forEach((surface) => {
+      if (surface === 'global_default') return
+      const experiment = ranking.surface_experiments?.[surface]
+      const fallbackProfiles = (ranking.available_profiles || []).slice(0, 2).map((profile, index) => ({
+        profile_id: profile.id,
+        weight: index === 0 ? 0.5 : 0.5,
+      }))
+      nextDrafts[surface] = {
+        experiment_id: experiment?.experiment_id || '',
+        variants: (experiment?.variants || fallbackProfiles).slice(0, 2).map((variant, index) => ({
+          profile_id: variant.profile_id,
+          weight: variant.weight ?? (index === 0 ? 0.5 : 0.5),
+        })),
+      }
+    })
+    setExperimentDrafts(nextDrafts)
+  }, [ranking])
+
+  const handleSurfaceProfileUpdate = async (surface, profileId) => {
+    try {
+      setSavingSurface(surface)
+      await api.updateRankingConfig(surface, profileId)
+      window.location.reload()
+    } catch (error) {
+      console.error('Failed to update ranking config', error)
+    } finally {
+      setSavingSurface(null)
+    }
+  }
+
+  const updateExperimentDraft = (surface, updater) => {
+    setExperimentDrafts((current) => {
+      const existing = current[surface] || { experiment_id: '', variants: [] }
+      return {
+        ...current,
+        [surface]: updater(existing),
+      }
+    })
+  }
+
+  const handleExperimentFieldChange = (surface, field, value) => {
+    updateExperimentDraft(surface, (draft) => ({
+      ...draft,
+      [field]: value,
+    }))
+  }
+
+  const handleExperimentVariantChange = (surface, index, field, value) => {
+    updateExperimentDraft(surface, (draft) => ({
+      ...draft,
+      variants: (draft.variants || []).map((variant, variantIndex) =>
+        variantIndex === index ? { ...variant, [field]: value } : variant,
+      ),
+    }))
+  }
+
+  const handleExperimentSave = async (surface) => {
+    const draft = experimentDrafts[surface]
+    if (!draft) return
+    const variants = (draft.variants || [])
+      .filter((variant) => variant.profile_id && Number(variant.weight) > 0)
+      .map((variant) => ({
+        profile_id: variant.profile_id,
+        weight: Number(variant.weight),
+      }))
+    try {
+      setSavingExperiment(surface)
+      await api.updateRankingExperiments(surface, draft.experiment_id.trim(), variants)
+      window.location.reload()
+    } catch (error) {
+      console.error('Failed to update ranking experiment', error)
+    } finally {
+      setSavingExperiment(null)
+    }
+  }
+
+  const handleExperimentReset = async (surface) => {
+    try {
+      setSavingExperiment(surface)
+      await api.updateRankingExperiments(surface, null, null)
+      window.location.reload()
+    } catch (error) {
+      console.error('Failed to clear ranking experiment', error)
+    } finally {
+      setSavingExperiment(null)
+    }
+  }
+
+  const handleExperimentPromote = async (surface, experimentId, winnerProfileId) => {
+    try {
+      setSavingExperiment(surface)
+      await api.promoteRankingExperiment(surface, experimentId, winnerProfileId)
+      window.location.reload()
+    } catch (error) {
+      console.error('Failed to promote ranking experiment winner', error)
+    } finally {
+      setSavingExperiment(null)
+    }
+  }
 
   if (!ov.total_calls && ov.total_calls !== 0) {
     return (
@@ -1350,9 +1456,177 @@ function AiUsageSection({ data }) {
                 {ranking.freshness?.status || 'unknown'}
               </Bdg>
               <Bdg color={C.primary}>{ranking.version}</Bdg>
+              {ranking.active_profile?.label ? <Bdg color={C.teal}>profile {ranking.active_profile.label}</Bdg> : null}
               <Bdg color={C.gray}>{ranking.summary?.persona_count || 0} personas</Bdg>
               <Bdg color={C.purple}>evaluated {ranking.evaluated_at ? fmtDate(ranking.evaluated_at) : 'n/a'}</Bdg>
             </div>
+
+            {ranking.available_profiles?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {ranking.available_profiles.map((profile) => (
+                  <Bdg key={profile.id} color={profile.active ? C.green : C.gray}>
+                    {profile.label}
+                  </Bdg>
+                ))}
+              </div>
+            )}
+
+            {Object.keys(ranking.surface_profiles || {}).length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Surface Profiles</div>
+                <div className="space-y-2">
+                  {Object.entries(ranking.surface_profiles).map(([surface, profile]) => (
+                    <div key={surface} className="flex items-start justify-between gap-3 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700">{surface.replace(/_/g, ' ')}</span>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {(ranking.available_profiles || []).map((candidate) => {
+                            const active = candidate.id === profile.id
+                            return (
+                              <button
+                                key={`${surface}-${candidate.id}`}
+                                type="button"
+                                onClick={() => handleSurfaceProfileUpdate(surface, candidate.id)}
+                                disabled={savingSurface === surface || surface === 'global_default'}
+                                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                  active
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                } disabled:cursor-not-allowed disabled:opacity-60`}
+                              >
+                                {candidate.label}
+                              </button>
+                            )
+                          })}
+                          {surface !== 'global_default' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSurfaceProfileUpdate(surface, null)}
+                              disabled={savingSurface === surface || !profile.overridden}
+                              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-500 transition hover:border-gray-300 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Use default
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <span className="text-gray-500">{profile.label}</span>
+                        <Bdg color={profile.overridden ? C.purple : C.gray}>
+                          {profile.overridden ? 'override' : 'default'}
+                        </Bdg>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(ranking.surface_experiments || {}).length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Surface Experiments</div>
+                <div className="space-y-3">
+                  {Object.entries(ranking.surface_experiments).map(([surface, experiment]) => (
+                    <div key={surface} className="rounded-xl border border-gray-100 bg-white p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-gray-800">{surface.replace(/_/g, ' ')}</div>
+                          <div className="text-xs text-gray-500 mt-1">{experiment.experiment_id}</div>
+                        </div>
+                        <Bdg color={C.amber}>{experiment.variants.length} variants</Bdg>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {experiment.variants.map((variant) => (
+                          <Bdg key={`${surface}-${variant.profile_id}`} color={C.gray}>
+                            {variant.label} {Math.round((variant.weight || 0) * 100)}%
+                          </Bdg>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(experimentDrafts || {}).length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Experiment Controls</div>
+                <div className="grid gap-3 xl:grid-cols-2">
+                  {Object.entries(experimentDrafts).map(([surface, draft]) => (
+                    <div key={`editor-${surface}`} className="rounded-xl border border-gray-100 bg-white p-3">
+                      <div className="font-medium text-gray-800">{surface.replace(/_/g, ' ')}</div>
+                      <input
+                        type="text"
+                        value={draft.experiment_id}
+                        onChange={(event) => handleExperimentFieldChange(surface, 'experiment_id', event.target.value)}
+                        placeholder="experiment id"
+                        className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-400"
+                      />
+                      <div className="mt-3 space-y-2">
+                        {(draft.variants || []).map((variant, index) => (
+                          <div key={`${surface}-variant-${index}`} className="grid grid-cols-[1fr_100px] gap-2">
+                            <select
+                              value={variant.profile_id}
+                              onChange={(event) => handleExperimentVariantChange(surface, index, 'profile_id', event.target.value)}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-400"
+                            >
+                              {(ranking.available_profiles || []).map((profile) => (
+                                <option key={profile.id} value={profile.id}>{profile.label}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              min="0.05"
+                              step="0.05"
+                              value={variant.weight}
+                              onChange={(event) => handleExperimentVariantChange(surface, index, 'weight', event.target.value)}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-400"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleExperimentSave(surface)}
+                          disabled={savingExperiment === surface}
+                          className="rounded-full bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Save experiment
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExperimentReset(surface)}
+                          disabled={savingExperiment === surface}
+                          className="rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Clear experiment
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(ranking.history || []).length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Recent Ranking Changes</div>
+                <div className="space-y-2">
+                  {ranking.history.slice(0, 6).map((item, index) => (
+                    <div key={`${item.created_at}-${index}`} className="rounded-lg border border-gray-100 bg-white px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm font-medium text-gray-800">{item.event_type.replace(/_/g, ' ')}</div>
+                        <div className="text-xs text-gray-500">{fmtDate(item.created_at)}</div>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        {[item.surface, item.experiment_id, item.profile_id || item.winner_profile_id].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1396,13 +1670,88 @@ function AiUsageSection({ data }) {
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard icon="👀" label="Ranking Impressions" value={outcomes.summary?.impressions || 0} />
-            <KpiCard icon="🖱️" label="Ranking CTR" value={outcomes.summary?.ctr || 0} fmt="pct" />
-            <KpiCard icon="🛒" label="Add-to-Cart Rate" value={outcomes.summary?.add_to_cart_rate || 0} fmt="pct" />
-            <KpiCard icon="💳" label="Purchase Rate" value={outcomes.summary?.purchase_rate || 0} fmt="pct" sub={outcomes.summary?.best_surface?.replace(/_/g, ' ')} />
+            <KpiCard icon="🖱️" label="Ranking CTR" value={outcomes.summary?.ctr || 0} fmt="pct" sub={`${outcomes.comparison?.summary_delta?.ctr >= 0 ? '+' : ''}${(outcomes.comparison?.summary_delta?.ctr || 0).toFixed(2)} vs prev`} />
+            <KpiCard icon="🛒" label="Add-to-Cart Rate" value={outcomes.summary?.add_to_cart_rate || 0} fmt="pct" sub={`${outcomes.comparison?.summary_delta?.add_to_cart_rate >= 0 ? '+' : ''}${(outcomes.comparison?.summary_delta?.add_to_cart_rate || 0).toFixed(2)} vs prev`} />
+            <KpiCard icon="💳" label="Purchase Rate" value={outcomes.summary?.purchase_rate || 0} fmt="pct" sub={`${outcomes.summary?.best_surface?.replace(/_/g, ' ')} · ${outcomes.comparison?.summary_delta?.purchase_rate >= 0 ? '+' : ''}${(outcomes.comparison?.summary_delta?.purchase_rate || 0).toFixed(2)}`} />
           </div>
 
           <Card>
             <SecTitle icon="📈">Ranking Outcomes</SecTitle>
+            {(outcomes.profiles || []).length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Profile Outcomes</div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {outcomes.profiles.map((profile) => (
+                    <div key={profile.profile_id} className="rounded-xl border border-gray-100 bg-white p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-gray-800">{profile.profile_id}</span>
+                        <Bdg color={profile.profile_id === ranking?.active_profile?.id ? C.green : C.gray}>
+                          {profile.profile_id === ranking?.active_profile?.id ? 'active default' : 'tracked'}
+                        </Bdg>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        {fmtNum(profile.impressions)} impressions · CTR {fmtPct(profile.ctr)} · Purchase {fmtPct(profile.purchase_rate)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(outcomes.experiments || []).length > 0 && (
+              <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Experiment Outcomes</div>
+                <div className="grid gap-3 xl:grid-cols-2">
+                  {outcomes.experiments.map((experiment) => (
+                    <div key={experiment.experiment_id} className="rounded-xl border border-gray-100 bg-white p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-semibold text-gray-800">{experiment.experiment_id}</div>
+                          <div className="text-xs text-gray-500 mt-1">{experiment.surface.replace(/_/g, ' ')}</div>
+                        </div>
+                        <Bdg color={C.amber}>{experiment.variants.length} variants</Bdg>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        {fmtNum(experiment.impressions)} impressions · CTR {fmtPct(experiment.ctr)} · Purchase {fmtPct(experiment.purchase_rate)}
+                      </div>
+                      {experiment.recommendation ? (
+                        <div className="mt-2 flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              {experiment.recommendation.status.replace(/_/g, ' ')}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">{experiment.recommendation.reason}</div>
+                          </div>
+                          {experiment.recommendation.status === 'ready_to_promote' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleExperimentPromote(experiment.surface, experiment.experiment_id, experiment.recommendation.winner_variant_id)}
+                              disabled={savingExperiment === experiment.surface}
+                              className="rounded-full bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Promote winner
+                            </button>
+                          ) : (
+                            <Bdg color={experiment.recommendation.status === 'collecting_data' ? C.amber : C.gray}>
+                              {experiment.recommendation.winner_variant_id || 'pending'}
+                            </Bdg>
+                          )}
+                        </div>
+                      ) : null}
+                      <div className="mt-3 space-y-2">
+                        {experiment.variants.map((variant) => (
+                          <div key={`${experiment.experiment_id}-${variant.variant_id}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                            <span className="text-sm font-medium text-gray-700">{variant.variant_id}</span>
+                            <span className="text-xs text-gray-500">
+                              {fmtNum(variant.impressions)} imp · CTR {fmtPct(variant.ctr)} · Purchase {fmtPct(variant.purchase_rate)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

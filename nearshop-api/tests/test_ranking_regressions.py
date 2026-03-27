@@ -16,12 +16,17 @@ from app.ai.recommendations import get_recommendations
 from app.ranking.service import (
     RankingContext,
     UserPreferenceProfile,
+    get_ranking_profile,
+    get_surface_profile_overrides,
+    resolve_ranking_selection,
+    save_runtime_experiments,
     rank_deals,
     rank_products,
     rank_shops,
+    resolve_ranking_profile_id,
     score_product,
 )
-from app.search.service import _phrase_and_token_patterns, _query_terms
+from app.search.service import _expanded_query_terms, _phrase_and_token_patterns, _query_terms
 
 
 class _FakeResult:
@@ -46,15 +51,16 @@ class RankingRegressions(unittest.TestCase):
             _query_terms("gaming audio streaming"),
             ["gaming", "audio", "streaming"],
         )
-        self.assertEqual(
-            _phrase_and_token_patterns("gaming audio streaming"),
-            [
-                "%gaming audio streaming%",
-                "%gaming%",
-                "%audio%",
-                "%streaming%",
-            ],
-        )
+        expanded = _expanded_query_terms("audio earbuds bluetooth speaker")
+        self.assertIn("headphones", expanded)
+        self.assertIn("speaker", expanded)
+        patterns = _phrase_and_token_patterns("gaming audio streaming")
+        self.assertIn("%gaming audio streaming%", patterns)
+        self.assertIn("%gaming%", patterns)
+        self.assertIn("%audio%", patterns)
+        self.assertIn("%streaming%", patterns)
+        self.assertIn("%keyboard%", patterns)
+        self.assertIn("%headset%", patterns)
 
     def test_rank_products_prefers_profile_match_and_shop_affinity(self):
         followed_shop_id = str(uuid4())
@@ -146,6 +152,65 @@ class RankingRegressions(unittest.TestCase):
 
         ranked = rank_products([non_matching, matching], profile, context)
         self.assertEqual(ranked[0], matching)
+
+    def test_query_focus_profile_increases_query_matched_product_score(self):
+        profile = UserPreferenceProfile()
+        product = SimpleNamespace(
+            id=uuid4(),
+            shop_id=uuid4(),
+            name="Gaming Keyboard Pro",
+            category="Electronics",
+            subcategory="Accessories",
+            tags=["gaming", "keyboard"],
+            view_count=2,
+            wishlist_count=1,
+            inquiry_count=0,
+            is_featured=False,
+            created_at=datetime.now(timezone.utc),
+            shop=SimpleNamespace(id=uuid4(), latitude=12.9, longitude=77.6, avg_rating=4.3, score=60),
+        )
+        balanced = RankingContext(query="gaming keyboard", surface="product_search", profile_id="balanced_v1")
+        query_focus = RankingContext(query="gaming keyboard", surface="product_search", profile_id="query_focus_v1")
+
+        self.assertEqual(get_ranking_profile("query_focus_v1").id, "query_focus_v1")
+        self.assertGreater(
+            score_product(product, product.shop, profile, query_focus),
+            score_product(product, product.shop, profile, balanced),
+        )
+
+    def test_unified_search_uses_surface_override_profile_by_default(self):
+        self.assertEqual(resolve_ranking_profile_id("unified_search"), "query_focus_v1")
+        overrides = get_surface_profile_overrides()
+        self.assertEqual(overrides["unified_search"]["id"], "query_focus_v1")
+        self.assertFalse(overrides["unified_search"]["overridden"])
+
+    def test_ranking_selection_is_deterministic_with_experiment(self):
+        from app.config import get_settings
+        import tempfile
+        from pathlib import Path
+
+        settings = get_settings()
+        original_path = settings.RANKING_EXPERIMENTS_FILE
+        with tempfile.TemporaryDirectory() as tmpdir:
+            settings.RANKING_EXPERIMENTS_FILE = str(Path(tmpdir) / "ranking_experiments.json")
+            save_runtime_experiments(
+                {
+                    "unified_search": {
+                        "experiment_id": "search_exp_v1",
+                        "variants": [
+                            {"profile_id": "query_focus_v1", "weight": 0.7},
+                            {"profile_id": "balanced_v1", "weight": 0.3},
+                        ],
+                    }
+                }
+            )
+            first = resolve_ranking_selection("unified_search", "user-123")
+            second = resolve_ranking_selection("unified_search", "user-123")
+            self.assertEqual(first, second)
+            self.assertEqual(first["experiment_id"], "search_exp_v1")
+            self.assertIn(first["variant_id"], {"query_focus_v1", "balanced_v1"})
+            self.assertEqual(first["profile_id"], first["variant_id"])
+        settings.RANKING_EXPERIMENTS_FILE = original_path
 
     def test_rank_deals_prefers_relevant_product_and_discount(self):
         profile = UserPreferenceProfile(categories={"electronics": 4}, tags={"wireless": 3})

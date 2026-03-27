@@ -6,6 +6,12 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
+from app.ranking.service import (
+    get_ranking_profile,
+    get_surface_experiments,
+    get_surface_profile_overrides,
+    list_ranking_profiles,
+)
 
 REPORT_PATH = Path(__file__).resolve().parents[3] / "docs" / "ranking_quality_report.json"
 RANKING_VERSION = "ranking-v1.2"
@@ -106,6 +112,13 @@ def summarize_ranking_report(report: dict[str, Any], *, now: datetime | None = N
 
     return {
         "version": RANKING_VERSION,
+        "active_profile": {
+            "id": get_ranking_profile().id,
+            "label": get_ranking_profile().label,
+        },
+        "available_profiles": list_ranking_profiles(),
+        "surface_profiles": get_surface_profile_overrides(),
+        "surface_experiments": get_surface_experiments(),
         "evaluated_at": report.get("evaluated_at"),
         "freshness": {
             "status": freshness_status,
@@ -141,6 +154,13 @@ async def get_ranking_diagnostics() -> dict[str, Any]:
     if not REPORT_PATH.exists():
         return {
             "version": RANKING_VERSION,
+            "active_profile": {
+                "id": get_ranking_profile().id,
+                "label": get_ranking_profile().label,
+            },
+            "available_profiles": list_ranking_profiles(),
+            "surface_profiles": get_surface_profile_overrides(),
+            "surface_experiments": get_surface_experiments(),
             "report_available": False,
             "surfaces": RANKING_SURFACES,
             "signals": {

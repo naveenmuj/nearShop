@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import Depends, Header
+from jose import JWTError, jwt as jose_jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,28 +32,36 @@ async def get_current_user(
     if not id_token:
         raise UnauthorizedError("Bearer token is empty")
 
-    # --- Try internal HS256 JWT first ---
+    header: dict = {}
     try:
+        header = jose_jwt.get_unverified_header(id_token) or {}
+    except JWTError:
+        header = {}
+
+    # Internal tokens are issued as HS256 JWTs. Once identified, do not fall back
+    # to Firebase on downstream lookup/validation errors or the caller will get a
+    # misleading Firebase error for what is actually an internal-auth problem.
+    if header.get("alg") == "HS256":
         from app.core.security import verify_access_token
+
         payload = verify_access_token(id_token)
         user_id_str = payload.get("sub")
-        if user_id_str:
-            result = await db.execute(
-                select(User).where(User.id == UUID(user_id_str))
-            )
-            user = result.scalar_one_or_none()
-            if user is not None:
-                if not user.is_active:
-                    raise UnauthorizedError("This account has been deactivated.")
-                # If the token carries a role override (used in testing), apply it temporarily
-                token_role = payload.get("role")
-                if token_role and token_role != user.active_role:
-                    user.active_role = token_role
-                return user
-    except UnauthorizedError:
-        raise
-    except Exception:
-        pass  # Fall through to Firebase verification
+        if not user_id_str:
+            raise UnauthorizedError("Token is missing the sub claim")
+
+        result = await db.execute(
+            select(User).where(User.id == UUID(user_id_str))
+        )
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise UnauthorizedError("User not found for this access token")
+        if not user.is_active:
+            raise UnauthorizedError("This account has been deactivated.")
+
+        token_role = payload.get("role")
+        if token_role and token_role != user.active_role:
+            user.active_role = token_role
+        return user
 
     # --- Fallback: Firebase RS256 ID token ---
     decoded = verify_firebase_token(id_token)

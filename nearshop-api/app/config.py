@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Optional
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -85,6 +86,26 @@ class Settings(BaseSettings):
 
     # PostGIS-powered geo queries (requires PostGIS extension)
     FEATURE_POSTGIS: bool = False
+
+    # Ranking
+    ACTIVE_RANKING_PROFILE: str = "balanced_v1"
+    SEARCH_RANKING_PROFILE: str = "query_focus_v1"
+    RECOMMENDATION_RANKING_PROFILE: str = ""
+    DEALS_RANKING_PROFILE: str = ""
+    HOME_FEED_RANKING_PROFILE: str = ""
+    RANKING_PROFILE_OVERRIDES_FILE: str = str(
+        Path(__file__).resolve().parents[1] / "runtime" / "ranking_profile_overrides.json"
+    )
+    RANKING_EXPERIMENTS_FILE: str = str(
+        Path(__file__).resolve().parents[1] / "runtime" / "ranking_experiments.json"
+    )
+    RANKING_HISTORY_FILE: str = str(
+        Path(__file__).resolve().parents[1] / "runtime" / "ranking_history.json"
+    )
+    RANKING_EXPERIMENT_MIN_IMPRESSIONS_PER_VARIANT: int = 100
+    RANKING_EXPERIMENT_MIN_CTR_DELTA: float = 1.0
+    RANKING_EXPERIMENT_MIN_PURCHASE_RATE_DELTA: float = 0.25
+    RANKING_AUTO_PROMOTE_ENABLED: bool = False
 
     model_config = {
         "env_file": ".env",

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +7,7 @@ from app.core.database import get_db
 from app.auth.permissions import get_current_user
 from app.admin import service
 from app.admin import ai_analytics
+from app.admin import ranking_config
 from app.admin import ranking_analytics
 from app.admin import ranking_outcomes
 
@@ -15,6 +17,28 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 def require_admin(current_user=Depends(get_current_user)):
     # TODO: In production, restrict to users with "admin" role
     return current_user
+
+
+class RankingSurfaceUpdateRequest(BaseModel):
+    surface: str
+    profile_id: str | None = None
+
+
+class RankingExperimentVariantRequest(BaseModel):
+    profile_id: str
+    weight: float
+
+
+class RankingExperimentUpdateRequest(BaseModel):
+    surface: str
+    experiment_id: str | None = None
+    variants: list[RankingExperimentVariantRequest] | None = None
+
+
+class RankingExperimentPromotionRequest(BaseModel):
+    surface: str
+    experiment_id: str
+    winner_profile_id: str
 
 
 @router.get("/overview")
@@ -300,3 +324,56 @@ async def ai_ranking_outcomes(
     db: AsyncSession = Depends(get_db),
 ):
     return await ranking_outcomes.get_ranking_outcomes(db, period)
+
+
+@router.get("/ai/ranking-config")
+async def ai_ranking_config(
+    user=Depends(require_admin),
+):
+    return ranking_config.get_ranking_config()
+
+
+@router.put("/ai/ranking-config")
+async def update_ai_ranking_config(
+    body: RankingSurfaceUpdateRequest,
+    user=Depends(require_admin),
+):
+    try:
+        return ranking_config.update_ranking_surface_profile(body.surface, body.profile_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.put("/ai/ranking-experiments")
+async def update_ai_ranking_experiments(
+    body: RankingExperimentUpdateRequest,
+    user=Depends(require_admin),
+):
+    try:
+        variants = None
+        if body.variants:
+            variants = [
+                {
+                    "profile_id": item.profile_id,
+                    "weight": item.weight,
+                }
+                for item in body.variants
+            ]
+        return ranking_config.update_ranking_experiment(body.surface, body.experiment_id, variants)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/ai/ranking-experiments/promote")
+async def promote_ai_ranking_experiment(
+    body: RankingExperimentPromotionRequest,
+    user=Depends(require_admin),
+):
+    try:
+        return ranking_config.promote_ranking_experiment_winner(
+            body.surface,
+            body.experiment_id,
+            body.winner_profile_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

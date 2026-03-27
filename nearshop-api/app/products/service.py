@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import joinedload
 
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.core.geo import within_radius
@@ -144,7 +144,18 @@ async def search_products(
     base_query = (
         select(Product)
         .join(Shop, Product.shop_id == Shop.id)
-        .options(contains_eager(Product.shop))
+        .options(
+            joinedload(Product.shop).load_only(
+                Shop.id,
+                Shop.name,
+                Shop.slug,
+                Shop.logo_url,
+                Shop.latitude,
+                Shop.longitude,
+                Shop.avg_rating,
+                Shop.score,
+            )
+        )
         .where(
             and_(
                 Product.is_available == True,

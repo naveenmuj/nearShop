@@ -1,0 +1,18 @@
+{
+  "updated_at": "2026-03-27T18:10:38.198674+00:00",
+  "surface_experiments": {
+    "unified_search": {
+      "experiment_id": "unified_search_live_v1",
+      "variants": [
+        {
+          "profile_id": "query_focus_v1",
+          "weight": 0.5
+        },
+        {
+          "profile_id": "balanced_v1",
+          "weight": 0.5
+        }
+      ]
+    }
+  }
+}

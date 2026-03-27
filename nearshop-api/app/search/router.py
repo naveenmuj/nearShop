@@ -32,6 +32,7 @@ async def unified_search(
     q: str = Query(..., min_length=1, max_length=100),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
+    profile_id: Optional[str] = Query(None),
     include_debug: bool = Query(False),
     current_user=Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
@@ -44,6 +45,7 @@ async def unified_search(
         lat,
         lng,
         user_id=current_user.id if current_user else None,
+        profile_id=profile_id,
         include_debug=include_debug,
     )
     return result

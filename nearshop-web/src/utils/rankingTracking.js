@@ -6,6 +6,7 @@ export function buildRankingMetadata(item, context = {}) {
   return {
     ranking_surface: context.ranking_surface || item?.ranking_surface || null,
     ranking_reason: context.ranking_reason || item?.reason || null,
+    ranking_profile: context.ranking_profile || item?.ranking_profile || null,
     query: context.query || null,
     source_screen: context.source_screen || null,
     position: context.position ?? null,
@@ -16,6 +17,7 @@ export function rankingSearchParams(context = {}) {
   const params = new URLSearchParams()
   if (context.ranking_surface) params.set('surface', context.ranking_surface)
   if (context.ranking_reason) params.set('reason', context.ranking_reason)
+  if (context.ranking_profile) params.set('profile', context.ranking_profile)
   if (context.query) params.set('query', context.query)
   if (context.source_screen) params.set('source_screen', context.source_screen)
   if (context.position != null) params.set('position', String(context.position))
@@ -28,6 +30,7 @@ export function readRankingContext(searchParams) {
   return {
     ranking_surface: searchParams.get('surface') || null,
     ranking_reason: searchParams.get('reason') || null,
+    ranking_profile: searchParams.get('profile') || null,
     query: searchParams.get('query') || null,
     source_screen: searchParams.get('source_screen') || null,
     position: Number.isFinite(position) ? position : null,

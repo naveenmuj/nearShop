@@ -156,6 +156,7 @@ async def recommendations(
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
     limit: int = Query(20, ge=1, le=100),
+    profile_id: str | None = Query(None),
     include_debug: bool = Query(False),
     current_user: User = Depends(require_customer),
     db: AsyncSession = Depends(get_db),
@@ -163,15 +164,16 @@ async def recommendations(
     """Get content-based product recommendations with Redis caching."""
     from app.ai.cache import get_cached_recommendations, set_cached_recommendations
 
-    cached = await get_cached_recommendations(str(current_user.id), "content", lat, lng)
+    cache_scope = f"content:{profile_id or 'default'}"
+    cached = await get_cached_recommendations(str(current_user.id), cache_scope, lat, lng)
     if cached is not None and not include_debug:
         return {"products": cached[:limit], "count": min(len(cached), limit), "cached": True}
 
-    products = await get_recommendation_payloads(db, current_user.id, lat, lng, limit)
-    await set_cached_recommendations(str(current_user.id), "content", lat, lng, products)
+    products = await get_recommendation_payloads(db, current_user.id, lat, lng, limit, profile_id=profile_id)
+    await set_cached_recommendations(str(current_user.id), cache_scope, lat, lng, products)
 
     if include_debug:
-        return {"products": products, "count": len(products), "cached": False, "debug": True}
+        return {"products": products, "count": len(products), "cached": False, "debug": True, "profile_id": profile_id}
     return {"products": products, "count": len(products), "cached": False}
 
 

@@ -4,13 +4,14 @@ from uuid import UUID
 
 from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager
+from sqlalchemy.orm import joinedload
 
 from app.core.geo import haversine_distance_km, within_radius
 from app.auth.models import Follow
 from app.deals.models import Deal
 from app.products.models import Product
 from app.ranking.service import RankingContext, build_user_preference_profile, rank_products
+from app.ranking.service import resolve_ranking_profile_id, resolve_ranking_selection
 from app.shops.models import Shop
 from app.stories.models import Story
 
@@ -44,7 +45,18 @@ async def get_personalized_feed(
     query = (
         select(Product, distance_col)
         .join(Shop, Product.shop_id == Shop.id)
-        .options(contains_eager(Product.shop))
+        .options(
+            joinedload(Product.shop).load_only(
+                Shop.id,
+                Shop.name,
+                Shop.slug,
+                Shop.logo_url,
+                Shop.latitude,
+                Shop.longitude,
+                Shop.avg_rating,
+                Shop.score,
+            )
+        )
         .where(
             and_(
                 Product.is_available == True,
@@ -66,11 +78,13 @@ async def get_personalized_feed(
             continue
         candidates.append(product)
 
+    selection = resolve_ranking_selection("home_feed", str(user_id))
     ranked_products = rank_products(
         candidates,
         profile,
-        RankingContext(lat=lat, lng=lng, radius_km=radius_km, surface="home_feed"),
+        RankingContext(lat=lat, lng=lng, radius_km=radius_km, surface="home_feed", profile_id=selection["profile_id"], user_id=str(user_id)),
     )
+    resolved_profile_id = resolve_ranking_profile_id("home_feed")
     ranked_page = ranked_products[offset : offset + per_page]
 
     items: list[dict] = []
@@ -92,6 +106,9 @@ async def get_personalized_feed(
                 "view_count": product.view_count,
                 "wishlist_count": product.wishlist_count,
                 "created_at": product.created_at.isoformat() if product.created_at else None,
+                "ranking_profile": resolved_profile_id,
+                "ranking_experiment": selection["experiment_id"],
+                "ranking_variant": selection["variant_id"],
                 "shop": {
                     "id": str(shop.id),
                     "name": shop.name,
