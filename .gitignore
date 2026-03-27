@@ -40,6 +40,7 @@ nearshop-web/dist/
 nearshop-web/build/
 nearshop-mobile/builds/*.apk
 *.apk
+nearshop-api/static/uploads/
 
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
