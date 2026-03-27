@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -247,26 +247,34 @@ class PersonalizedRecommendation(BaseModel):
 
 @router.post("/search/log")
 async def log_search(
-    q: str = Query(..., min_length=1, max_length=100),
+    q: Optional[str] = Query(None, min_length=1, max_length=100),
+    body: Optional[dict] = Body(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Log user search query for personalization using SearchLog table."""
+    """Log a user search query from either query params or JSON body."""
     if not current_user:
         return {"status": "skipped", "reason": "anonymous user"}
+
+    query_value = q
+    if not query_value and isinstance(body, dict):
+        query_value = body.get("query") or body.get("q")
+    query_value = (query_value or "").strip()
+    if not query_value:
+        return {"status": "skipped", "reason": "empty query"}
 
     from app.auth.models import SearchLog
 
     new_log = SearchLog(
         user_id=current_user.id,
-        query=q.lower().strip(),
-        query_text=q.lower().strip(),
+        query=query_value.lower(),
+        query_text=query_value.lower(),
         search_type="text",
     )
     db.add(new_log)
     await db.commit()
 
-    return {"status": "logged", "query": q}
+    return {"status": "logged", "query": query_value}
 
 
 @router.get("/search/history")
