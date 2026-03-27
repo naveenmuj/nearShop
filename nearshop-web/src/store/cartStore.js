@@ -6,12 +6,12 @@ export const useCartStore = create(
     (set, get) => ({
       items: [],
 
-      addItem: (product, quantity = 1) => set((state) => {
+      addItem: (product, quantity = 1, rankingContext = null) => set((state) => {
         const existing = state.items.find(i => i.id === product.id)
         if (existing) {
           return {
             items: state.items.map(i =>
-              i.id === product.id ? { ...i, quantity: i.quantity + quantity } : i
+              i.id === product.id ? { ...i, quantity: i.quantity + quantity, ranking_context: i.ranking_context || rankingContext || product.ranking_context || null } : i
             ),
           }
         }
@@ -24,6 +24,7 @@ export const useCartStore = create(
               shop_id: product.shop_id || product.shop?.id,
               shop_name: product.shop_name || product.shop?.name || 'Unknown Shop',
               shop_logo: product.shop_logo || product.shop?.logo_url || null,
+              ranking_context: rankingContext || product.ranking_context || null,
             },
           ],
         }

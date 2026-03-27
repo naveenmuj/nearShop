@@ -15,7 +15,7 @@ from app.analytics.service import (
     get_demand_insights,
     get_operational_insights,
 )
-from app.analytics.events import track_event
+from app.analytics.events import track_event, track_events_batch
 
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
@@ -27,6 +27,10 @@ class TrackEventRequest(BaseModel):
     metadata: Optional[dict] = None
     lat: Optional[float] = None
     lng: Optional[float] = None
+
+
+class TrackEventBatchRequest(BaseModel):
+    events: list[TrackEventRequest]
 
 
 @router.post("/events", status_code=201)
@@ -48,6 +52,36 @@ async def track_event_endpoint(
     )
     await db.commit()
     return {"id": str(event.id), "recorded": True}
+
+
+@router.post("/events/batch", status_code=201)
+async def track_events_batch_endpoint(
+    body: TrackEventBatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Record multiple behavioural events in a single request."""
+    events = await track_events_batch(
+        db,
+        user_id=current_user.id,
+        events=[
+            {
+                "event_type": item.event_type,
+                "entity_type": item.entity_type,
+                "entity_id": item.entity_id,
+                "metadata": item.metadata,
+                "lat": item.lat,
+                "lng": item.lng,
+            }
+            for item in body.events
+        ],
+    )
+    await db.commit()
+    return {
+        "count": len(events),
+        "ids": [str(event.id) for event in events],
+        "recorded": True,
+    }
 
 
 @router.get("/shop/{shop_id}/stats")

@@ -10,6 +10,7 @@ class OrderItemSchema(BaseModel):
     product_id: UUID
     quantity: int
     price: Optional[float] = None
+    ranking_context: Optional[dict] = None
 
 
 class OrderCreate(BaseModel):

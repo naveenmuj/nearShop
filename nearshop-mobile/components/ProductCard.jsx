@@ -3,10 +3,12 @@ import { useRouter } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice } from '../constants/theme';
 import WishlistHeart from './WishlistHeart';
 import DealCountdown from './DealCountdown';
+import { getRankingReasonLabel, getRankingReasonTone } from '../lib/ranking';
+import { rankingRouteParams, trackRankingClick } from '../lib/rankingTracking';
 
 const PLACEHOLDER = 'https://placehold.co/200x200/eee/999?text=📦';
 
-export default function ProductCard({ product, onWishlistToggle, isWishlisted }) {
+export default function ProductCard({ product, onWishlistToggle, isWishlisted, tracking = null }) {
   const router = useRouter();
   const imageUri = product.images?.[0] || product.image_url || product.image || PLACEHOLDER;
   const price = Number(product.price) || 0;
@@ -14,10 +16,27 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
   const discount = comparePrice > price && price > 0
     ? Math.round((1 - price / comparePrice) * 100)
     : 0;
+  const reasonTone = getRankingReasonTone(product.reason);
+  const reasonLabel = getRankingReasonLabel(product.reason, '');
+
+  const handlePress = () => {
+    if (tracking?.ranking_surface) {
+      trackRankingClick(product, tracking);
+      router.push({
+        pathname: `/(customer)/product/${product.id}`,
+        params: rankingRouteParams({
+          ...tracking,
+          ranking_reason: product.reason || tracking.ranking_reason,
+        }),
+      });
+      return;
+    }
+    router.push(`/(customer)/product/${product.id}`);
+  };
 
   return (
     <TouchableOpacity
-      onPress={() => router.push(`/(customer)/product/${product.id}`)}
+      onPress={handlePress}
       activeOpacity={0.85}
       style={styles.card}
     >
@@ -43,6 +62,13 @@ export default function ProductCard({ product, onWishlistToggle, isWishlisted })
       </View>
       <View style={styles.info}>
         <Text numberOfLines={2} style={styles.name}>{product.name}</Text>
+        {reasonLabel ? (
+          <View style={[styles.reasonChip, { backgroundColor: reasonTone.backgroundColor }]}>
+            <Text style={[styles.reasonText, { color: reasonTone.textColor }]} numberOfLines={1}>
+              {reasonLabel}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.priceRow}>
           <Text style={styles.price}>{formatPrice(price)}</Text>
           {comparePrice > price && (
@@ -102,6 +128,17 @@ const styles = StyleSheet.create({
   },
   info: { padding: 10 },
   name: { fontSize: 13, fontWeight: '500', color: COLORS.gray800, lineHeight: 18, marginBottom: 4 },
+  reasonChip: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  reasonText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
   price: { fontSize: 15, fontWeight: '700', color: COLORS.gray900 },
   comparePrice: { fontSize: 12, color: COLORS.gray400, textDecorationLine: 'line-through' },

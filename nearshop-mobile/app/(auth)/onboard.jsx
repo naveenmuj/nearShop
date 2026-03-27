@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Image,
+  ScrollView, StyleSheet, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -14,6 +14,7 @@ import client from '../../lib/api';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 const INTERESTS = [
   'Clothing & Fashion', 'Electronics', 'Grocery & Daily Needs',
@@ -55,6 +56,9 @@ export default function OnboardScreen() {
   const [deliveryFree, setDeliveryFree] = useState(true);
   const [deliveryRadius, setDeliveryRadius] = useState('5');
   const [deliveryFee, setDeliveryFee] = useState('');
+  const [deliveryAvailable, setDeliveryAvailable] = useState('all_day');
+  const [specificHours, setSpecificHours] = useState([{ from: '09:00', to: '18:00' }]);
+  const [showHoursModal, setShowHoursModal] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -99,16 +103,19 @@ export default function OnboardScreen() {
     try {
       const { data } = await client.post('/ai/generate-description', {
         shop_name: shopName.trim(),
-        category: shopCat,
-        keywords: description.trim(),
+        category: shopCat.length > 0 ? shopCat[0] : 'General',
+        keywords: description.trim() || shopName.trim(),
       });
       if (data?.description) {
         setDescription(data.description);
-        toast.show({ type: 'success', text1: 'Description generated!' });
+        toast.show({ type: 'success', text1: 'AI description generated!', text2: 'You can edit it if needed' });
+      } else {
+        toast.show({ type: 'info', text1: 'AI service unavailable', text2: 'Please type your description manually' });
       }
     } catch (err) {
-      // Graceful fallback - don't show alert, just disable AI
-      toast.show({ type: 'info', text1: 'Type your description manually' });
+      console.error('AI description error:', err);
+      const errorMsg = err?.response?.data?.detail || err?.response?.data?.message || 'AI service temporarily unavailable';
+      toast.show({ type: 'info', text1: 'Type manually', text2: String(errorMsg).substring(0, 80) });
     } finally {
       setAiLoading(false);
     }
@@ -211,36 +218,128 @@ export default function OnboardScreen() {
     </TouchableOpacity>
   );
 
+  const addTimeSlot = () => {
+    setSpecificHours([...specificHours, { from: '09:00', to: '18:00' }]);
+  };
+
+  const removeTimeSlot = (index) => {
+    if (specificHours.length > 1) {
+      setSpecificHours(specificHours.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateTimeSlot = (index, field, value) => {
+    const updated = [...specificHours];
+    updated[index][field] = value;
+    setSpecificHours(updated);
+  };
+
+  const DeliveryHoursModal = () => (
+    <Modal
+      visible={showHoursModal}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setShowHoursModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Set Delivery Hours</Text>
+            <TouchableOpacity onPress={() => setShowHoursModal(false)}>
+              <Ionicons name="close" size={24} color={COLORS.gray600} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody}>
+            {specificHours.map((slot, index) => (
+              <View key={index} style={styles.timeSlot}>
+                <View style={styles.timeSlotHeader}>
+                  <Text style={styles.timeSlotLabel}>Time Slot {index + 1}</Text>
+                  {specificHours.length > 1 && (
+                    <TouchableOpacity onPress={() => removeTimeSlot(index)}>
+                      <Ionicons name="trash-outline" size={20} color={COLORS.red} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View style={styles.timeInputs}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.timeLabel}>From</Text>
+                    <TextInput
+                      style={styles.timeInput}
+                      value={slot.from}
+                      onChangeText={(val) => updateTimeSlot(index, 'from', val)}
+                      placeholder="09:00"
+                      placeholderTextColor={COLORS.gray400}
+                    />
+                  </View>
+
+                  <Text style={styles.timeSeparator}>to</Text>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.timeLabel}>To</Text>
+                    <TextInput
+                      style={styles.timeInput}
+                      value={slot.to}
+                      onChangeText={(val) => updateTimeSlot(index, 'to', val)}
+                      placeholder="18:00"
+                      placeholderTextColor={COLORS.gray400}
+                    />
+                  </View>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.addSlotBtn} onPress={addTimeSlot}>
+              <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.addSlotText}>Add Another Time Slot</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          <TouchableOpacity
+            style={styles.modalSaveBtn}
+            onPress={() => setShowHoursModal(false)}
+          >
+            <Text style={styles.modalSaveBtnText}>Save Hours</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   // Customer mode
   if (role === 'customer') {
     const canSubmit = name.trim().length > 0 && interests.length >= 3;
     return (
-      <SafeAreaView style={styles.container}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>Tell us about yourself</Text>
-          <Text style={styles.subtitle}>Personalize your experience by sharing your interests</Text>
-
-          <Text style={styles.label}>Your name <Text style={{ color: COLORS.red }}>*</Text></Text>
-          <TextInput value={name} onChangeText={setName} placeholder="e.g. Priya Sharma" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
-
-          <Text style={styles.label}>What do you love? <Text style={styles.hint}>(pick 3+)</Text></Text>
-          <View style={styles.chips}>
-            {INTERESTS.map((item) => (
-              <Chip key={item} label={item} selected={interests.includes(item)} onPress={() => toggleInterest(item)} />
-            ))}
-          </View>
-
-          <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
-            style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>
-            <Text style={[styles.btnText, { color: canSubmit ? COLORS.white : COLORS.gray400 }]}>
-              {loading ? 'Setting up…' : 'Start Exploring'}
-            </Text>
+      <>
+        <DeliveryHoursModal />
+        <SafeAreaView style={styles.container}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+            <Text style={styles.title}>Tell us about yourself</Text>
+            <Text style={styles.subtitle}>Personalize your experience by sharing your interests</Text>
+
+            <Text style={styles.label}>Your name <Text style={{ color: COLORS.red }}>*</Text></Text>
+            <TextInput value={name} onChangeText={setName} placeholder="e.g. Priya Sharma" placeholderTextColor={COLORS.gray400} style={styles.input} autoCapitalize="words" />
+
+            <Text style={styles.label}>What do you love? <Text style={styles.hint}>(pick 3+)</Text></Text>
+            <View style={styles.chips}>
+              {INTERESTS.map((item) => (
+                <Chip key={item} label={item} selected={interests.includes(item)} onPress={() => toggleInterest(item)} />
+              ))}
+            </View>
+
+            <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
+              style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>
+              <Text style={[styles.btnText, { color: canSubmit ? COLORS.white : COLORS.gray400 }]}>
+                {loading ? 'Setting up…' : 'Start Exploring'}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </>
     );
   }
 
@@ -307,26 +406,28 @@ export default function OnboardScreen() {
   const canSubmit = ownerName.trim().length > 0 && shopName.trim().length > 0 && shopCat.length >= 1 && phone.trim().length >= 10;
   const showDeliveryOptions = deliveryOption === 'delivery' || deliveryOption === 'both';
   return (
-    <SafeAreaView style={styles.container}>
-      <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Almost done!</Text>
-        <Text style={styles.subtitle}>Add more details to help customers find you</Text>
-
-        {/* Logo upload */}
-        <Text style={styles.label}>Shop logo <Text style={styles.hint}>(optional)</Text></Text>
-        <TouchableOpacity style={styles.logoUpload} onPress={pickLogo} activeOpacity={0.8}>
-          {logoUri ? (
-            <Image source={{ uri: logoUri }} style={styles.logoImage} />
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoPlaceholderIcon}>📷</Text>
-              <Text style={styles.logoPlaceholderText}>Tap to upload</Text>
-            </View>
-          )}
+    <>
+      <DeliveryHoursModal />
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Almost done!</Text>
+          <Text style={styles.subtitle}>Add more details to help customers find you</Text>
+
+          {/* Logo upload */}
+          <Text style={styles.label}>Shop logo <Text style={styles.hint}>(optional)</Text></Text>
+          <TouchableOpacity style={styles.logoUpload} onPress={pickLogo} activeOpacity={0.8}>
+            {logoUri ? (
+              <Image source={{ uri: logoUri }} style={styles.logoImage} />
+            ) : (
+              <View style={styles.logoPlaceholder}>
+                <Text style={styles.logoPlaceholderIcon}>📷</Text>
+                <Text style={styles.logoPlaceholderText}>Tap to upload</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
         <Text style={styles.label}>Shop description <Text style={styles.hint}>(optional)</Text></Text>
         <View style={styles.descriptionWrap}>
@@ -404,9 +505,33 @@ export default function OnboardScreen() {
 
             <Text style={styles.label}>Delivery available</Text>
             <View style={styles.chips}>
-              {['All day', 'Peak hours only', 'Specific hours'].map((option) => (
-                <Chip key={option} label={option} selected={false} onPress={() => {}} />
-              ))}
+              <Chip
+                key="all_day"
+                label="All day"
+                selected={deliveryAvailable === 'all_day'}
+                onPress={() => setDeliveryAvailable('all_day')}
+              />
+              <Chip
+                key="peak"
+                label="Peak hours only"
+                selected={deliveryAvailable === 'peak'}
+                onPress={() => {
+                  setDeliveryAvailable('peak');
+                  alert.info({
+                    title: 'Peak Hours',
+                    message: 'Typical peak hours are:\n• Morning: 8 AM - 11 AM\n• Evening: 5 PM - 9 PM\n\nYou can customize these timings later in settings.',
+                  });
+                }}
+              />
+              <Chip
+                key="specific"
+                label="Specific hours"
+                selected={deliveryAvailable === 'specific'}
+                onPress={() => {
+                  setDeliveryAvailable('specific');
+                  setShowHoursModal(true);
+                }}
+              />
             </View>
           </View>
         )}
@@ -419,6 +544,7 @@ export default function OnboardScreen() {
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
+    </>
   );
 
   // Business mode — Step 3: Bulk Product Upload (currently unused — kept for future)
@@ -563,4 +689,109 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.gray200,
   },
   quickAddTitle: { fontSize: 14, fontWeight: '700', color: COLORS.gray900, marginBottom: 12 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingTop: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.gray900,
+  },
+  modalBody: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  timeSlot: {
+    backgroundColor: COLORS.bg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  timeSlotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  timeSlotLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  timeInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  timeLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: COLORS.gray500,
+    marginBottom: 6,
+  },
+  timeInput: {
+    backgroundColor: COLORS.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: COLORS.gray900,
+    textAlign: 'center',
+  },
+  timeSeparator: {
+    fontSize: 14,
+    color: COLORS.gray400,
+    fontWeight: '600',
+    marginTop: 20,
+  },
+  addSlotBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+    marginTop: 8,
+  },
+  addSlotText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  modalSaveBtn: {
+    margin: 20,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalSaveBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
 });

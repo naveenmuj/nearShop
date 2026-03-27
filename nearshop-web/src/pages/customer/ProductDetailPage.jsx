@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { ShoppingBag, ShoppingCart, Share2, Lock, MessageSquare, ChevronRight, Star, MapPin, Store, Plus, Minus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCartStore } from '../../store/cartStore'
@@ -12,14 +12,16 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import WishlistHeart from '../../components/WishlistHeart'
 import ShareModal from '../../components/ShareModal'
+import { readRankingContext, trackRankingAction } from '../../utils/rankingTracking'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
-function AddToCartButton({ product, shop }) {
+function AddToCartButton({ product }) {
   const addItem = useCartStore((s) => s.addItem)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const getItemById = useCartStore((s) => s.getItemById)
   const cartItem = getItemById(product.id)
+  const rankingContext = product.ranking_context || null
 
   if (cartItem) {
     return (
@@ -42,7 +44,7 @@ function AddToCartButton({ product, shop }) {
 
   return (
     <button
-      onClick={() => { addItem(product); toast.success('Added to cart!') }}
+      onClick={() => { addItem(product, 1, rankingContext); trackRankingAction('add_to_cart', product, rankingContext); toast.success('Added to cart!') }}
       className="w-full flex items-center justify-center gap-2 bg-brand-purple text-white py-3 rounded-xl text-sm font-bold hover:bg-brand-purple-dark transition">
       <ShoppingCart className="w-4 h-4" /> Add to Cart
     </button>
@@ -52,6 +54,8 @@ function AddToCartButton({ product, shop }) {
 export default function ProductDetailPage() {
   const { productId } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const rankingContext = readRankingContext(searchParams)
 
   const [product, setProduct] = useState(null)
   const [similar, setSimilar] = useState([])
@@ -65,26 +69,26 @@ export default function ProductDetailPage() {
   const [descExpanded, setDescExpanded] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
 
-  const fetchProduct = async () => {
+  const fetchProduct = useCallback(async () => {
     setLoading(true); setError(null)
     try {
       const { data } = await getProduct(productId)
-      setProduct(data)
+      setProduct({ ...data, ranking_context: rankingContext })
       trackEvent({ event_type: 'view', entity_type: 'product', entity_id: productId }).catch(() => {})
-      trackEvent({ event_type: 'product_view', entity_type: 'product', entity_id: productId }).catch(() => {})
+      trackEvent({ event_type: 'product_view', entity_type: 'product', entity_id: productId, metadata: rankingContext.ranking_surface ? rankingContext : undefined }).catch(() => {})
       trackView(productId).catch(() => {})
-      try { const { data: simData } = await getSimilarProducts(productId); setSimilar(simData.items || simData || []) } catch {}
+      try { const { data: simData } = await getSimilarProducts(productId); setSimilar(simData.items || simData || []) } catch { setSimilar([]) }
     } catch (err) { setError(err.message || 'Failed to load product') } finally { setLoading(false) }
-  }
+  }, [productId, rankingContext])
 
-  useEffect(() => { if (productId) fetchProduct() }, [productId])
+  useEffect(() => { if (productId) fetchProduct() }, [productId, searchParams, fetchProduct])
 
   const handleWhatsApp = () => {
     const shop = product.shop || {}
     const phone = (shop.whatsapp || shop.phone || '').replace('+', '')
     const msg = encodeURIComponent(`Hi, I saw ${product.name} on NearShop — is it available?`)
     window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
-    trackEvent({ event_type: 'inquiry', entity_type: 'product', entity_id: product.id }).catch(() => {})
+    trackEvent({ event_type: 'inquiry', entity_type: 'product', entity_id: product.id, metadata: rankingContext.ranking_surface ? rankingContext : undefined }).catch(() => {})
   }
 
   const handleHold = async () => {
@@ -207,7 +211,7 @@ export default function ProductDetailPage() {
 
             {/* Action buttons */}
             <div className="space-y-2">
-              <AddToCartButton product={product} shop={shop} />
+              <AddToCartButton product={product} />
               <button onClick={handleWhatsApp} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition">
                 <MessageSquare className="w-4 h-4" /> Chat on WhatsApp
               </button>
@@ -226,6 +230,7 @@ export default function ProductDetailPage() {
                   <WishlistHeart
                     productId={product.id}
                     initialWishlisted={product.is_wishlisted ?? false}
+                    onToggle={(productId, next) => { if (next) trackRankingAction('wishlist_add', product, rankingContext) }}
                     size="md"
                   />
                   <span className="text-sm font-medium text-gray-600 ml-1">Wishlist</span>

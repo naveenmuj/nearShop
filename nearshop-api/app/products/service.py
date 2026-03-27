@@ -1,14 +1,15 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, or_, cast, String
+from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, contains_eager
+from sqlalchemy.orm import contains_eager, joinedload
 
-from app.core.exceptions import NotFoundError, BadRequestError, ForbiddenError
+from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.core.geo import within_radius
-from app.products.models import Product, PriceHistory
+from app.products.models import PriceHistory, Product
 from app.products.schemas import ProductCreate, ProductUpdate
+from app.ranking.service import RankingContext, build_user_preference_profile, rank_products
 from app.shops.models import Shop
 
 
@@ -50,7 +51,6 @@ async def create_product(
     )
     db.add(product)
 
-    # Increment shop product count
     shop.total_products = (shop.total_products or 0) + 1
 
     await db.flush()
@@ -136,14 +136,9 @@ async def search_products(
     sort_by: Optional[str] = None,
     page: int = 1,
     per_page: int = 20,
+    user_id: UUID | None = None,
 ) -> tuple[list[Product], int]:
-    """Search products with FTS, geo filtering, and price range.
-
-    Geo behaviour:
-    - If radius_km is explicitly provided  → filter by radius
-    - If only lat/lng provided (no radius) → order by distance, don't filter
-    - If neither                           → order by relevance / recency
-    """
+    """Search products with FTS, geo filtering, and shared ranking."""
     from app.core.geo import haversine_distance_km as _haversine
 
     base_query = (
@@ -158,15 +153,17 @@ async def search_products(
         )
     )
 
-    # Full-text search + ILIKE fallback for partial/prefix queries
     if query:
         ts_query = func.plainto_tsquery("english", query)
         ts_vector = func.to_tsvector(
             "english",
             func.concat(
-                Product.name, " ",
-                func.coalesce(Product.description, ""), " ",
-                func.coalesce(Product.category, ""), " ",
+                Product.name,
+                " ",
+                func.coalesce(Product.description, ""),
+                " ",
+                func.coalesce(Product.category, ""),
+                " ",
                 func.coalesce(cast(Product.tags, String), ""),
             ),
         )
@@ -180,47 +177,63 @@ async def search_products(
             )
         )
 
-    # Geo filter — ONLY when radius explicitly provided
     if lat is not None and lng is not None and radius_km is not None:
         base_query = base_query.where(
             within_radius(Shop.latitude, Shop.longitude, lat, lng, radius_km)
         )
 
-    # Category filter (case-insensitive)
     if category:
         base_query = base_query.where(func.lower(Product.category) == category.lower())
-
-    # Price range filters
     if min_price is not None:
         base_query = base_query.where(Product.price >= min_price)
     if max_price is not None:
         base_query = base_query.where(Product.price <= max_price)
 
-    # Count
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Sorting — prefer distance ordering when lat/lng present
+    offset = (page - 1) * per_page
+    should_rank = sort_by not in {"price_asc", "price_desc", "popular"} and (
+        bool(query) or user_id is not None or (lat is not None and lng is not None)
+    )
+
     if sort_by == "price_asc":
         base_query = base_query.order_by(Product.price.asc())
     elif sort_by == "price_desc":
         base_query = base_query.order_by(Product.price.desc())
     elif sort_by == "popular":
-        base_query = base_query.order_by(Product.view_count.desc())
-    elif lat is not None and lng is not None:
-        # Default: sort by distance so nearest results first
-        dist = _haversine(lat, lng, Shop.latitude, Shop.longitude)
-        base_query = base_query.order_by(dist, Product.created_at.desc())
-    else:
+        base_query = base_query.order_by(
+            Product.view_count.desc(),
+            Product.wishlist_count.desc(),
+        )
+    elif not should_rank and lat is not None and lng is not None:
+        distance = _haversine(lat, lng, Shop.latitude, Shop.longitude)
+        base_query = base_query.order_by(distance, Product.created_at.desc())
+    elif not should_rank:
         base_query = base_query.order_by(Product.created_at.desc())
 
-    # Pagination
-    offset = (page - 1) * per_page
-    base_query = base_query.offset(offset).limit(per_page)
-
-    result = await db.execute(base_query)
-    products = list(result.unique().scalars().all())
+    if should_rank:
+        candidate_limit = min(max(per_page * 5, 80), 250)
+        result = await db.execute(base_query.limit(candidate_limit))
+        candidates = list(result.unique().scalars().all())
+        profile = await build_user_preference_profile(db, user_id)
+        ranked = rank_products(
+            candidates,
+            profile,
+            RankingContext(
+                lat=lat,
+                lng=lng,
+                query=query,
+                radius_km=radius_km,
+                surface="product_search",
+            ),
+        )
+        products = ranked[offset : offset + per_page]
+    else:
+        paged_query = base_query.offset(offset).limit(per_page)
+        result = await db.execute(paged_query)
+        products = list(result.unique().scalars().all())
 
     return products, total
 
@@ -260,16 +273,14 @@ async def get_shop_products(
         )
     )
 
-    # Count
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Paginate
     offset = (page - 1) * per_page
-    base_query = base_query.order_by(Product.created_at.desc()).offset(offset).limit(per_page)
+    paged_query = base_query.order_by(Product.created_at.desc()).offset(offset).limit(per_page)
 
-    result = await db.execute(base_query)
+    result = await db.execute(paged_query)
     products = list(result.scalars().all())
 
     return products, total

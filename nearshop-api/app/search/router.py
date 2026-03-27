@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.auth.permissions import get_current_user
+from app.auth.permissions import get_current_user, get_current_user_optional
 from app.search.schemas import UnifiedSearchResponse, SearchSuggestionsResponse, SearchSuggestion
 from app.delivery.schemas import (
     DeliveryCheckRequest,
@@ -32,11 +32,20 @@ async def unified_search(
     q: str = Query(..., min_length=1, max_length=100),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
+    include_debug: bool = Query(False),
+    current_user=Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
     """Search across products and shops simultaneously."""
     from app.search.service import search_unified
-    result = await search_unified(db, q, lat, lng)
+    result = await search_unified(
+        db,
+        q,
+        lat,
+        lng,
+        user_id=current_user.id if current_user else None,
+        include_debug=include_debug,
+    )
     return result
 
 

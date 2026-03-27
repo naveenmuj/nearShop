@@ -12,6 +12,7 @@ from app.orders.models import Order
 from app.orders.schemas import OrderCreate
 from app.products.models import Product
 from app.shops.models import Shop
+from app.analytics.events import track_event
 
 
 VALID_TRANSITIONS = {
@@ -63,6 +64,7 @@ async def create_order(
                 "quantity": item.quantity,
                 "price": item_price,
                 "total": float(line_total),
+                "ranking_context": item.ranking_context,
             }
         )
 
@@ -114,6 +116,28 @@ async def create_order(
     db.add(order)
     await db.flush()
     await db.refresh(order)
+
+    for item in data.items:
+        product = available_products[item.product_id]
+        ranking_context = item.ranking_context or {}
+        purchase_meta = {
+            **ranking_context,
+            "shop_id": str(data.shop_id),
+            "order_id": str(order.id),
+            "quantity": item.quantity,
+            "price": float(item.price if item.price is not None else product.price or 0),
+            "category": product.category,
+            "subcategory": product.subcategory,
+            "tags": product.tags or [],
+        }
+        await track_event(
+            db,
+            user_id=customer_id,
+            event_type="purchase",
+            entity_type="product",
+            entity_id=item.product_id,
+            metadata=purchase_meta,
+        )
 
     # Decrement stock for tracked products
     try:

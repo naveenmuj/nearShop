@@ -6,7 +6,7 @@ import { useCartStore } from '../../store/cartStore'
 import { useLocationStore } from '../../store/locationStore'
 import { createOrder, createPaymentOrder, confirmPayment } from '../../api/orders'
 import { checkDeliveryEligibility } from '../../api/delivery'
-import { validateCoupon, useCoupon } from '../../api/deals'
+import { validateCoupon, useCoupon as recordCouponUse } from '../../api/deals'
 import { listAddresses, createAddress } from '../../api/auth'
 
 const formatPrice = (v) => '\u20B9' + Number(v || 0).toLocaleString('en-IN')
@@ -99,7 +99,7 @@ export default function CheckoutPage() {
     if (Object.keys(initial).length > 0) {
       setShopSettings((prev) => ({ ...prev, ...initial }))
     }
-  }, [shopGroups.length])
+  }, [locationName, shopGroups, shopSettings])
 
   // Check delivery eligibility when delivery_type changes to 'delivery'
   const handleDeliveryTypeChange = async (shopId, type) => {
@@ -210,7 +210,7 @@ export default function CheckoutPage() {
   }
 
   // Handle Razorpay payment
-  const handleRazorpayPayment = async (orderId, orderNumber, total) => {
+  const handleRazorpayPayment = async (orderId, orderNumber) => {
     const scriptLoaded = await loadRazorpayScript()
     if (!scriptLoaded) {
       toast.error('Failed to load payment gateway. Please try again.')
@@ -240,7 +240,7 @@ export default function CheckoutPage() {
               })
               toast.success('Payment successful!')
               resolve(true)
-            } catch (err) {
+            } catch {
               toast.error('Payment verification failed')
               resolve(false)
             }
@@ -301,6 +301,7 @@ export default function CheckoutPage() {
           product_id: item.id,
           quantity: item.quantity,
           price: item.price,
+          ranking_context: item.ranking_context || null,
         })),
         delivery_fee: getDeliveryFee(group.shop_id),
         subtotal: group.subtotal,
@@ -318,11 +319,7 @@ export default function CheckoutPage() {
         // Handle online payment
         if (paymentMethod === 'online') {
           setProcessingPayment(true)
-          const paymentSuccess = await handleRazorpayPayment(
-            data.id, 
-            data.order_number, 
-            data.total
-          )
+          const paymentSuccess = await handleRazorpayPayment(data.id, data.order_number)
           setProcessingPayment(false)
           
           if (!paymentSuccess) {
@@ -334,7 +331,7 @@ export default function CheckoutPage() {
         // Record coupon usage if applied
         if (appliedCoupon) {
           try {
-            await useCoupon(appliedCoupon.id, data.id, couponDiscount / shopGroups.length)
+            await recordCouponUse(appliedCoupon.id, data.id, couponDiscount / shopGroups.length)
           } catch (e) {
             console.error('Failed to record coupon usage:', e)
           }

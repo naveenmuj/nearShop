@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, Eye } from 'lucide-react'
 import QuickViewModal from './QuickViewModal'
+import { getRankingReasonLabel, getRankingReasonTone } from '../utils/ranking'
+import { rankingSearchParams, trackRankingClick } from '../utils/rankingTracking'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
-export default function ProductCard({ product, onWishlistToggle, className = '' }) {
+export default function ProductCard({ product, onWishlistToggle, className = '', tracking = null }) {
   const navigate = useNavigate()
   const {
     id,
@@ -15,8 +17,11 @@ export default function ProductCard({ product, onWishlistToggle, className = '' 
     images,
     shop_name,
     is_wishlisted,
+    reason,
   } = product
   const image_url = images?.[0] ?? null
+  const reasonLabel = getRankingReasonLabel(reason, '')
+  const reasonTone = getRankingReasonTone(reason)
 
   const [wishlisted, setWishlisted] = useState(is_wishlisted ?? false)
   const [showQuickView, setShowQuickView] = useState(false)
@@ -36,11 +41,23 @@ export default function ProductCard({ product, onWishlistToggle, className = '' 
   const hasDiscount = compare_price != null && compare_price > price
   const discountPct = hasDiscount ? Math.round(((compare_price - price) / compare_price) * 100) : null
 
+  const handleProductClick = () => {
+    if (tracking?.ranking_surface) {
+      trackRankingClick(product, tracking)
+      navigate(`/app/product/${id}${rankingSearchParams({
+        ...tracking,
+        ranking_reason: product.reason || tracking.ranking_reason,
+      })}`)
+      return
+    }
+    navigate(`/app/product/${id}`)
+  }
+
   return (
     <>
       <div
         className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group cursor-pointer ${className}`}
-        onClick={() => navigate(`/app/product/${id}`)}
+        onClick={handleProductClick}
       >
         {/* Image */}
         <div className="relative aspect-square bg-gray-100 overflow-hidden">
@@ -83,6 +100,11 @@ export default function ProductCard({ product, onWishlistToggle, className = '' 
         {/* Info */}
         <div className="px-3 py-2.5">
           <h4 className="text-sm font-medium text-gray-900 truncate">{name}</h4>
+          {reasonLabel && (
+            <span className={`inline-flex mt-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${reasonTone}`}>
+              {reasonLabel}
+            </span>
+          )}
           {shop_name && <p className="text-xs text-gray-500 mt-0.5 truncate">{shop_name}</p>}
           <div className="flex items-center gap-2 mt-1.5">
             <span className="text-sm font-bold text-gray-900">

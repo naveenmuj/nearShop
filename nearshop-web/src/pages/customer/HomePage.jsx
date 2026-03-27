@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Store, Search, ChevronRight, Zap, ShoppingBag, Star, Truck, TrendingUp, Sparkles, Heart, Clock, RefreshCw } from 'lucide-react'
+import { MapPin, Store, Search, ChevronRight, Zap, ShoppingBag, Star, Truck, TrendingUp, Sparkles, Clock } from 'lucide-react'
 import { useLocation } from '../../hooks/useLocation'
 import { useAuthStore } from '../../store/authStore'
 import { getNearbyShops } from '../../api/shops'
@@ -16,6 +16,8 @@ import ScrollReveal from '../../components/ui/ScrollReveal'
 import RecentlyViewed from '../../components/RecentlyViewed'
 import ShopCarousel from '../../components/ShopCarousel'
 import ShopCard from '../../components/ShopCard'
+import { getRankingReasonLabel, getRankingReasonTone } from '../../utils/ranking'
+import { rankingSearchParams, trackRankingClick, trackRankingImpressions } from '../../utils/rankingTracking'
 
 const CATEGORY_ICONS = {
   food: '🍔', grocery: '🛒', pharmacy: '💊', electronics: '📱',
@@ -26,7 +28,7 @@ const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { latitude, longitude, locationName, isLoading: locationLoading } = useLocation()
+  const { latitude, longitude } = useLocation()
   const { isAuthenticated, user } = useAuthStore()
 
   const [shops, setShops] = useState([])
@@ -40,7 +42,6 @@ export default function HomePage() {
   const [forYouRecs, setForYouRecs] = useState([])
   const [searchHistory, setSearchHistory] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
 
   const mapAIProducts = (items = []) =>
     items.map((item) => ({
@@ -54,7 +55,6 @@ export default function HomePage() {
     if (!latitude || !longitude) return
     const fetchAll = async () => {
       setLoading(true)
-      setError(null)
       try {
         const reqs = [
           getNearbyShops(latitude, longitude, { limit: 12 }),
@@ -92,10 +92,39 @@ export default function HomePage() {
         if (cfRes) setCfRecs(cfRes.data?.products ?? [])
         if (forYouRes) setForYouRecs(mapAIProducts(forYouRes.data?.products ?? []))
         if (historyRes) setSearchHistory(historyRes.data?.history ?? [])
-      } catch (err) { setError(err.message || 'Failed to load') } finally { setLoading(false) }
+      } catch {
+        // Keep the home surface resilient even when one of the optional feeds fails.
+      } finally { setLoading(false) }
     }
     fetchAll()
   }, [latitude, longitude, isAuthenticated])
+
+  useEffect(() => {
+    if (isAuthenticated && forYouRecs.length > 0) {
+      trackRankingImpressions(forYouRecs, {
+        ranking_surface: 'content_recommendations',
+        source_screen: 'home_for_you',
+      })
+    }
+  }, [isAuthenticated, forYouRecs])
+
+  useEffect(() => {
+    if (isAuthenticated && cfRecs.length > 0) {
+      trackRankingImpressions(cfRecs, {
+        ranking_surface: 'collaborative_recommendations',
+        source_screen: 'home_collaborative',
+      })
+    }
+  }, [isAuthenticated, cfRecs])
+
+  useEffect(() => {
+    if (trending.length > 0) {
+      trackRankingImpressions(trending, {
+        ranking_surface: 'home_feed',
+        source_screen: 'home_trending',
+      })
+    }
+  }, [trending])
 
   const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening' }
   const firstName = user?.name?.split(' ')[0] || 'there'
@@ -149,7 +178,19 @@ export default function HomePage() {
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
               {forYouRecs.map((item, idx) => (
                 <div key={`${item.type}-${item.id}-${idx}`} 
-                  onClick={() => item.type === 'shop' ? navigate(`/app/shop/${item.id}`) : navigate(`/app/product/${item.id}`)}
+                  onClick={() => item.type === 'shop' ? navigate(`/app/shop/${item.id}`) : (() => {
+                    trackRankingClick(item, {
+                      ranking_surface: 'content_recommendations',
+                      source_screen: 'home_for_you',
+                      position: idx + 1,
+                    })
+                    navigate(`/app/product/${item.id}${rankingSearchParams({
+                      ranking_surface: 'content_recommendations',
+                      source_screen: 'home_for_you',
+                      ranking_reason: item.reason,
+                      position: idx + 1,
+                    })}`)
+                  })()}
                   className="flex-shrink-0 w-[140px] bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition group">
                   <div className="relative h-24 bg-gray-100">
                     {item.image_url ? (
@@ -160,16 +201,10 @@ export default function HomePage() {
                       </div>
                     )}
                     <div className="absolute top-2 left-2">
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
-                        item.type === 'shop' ? 'bg-blue-100 text-blue-700' : 
-                        item.reason === 'reorder' ? 'bg-green-100 text-green-700' :
-                        item.reason === 'favorite_shop' ? 'bg-pink-100 text-pink-700' :
-                        'bg-purple-100 text-purple-700'
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                        item.type === 'shop' ? 'bg-blue-100 text-blue-700 border-blue-200' : getRankingReasonTone(item.reason)
                       }`}>
-                        {item.type === 'shop' ? 'Shop' : 
-                         item.reason === 'reorder' ? <><RefreshCw className="w-2.5 h-2.5 inline mr-0.5" />Reorder</> :
-                         item.reason === 'favorite_shop' ? <><Heart className="w-2.5 h-2.5 inline mr-0.5" />Favorite</> :
-                         'For You'}
+                        {item.type === 'shop' ? 'Shop' : getRankingReasonLabel(item.reason)}
                       </span>
                     </div>
                   </div>
@@ -323,7 +358,19 @@ export default function HomePage() {
                 const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
                 return (
                   <ScrollReveal key={product.id} direction="up" delay={i * 30}>
-                    <button onClick={() => navigate(`/app/product/${product.id}`)}
+                    <button onClick={() => {
+                      trackRankingClick(product, {
+                        ranking_surface: 'home_feed',
+                        source_screen: 'home_trending',
+                        position: i + 1,
+                      })
+                      navigate(`/app/product/${product.id}${rankingSearchParams({
+                        ranking_surface: 'home_feed',
+                        source_screen: 'home_trending',
+                        ranking_reason: product.reason || product.trend_label || 'trending',
+                        position: i + 1,
+                      })}`)
+                    }}
                       className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
                       <div className="aspect-square bg-gray-50 relative overflow-hidden">
                         {product.images?.[0] ? (
@@ -365,7 +412,19 @@ export default function HomePage() {
                 const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
                 return (
                   <ScrollReveal key={product.id} direction="up" delay={i * 30}>
-                    <button onClick={() => navigate(`/app/product/${product.id}`)}
+                    <button onClick={() => {
+                      trackRankingClick(product, {
+                        ranking_surface: 'collaborative_recommendations',
+                        source_screen: 'home_collaborative',
+                        position: i + 1,
+                      })
+                      navigate(`/app/product/${product.id}${rankingSearchParams({
+                        ranking_surface: 'collaborative_recommendations',
+                        source_screen: 'home_collaborative',
+                        ranking_reason: product.reason,
+                        position: i + 1,
+                      })}`)
+                    }}
                       className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left group">
                       <div className="aspect-square bg-gray-50 relative overflow-hidden">
                         {product.images?.[0] ? (

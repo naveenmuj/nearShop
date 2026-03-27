@@ -71,7 +71,13 @@ async def create_shop(
         opening_hours=data.opening_hours,
         delivery_options=data.delivery_options or ["pickup"],
         delivery_radius=data.delivery_radius,
+        delivery_fee=data.delivery_fee or 0,
+        free_delivery_above=data.free_delivery_above,
         min_order=data.min_order,
+        delivery_available=data.delivery_available or 'all_day',
+        delivery_hours=data.delivery_hours,
+        cover_image=data.cover_image,
+        logo_url=data.logo_url,
     )
     db.add(shop)
     await db.flush()

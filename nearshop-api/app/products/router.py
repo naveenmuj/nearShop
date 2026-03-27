@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.auth.models import User
-from app.auth.permissions import get_current_user, require_business
+from app.auth.permissions import get_current_user_optional, require_business
 from app.products.schemas import (
     ProductCreate,
     ProductUpdate,
@@ -91,10 +91,12 @@ async def search_products_endpoint(
     sort_by: Optional[str] = Query(None, pattern="^(price_asc|price_desc|newest|popular)$"),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
     products, total = await search_products(
-        db, q, lat, lng, radius_km, category, min_price, max_price, sort_by, page, per_page
+        db, q, lat, lng, radius_km, category, min_price, max_price, sort_by, page, per_page,
+        current_user.id if current_user else None,
     )
     return ProductListResponse(
         items=[_product_to_response(p) for p in products],

@@ -139,6 +139,7 @@ export default function CheckoutScreen() {
             product_id: i.product_id,
             quantity: i.quantity,
             price: i.price,
+            ranking_context: i.ranking_context || null,
           })),
           delivery_type: deliveryType,
           payment_method: paymentMethod === 'online' ? 'razorpay' : 'cod',

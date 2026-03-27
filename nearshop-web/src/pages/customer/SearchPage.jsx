@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PackageSearch, ChevronLeft, ChevronRight, Store, ShoppingBag, Search, X, ArrowUpRight, SlidersHorizontal } from 'lucide-react'
 import { useLocationStore } from '../../store/locationStore'
 import { searchProducts, getSearchSuggestions } from '../../api/products'
-import { searchShops, searchUnified } from '../../api/search'
+import { searchUnified } from '../../api/search'
 import { getCategories } from '../../api/categories'
 import EmptyState from '../../components/ui/EmptyState'
 import ShopCard from '../../components/ShopCard'
+import { getRankingReasonLabel, getRankingReasonTone } from '../../utils/ranking'
+import { rankingSearchParams, trackRankingClick, trackRankingImpressions } from '../../utils/rankingTracking'
 
 const DEBOUNCE_MS = 400
 const SUGGEST_MS = 180
@@ -65,7 +67,8 @@ export default function SearchPage() {
       let productsRes, shopsRes
       if (q.trim()) {
         const unifiedRes = await searchUnified(q, latitude, longitude)
-        productsRes = { data: { items: unifiedRes.data.products || [] } }
+        const unifiedProducts = (unifiedRes.data.products || []).filter(product => !category || product.category === category)
+        productsRes = { data: { items: unifiedProducts } }
         shopsRes = { data: { items: unifiedRes.data.shops || [] } }
       } else {
         const [pRes, sRes] = await Promise.allSettled([
@@ -89,6 +92,15 @@ export default function SearchPage() {
     }, DEBOUNCE_MS)
     return () => clearTimeout(debounceTimer.current)
   }, [query, selectedCategory, page, doSearch, setSearchParams])
+
+  useEffect(() => {
+    if (!query.trim() || !products.length || activeResultTab !== 'products') return
+    trackRankingImpressions(products, {
+      ranking_surface: 'unified_search',
+      source_screen: 'search_results',
+      query: query.trim(),
+    })
+  }, [products, query, activeResultTab])
 
   const handleSuggestionClick = (item) => { setShowSuggestions(false); if (item.type === 'shop') navigate(`/app/shop/${item.id}`); else { setQuery(item.name); setPage(1) } }
   const totalPages = Math.ceil(totalCount / PER_PAGE)
@@ -225,8 +237,22 @@ export default function SearchPage() {
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
                   {products.map(product => {
                     const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
+                    const reasonLabel = getRankingReasonLabel(product.reason, '')
+                    const reasonTone = getRankingReasonTone(product.reason)
                     return (
-                      <button key={product.id} onClick={() => navigate(`/app/product/${product.id}`)}
+                      <button key={product.id} onClick={() => {
+                        trackRankingClick(product, {
+                          ranking_surface: 'unified_search',
+                          source_screen: 'search_results',
+                          query: query.trim(),
+                        })
+                        navigate(`/app/product/${product.id}${rankingSearchParams({
+                          ranking_surface: 'unified_search',
+                          source_screen: 'search_results',
+                          ranking_reason: product.reason,
+                          query: query.trim(),
+                        })}`)
+                      }}
                         className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group">
                         <div className="aspect-square bg-gray-50 relative overflow-hidden">
                           {product.images?.[0] ? <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -235,6 +261,11 @@ export default function SearchPage() {
                         </div>
                         <div className="p-3">
                           <p className="text-sm font-semibold text-gray-900 line-clamp-2">{product.name}</p>
+                          {reasonLabel && (
+                            <span className={`inline-flex mt-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${reasonTone}`}>
+                              {reasonLabel}
+                            </span>
+                          )}
                           <div className="flex items-baseline gap-1.5 mt-1.5">
                             <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
                             {product.compare_price > product.price && <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>}
@@ -269,6 +300,11 @@ export default function SearchPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 truncate">{shop.name}</p>
+                        {shop.reason && (
+                          <span className={`inline-flex mt-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getRankingReasonTone(shop.reason)}`}>
+                            {getRankingReasonLabel(shop.reason, 'Recommended shop')}
+                          </span>
+                        )}
                         <p className="text-xs text-gray-500 mt-0.5">{shop.category}</p>
                         {shop.avg_rating > 0 && <span className="text-xs text-amber-600 font-semibold">⭐ {Number(shop.avg_rating).toFixed(1)}</span>}
                       </div>

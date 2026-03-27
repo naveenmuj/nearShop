@@ -25,6 +25,8 @@ class ShopCreate(BaseModel):
     delivery_fee: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     free_delivery_above: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     min_order: Optional[Decimal] = None
+    delivery_available: Optional[str] = Field('all_day', pattern='^(all_day|peak|specific)$')
+    delivery_hours: Optional[list[dict[str, str]]] = None  # [{"from": "09:00", "to": "18:00"}]
 
 
 class ShopUpdate(BaseModel):
@@ -47,6 +49,8 @@ class ShopUpdate(BaseModel):
     delivery_fee: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     free_delivery_above: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
     min_order: Optional[Decimal] = None
+    delivery_available: Optional[str] = Field(None, pattern='^(all_day|peak|specific)$')
+    delivery_hours: Optional[list[dict[str, str]]] = None
 
 
 class ShopResponse(BaseModel):
@@ -76,6 +80,8 @@ class ShopResponse(BaseModel):
     delivery_fee: Decimal = Decimal("0")
     free_delivery_above: Optional[Decimal] = None
     min_order: Optional[Decimal] = None
+    delivery_available: str = 'all_day'
+    delivery_hours: Optional[list[dict[str, str]]] = None
     is_open_now: bool = False
     product_count: int = 0
     created_at: datetime

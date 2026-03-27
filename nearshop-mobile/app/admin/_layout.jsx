@@ -138,7 +138,7 @@ const STS_CLR = {
 };
 
 function KpiCard({ icon, label, value, sub, fmt = 'number' }) {
-  const display = fmt === 'currency' ? fmtINR(value) : fmt === 'usd' ? fmtUSD(value) : fmtNum(value);
+  const display = fmt === 'currency' ? fmtINR(value) : fmt === 'usd' ? fmtUSD(value) : fmt === 'pct' ? fmtPct(value) : fmtNum(value);
   return (
     <View style={cs.kpiCard}>
       <Text style={cs.kpiIcon}>{icon}</Text>
@@ -792,7 +792,7 @@ function AiUsageScreen({ period }) {
   useState(() => {
     (async () => {
       try {
-        const [ov, byFeat, byModel, trend, recent, hourly, topUsers] = await Promise.allSettled([
+        const [ov, byFeat, byModel, trend, recent, hourly, topUsers, ranking, outcomes] = await Promise.allSettled([
           api.getAiOverview(period),
           api.getAiCostByFeature(period),
           api.getAiCostByModel(period),
@@ -800,6 +800,8 @@ function AiUsageScreen({ period }) {
           api.getAiRecentCalls(50),
           api.getAiHourlyDistribution(period),
           api.getAiTopUsers(period),
+          api.getRankingDiagnostics(),
+          api.getRankingOutcomes(period),
         ]);
         setData({
           overview: ov.status === 'fulfilled' ? ov.value.data : {},
@@ -809,6 +811,8 @@ function AiUsageScreen({ period }) {
           recent: recent.status === 'fulfilled' ? recent.value.data : [],
           hourly: hourly.status === 'fulfilled' ? hourly.value.data : [],
           topUsers: topUsers.status === 'fulfilled' ? topUsers.value.data : [],
+          ranking: ranking.status === 'fulfilled' ? ranking.value.data : null,
+          outcomes: outcomes.status === 'fulfilled' ? outcomes.value.data : null,
         });
       } catch {}
       setLoading(false);
@@ -830,6 +834,72 @@ function AiUsageScreen({ period }) {
         <KpiCard icon="💵" label="Total Cost" value={ov.total_cost_usd} fmt="usd" />
         <KpiCard icon="⚡" label="Avg Latency" value={ov.avg_response_ms} sub={`${ov.unique_users || 0} users`} />
       </View>
+
+      {data?.ranking?.report_available && (
+        <>
+          <View style={cs.kpiGrid}>
+            <KpiCard icon="🎯" label="Content P@5" value={(data.ranking.summary?.content_avg_precision_at_5 || 0) * 100} sub={data.ranking.summary?.best_surface?.replace(/_/g, ' ')} />
+            <KpiCard icon="🤝" label="Collab P@5" value={(data.ranking.summary?.collaborative_avg_precision_at_5 || 0) * 100} />
+            <KpiCard icon="🔎" label="Unified P@5" value={(data.ranking.summary?.unified_avg_precision_at_5 || 0) * 100} sub={`${data.ranking.summary?.avg_unified_shop_coverage || 0} shops`} />
+            <KpiCard icon="🕒" label="Freshness (hrs)" value={data.ranking.freshness?.age_hours || 0} sub={data.ranking.freshness?.status || 'unknown'} />
+          </View>
+
+          <SectionCard title="Ranking Diagnostics" icon="🧭">
+            <View style={{ gap: 10 }}>
+              <View style={cs.listRow}>
+                <Text style={cs.listRowTitle}>Version</Text>
+                <Badge label={data.ranking.version} color={COLORS.primary} />
+              </View>
+              <View style={cs.listRow}>
+                <Text style={cs.listRowTitle}>Personas Evaluated</Text>
+                <Text style={cs.listRowValue}>{fmtNum(data.ranking.summary?.persona_count || 0)}</Text>
+              </View>
+              <View style={cs.listRow}>
+                <Text style={cs.listRowTitle}>Best Surface</Text>
+                <Badge label={(data.ranking.summary?.best_surface || '').replace(/_/g, ' ')} color={COLORS.purple} />
+              </View>
+              {(data.ranking.personas || []).slice(0, 3).map((item) => (
+                <View key={item.persona} style={[cs.listRow, { alignItems: 'flex-start' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={cs.listRowTitle}>{item.persona}</Text>
+                    <Text style={cs.listRowSub}>
+                      Content {fmtPct(item.content_precision_at_5 * 100)} · Unified {fmtPct(item.unified_precision_at_5 * 100)}
+                    </Text>
+                  </View>
+                  <Text style={cs.listRowValue}>{item.unified_shop_count} shops</Text>
+                </View>
+              ))}
+            </View>
+          </SectionCard>
+        </>
+      )}
+
+      {data?.outcomes?.summary?.surface_count > 0 && (
+        <>
+          <View style={cs.kpiGrid}>
+            <KpiCard icon="👀" label="Impressions" value={data.outcomes.summary?.impressions || 0} />
+            <KpiCard icon="🖱️" label="CTR" value={data.outcomes.summary?.ctr || 0} fmt="pct" />
+            <KpiCard icon="🛒" label="ATC Rate" value={data.outcomes.summary?.add_to_cart_rate || 0} fmt="pct" />
+            <KpiCard icon="💳" label="Purchase Rate" value={data.outcomes.summary?.purchase_rate || 0} fmt="pct" sub={(data.outcomes.summary?.best_surface || '').replace(/_/g, ' ')} />
+          </View>
+
+          <SectionCard title="Ranking Outcomes" icon="📈">
+            {(data.outcomes.surfaces || []).map((row) => (
+              <View key={row.surface} style={[cs.listRow, { alignItems: 'flex-start' }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={cs.listRowTitle}>{row.label}</Text>
+                  <Text style={cs.listRowSub}>
+                    {fmtNum(row.impressions)} impressions · CTR {fmtPct(row.ctr)} · ATC {fmtPct(row.add_to_cart_rate)} · Purchase {fmtPct(row.purchase_rate)}
+                  </Text>
+                  {row.top_reasons?.[0] ? (
+                    <Text style={[cs.listRowSub, { marginTop: 2 }]}>Top reason: {row.top_reasons[0].reason}</Text>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </SectionCard>
+        </>
+      )}
 
       {/* Daily Trend */}
       {data?.trend?.length > 0 && (

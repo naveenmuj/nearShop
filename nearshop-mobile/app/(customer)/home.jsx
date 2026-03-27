@@ -35,6 +35,8 @@ import LocationPicker from '../../components/LocationPicker';
 import RecentlyViewed from '../../components/RecentlyViewed';
 import { HomeScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
+import { getRankingReasonLabel, getRankingReasonTone } from '../../lib/ranking';
+import { rankingRouteParams, trackRankingClick, trackRankingImpressions } from '../../lib/rankingTracking';
 
 const CATEGORIES = [
   { label: 'All', value: '' },
@@ -57,6 +59,14 @@ function normalizeRecentSearches(items = []) {
       return '';
     })
     .filter(Boolean);
+}
+
+function getReasonBadgeStyle(reason) {
+  const tone = getRankingReasonTone(reason);
+  return {
+    backgroundColor: tone.backgroundColor,
+    color: tone.textColor,
+  };
 }
 
 export default function HomeScreen() {
@@ -163,6 +173,49 @@ export default function HomeScreen() {
       cancelled = true;
     };
   }, [loadData]);
+
+  useEffect(() => {
+    if (user && forYouRecs.length > 0) {
+      trackRankingImpressions(forYouRecs, {
+        ranking_surface: 'content_recommendations',
+        source_screen: 'home_for_you',
+      });
+    }
+  }, [user, forYouRecs]);
+
+  useEffect(() => {
+    if (user && cfRecs.length > 0) {
+      trackRankingImpressions(cfRecs, {
+        ranking_surface: 'collaborative_recommendations',
+        source_screen: 'home_collaborative',
+      });
+    }
+  }, [user, cfRecs]);
+
+  useEffect(() => {
+    if (trending.length > 0) {
+      trackRankingImpressions(trending, {
+        ranking_surface: 'home_feed',
+        source_screen: 'home_trending',
+      });
+    }
+  }, [trending]);
+
+  useEffect(() => {
+    if (deals.length > 0) {
+      const rankedDeals = deals
+        .map((item) => ({
+          id: item.product_id || item.id,
+          reason: item.reason || 'deal_match',
+          ranking_surface: 'deals_ranking',
+        }))
+        .filter((item) => item.id);
+      trackRankingImpressions(rankedDeals, {
+        ranking_surface: 'deals_ranking',
+        source_screen: 'home_deals',
+      });
+    }
+  }, [deals]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -419,7 +472,7 @@ export default function HomeScreen() {
               contentContainerStyle={styles.productGrid}
               renderItem={({ item }) => (
                 <View style={styles.productCardWrap}>
-                  <ProductCard product={item} />
+                  <ProductCard product={item} tracking={{ ranking_surface: 'home_feed', source_screen: 'home_just_in' }} />
                 </View>
               )}
             />
@@ -442,11 +495,26 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.forYouList}
               ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <TouchableOpacity
                   style={styles.forYouCard}
                   activeOpacity={0.8}
-                  onPress={() => router.push(`/(customer)/product/${item.id}`)}
+                  onPress={() => {
+                    trackRankingClick(item, {
+                      ranking_surface: 'home_feed',
+                      source_screen: 'home_trending',
+                      position: index + 1,
+                    });
+                    router.push({
+                      pathname: `/(customer)/product/${item.id}`,
+                      params: rankingRouteParams({
+                        ranking_surface: 'home_feed',
+                        source_screen: 'home_trending',
+                        ranking_reason: item.reason || item.trend_label || 'trending',
+                        position: index + 1,
+                      }),
+                    });
+                  }}
                 >
                   <View style={styles.forYouImageWrap}>
                     {item.images?.[0] ? (
@@ -498,7 +566,7 @@ export default function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.forYouList}
                 ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-                renderItem={({ item }) => (
+                renderItem={({ item, index }) => (
                   <TouchableOpacity
                     style={styles.forYouCard}
                     activeOpacity={0.8}
@@ -506,7 +574,20 @@ export default function HomeScreen() {
                       if (item.type === 'shop') {
                         router.push(`/(customer)/shop/${item.id}`);
                       } else {
-                        router.push(`/(customer)/product/${item.id}`);
+                        trackRankingClick(item, {
+                          ranking_surface: 'content_recommendations',
+                          source_screen: 'home_for_you',
+                          position: index + 1,
+                        });
+                        router.push({
+                          pathname: `/(customer)/product/${item.id}`,
+                          params: rankingRouteParams({
+                            ranking_surface: 'content_recommendations',
+                            source_screen: 'home_for_you',
+                            ranking_reason: item.reason,
+                            position: index + 1,
+                          }),
+                        });
                       }
                     }}
                   >
@@ -518,20 +599,9 @@ export default function HomeScreen() {
                           <Text style={styles.forYouImageEmoji}>{item.type === 'shop' ? '🏪' : '📦'}</Text>
                         </View>
                       )}
-                      <View style={[styles.forYouBadge, 
-                        item.reason === 'reorder' ? styles.forYouBadgeReorder :
-                        item.reason === 'favorite_shop' ? styles.forYouBadgeFavorite :
-                        styles.forYouBadgeDefault
-                      ]}>
-                        <Text style={[styles.forYouBadgeText,
-                          item.reason === 'reorder' ? styles.forYouBadgeTextReorder :
-                          item.reason === 'favorite_shop' ? styles.forYouBadgeTextFavorite :
-                          styles.forYouBadgeTextDefault
-                        ]}>
-                          {item.type === 'shop' ? 'Shop' : 
-                           item.reason === 'reorder' ? '🔄 Reorder' :
-                           item.reason === 'favorite_shop' ? '❤️ Favorite' :
-                           '✨ For You'}
+                      <View style={[styles.forYouBadge, { backgroundColor: getReasonBadgeStyle(item.reason).backgroundColor }]}>
+                        <Text style={[styles.forYouBadgeText, { color: getReasonBadgeStyle(item.reason).color }]}>
+                          {item.type === 'shop' ? 'Shop' : getRankingReasonLabel(item.reason)}
                         </Text>
                       </View>
                     </View>
@@ -563,11 +633,26 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.forYouList}
               ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <TouchableOpacity
                   style={styles.forYouCard}
                   activeOpacity={0.8}
-                  onPress={() => router.push(`/(customer)/product/${item.id}`)}
+                  onPress={() => {
+                    trackRankingClick(item, {
+                      ranking_surface: 'collaborative_recommendations',
+                      source_screen: 'home_collaborative',
+                      position: index + 1,
+                    });
+                    router.push({
+                      pathname: `/(customer)/product/${item.id}`,
+                      params: rankingRouteParams({
+                        ranking_surface: 'collaborative_recommendations',
+                        source_screen: 'home_collaborative',
+                        ranking_reason: item.reason,
+                        position: index + 1,
+                      }),
+                    });
+                  }}
                 >
                   <View style={styles.forYouImageWrap}>
                     {item.images?.[0] ? (
@@ -578,13 +663,17 @@ export default function HomeScreen() {
                       </View>
                     )}
                     <View style={[styles.forYouBadge, styles.cfBadge]}>
-                      <Text style={[styles.forYouBadgeText, styles.cfBadgeText]}>Nearby Match</Text>
+                      <Text style={[styles.forYouBadgeText, styles.cfBadgeText]}>
+                        {getRankingReasonLabel(item.reason, 'Nearby match')}
+                      </Text>
                     </View>
                   </View>
                   <View style={styles.forYouCardContent}>
                     <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
                     {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
-                    <Text style={styles.aiReason} numberOfLines={2}>{item.reason || 'People near you also bought this'}</Text>
+                    <Text style={styles.aiReason} numberOfLines={2}>
+                      {getRankingReasonLabel(item.reason, 'People near you also bought this')}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               )}

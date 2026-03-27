@@ -34,16 +34,40 @@ async function searchLocations(query) {
   const data = await res.json();
   return data.map((item) => {
     const a = item.address || {};
-    const short = [
+    // Build a more complete short name
+    const parts = [
+      a.amenity || a.shop || a.building,
+      a.road || a.street,
       a.neighbourhood || a.suburb || a.hamlet,
       a.city || a.town || a.village || a.county,
+    ].filter(Boolean);
+    const short = parts.slice(0, 3).join(', ');
+    
+    // Build full address with all details
+    const fullParts = [
+      a.house_number,
+      a.road || a.street,
+      a.neighbourhood || a.suburb,
+      a.city || a.town || a.village,
       a.state,
-    ].filter(Boolean).slice(0, 3).join(', ');
+      a.postcode,
+    ].filter(Boolean);
+    const fullAddress = fullParts.join(', ') || item.display_name;
+    
     return {
       lat: parseFloat(item.lat),
       lng: parseFloat(item.lon),
       name: short || item.display_name?.split(',').slice(0, 2).join(',').trim(),
       fullName: item.display_name,
+      fullAddress: fullAddress,
+      address: {
+        building: a.amenity || a.shop || a.building || '',
+        road: a.road || a.street || '',
+        area: a.neighbourhood || a.suburb || a.hamlet || '',
+        city: a.city || a.town || a.village || a.county || '',
+        state: a.state || '',
+        postcode: a.postcode || '',
+      },
     };
   });
 }
@@ -83,8 +107,10 @@ export default function LocationPicker({ visible, onClose }) {
     }, 400);
   }, []);
 
-  const handleSelect = async (lat, lng, name) => {
-    await setLocation(lat, lng, name);
+  const handleSelect = async (item) => {
+    // Use fullAddress if available, otherwise fall back to fullName or name
+    const fullAddr = item.fullAddress || item.fullName || item.name;
+    await setLocation(item.lat, item.lng, fullAddr);
     Keyboard.dismiss();
     onClose();
   };
@@ -106,7 +132,16 @@ export default function LocationPicker({ visible, onClose }) {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         });
-        address = [geo.name, geo.district || geo.subregion].filter(Boolean).join(', ') || address;
+        // Build full address from geocode result
+        const parts = [
+          geo.name,
+          geo.street,
+          geo.district || geo.subregion,
+          geo.city,
+          geo.region,
+          geo.postalCode,
+        ].filter(Boolean);
+        address = parts.join(', ') || 'Current location';
       } catch { /* use fallback name */ }
       await setLocation(loc.coords.latitude, loc.coords.longitude, address);
       onClose();
@@ -120,7 +155,7 @@ export default function LocationPicker({ visible, onClose }) {
   const renderResult = ({ item }) => (
     <TouchableOpacity
       style={styles.resultRow}
-      onPress={() => handleSelect(item.lat, item.lng, item.name)}
+      onPress={() => handleSelect(item)}
       activeOpacity={0.7}
     >
       <View style={styles.resultIcon}>
@@ -128,8 +163,8 @@ export default function LocationPicker({ visible, onClose }) {
       </View>
       <View style={styles.resultText}>
         <Text style={styles.resultName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.resultFull} numberOfLines={1}>
-          {item.fullName?.split(',').slice(0, 3).join(',')}
+        <Text style={styles.resultFull} numberOfLines={2}>
+          {item.fullAddress || item.fullName?.split(',').slice(0, 4).join(',')}
         </Text>
       </View>
       <Text style={styles.chevron}>›</Text>
@@ -139,7 +174,7 @@ export default function LocationPicker({ visible, onClose }) {
   const renderPopular = ({ item }) => (
     <TouchableOpacity
       style={styles.resultRow}
-      onPress={() => handleSelect(item.lat, item.lng, item.name)}
+      onPress={() => handleSelect(item)}
       activeOpacity={0.7}
     >
       <View style={styles.resultIcon}>

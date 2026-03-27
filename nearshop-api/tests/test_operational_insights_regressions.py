@@ -18,6 +18,7 @@ from app.ai.recommendations import get_recommendations
 from app.ai.trending import get_trending_products
 from app.analytics.service import get_operational_insights
 from app.products.models import Product
+from app.ranking.service import UserPreferenceProfile
 from app.shops.models import Shop
 
 
@@ -303,7 +304,6 @@ class OperationalInsightsRegressionTests(unittest.IsolatedAsyncioTestCase):
 class RecommendationRegressionTests(unittest.IsolatedAsyncioTestCase):
     async def test_recommendations_follow_recent_accessory_behavior(self):
         user_id = uuid4()
-        viewed_mouse = uuid4()
         bought_hub = uuid4()
         accessory_candidate = Product(
             id=uuid4(),
@@ -332,43 +332,19 @@ class RecommendationRegressionTests(unittest.IsolatedAsyncioTestCase):
             inquiry_count=1,
         )
 
-        db = _QueuedAsyncDB(
-            [
-                _FakeResult(
-                    scalar=SimpleNamespace(
-                        id=user_id,
-                        interests=["Electronics"],
-                    )
-                ),
-                _FakeResult(scalars=[viewed_mouse]),
-                _FakeResult(
-                    rows=[
-                        SimpleNamespace(
-                            category="Electronics",
-                            subcategory="Accessories",
-                            tags=["mouse", "gaming"],
-                        )
-                    ]
-                ),
-                _FakeResult(
-                    scalars=[
-                        [{"product_id": str(bought_hub), "quantity": 1}],
-                    ]
-                ),
-                _FakeResult(
-                    rows=[
-                        SimpleNamespace(
-                            category="Electronics",
-                            subcategory="Accessories",
-                            tags=["usb", "hub"],
-                        )
-                    ]
-                ),
-                _FakeResult(scalars=[accessory_candidate, laptop_candidate]),
-            ]
+        db = _QueuedAsyncDB([_FakeResult(scalars=[accessory_candidate, laptop_candidate])])
+        profile = UserPreferenceProfile(
+            categories={"electronics": 5},
+            subcategories={"accessories": 6},
+            tags={"gaming": 3, "usb": 2, "hub": 2},
+            ordered_products={str(bought_hub)},
         )
 
-        results = await get_recommendations(db, user_id, 12.93, 77.61, limit=5)
+        with patch(
+            "app.ai.recommendations.build_user_preference_profile",
+            AsyncMock(return_value=profile),
+        ):
+            results = await get_recommendations(db, user_id, 12.93, 77.61, limit=5)
 
         self.assertEqual(results[0].name, "Wireless Keyboard")
         self.assertEqual(results[0].subcategory, "Accessories")

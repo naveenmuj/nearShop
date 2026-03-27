@@ -1,12 +1,24 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, exists
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import contains_eager
 
 import math
 
 from app.products.models import Product
+from app.ranking.service import (
+    RankingContext,
+    build_user_preference_profile,
+    product_score_breakdown,
+    rank_products,
+    rank_shops,
+    score_product,
+    score_shop,
+    top_product_reason,
+    top_shop_reason,
+)
 from app.shops.models import Shop
 from app.core.geo import haversine_distance_km
 
@@ -28,6 +40,27 @@ def _py_haversine(lat1, lng1, lat2, lng2):
     return r * 2 * math.asin(math.sqrt(a))
 
 
+def _query_terms(query: str) -> list[str]:
+    terms: list[str] = []
+    for raw in (query or "").replace("/", " ").replace("-", " ").replace(",", " ").split():
+        token = raw.strip().lower()
+        if token and token not in terms:
+            terms.append(token)
+    return terms
+
+
+def _phrase_and_token_patterns(query: str) -> list[str]:
+    patterns: list[str] = []
+    phrase = (query or "").strip().lower()
+    if phrase:
+        patterns.append(f"%{phrase}%")
+    for term in _query_terms(query):
+        pattern = f"%{term}%"
+        if pattern not in patterns:
+            patterns.append(pattern)
+    return patterns
+
+
 async def search_unified(
     db: AsyncSession,
     query: str,
@@ -35,6 +68,8 @@ async def search_unified(
     lng: Optional[float] = None,
     product_limit: int = 10,
     shop_limit: int = 8,
+    user_id: UUID | None = None,
+    include_debug: bool = False,
 ) -> dict:
     """
     Unified search across products and shops.
@@ -45,8 +80,16 @@ async def search_unified(
         if not query.strip():
             return {"products": [], "shops": []}
 
-        # Search products - select only specific columns to avoid schema issues
-        ts_query = func.plainto_tsquery("english", query)
+        profile = await build_user_preference_profile(db, user_id)
+        ranking_context = RankingContext(
+            lat=lat,
+            lng=lng,
+            query=query,
+            radius_km=5.0,
+            surface="unified_search",
+        )
+
+        ts_query = func.websearch_to_tsquery("english", query)
         ts_vector = func.to_tsvector(
             "english",
             func.coalesce(Product.name, "")
@@ -55,42 +98,61 @@ async def search_unified(
             + " "
             + func.coalesce(Product.category, ""),
         )
-        like_pattern = f"%{query}%"
+        product_tag_text = func.coalesce(func.array_to_string(Product.tags, " "), "")
+        like_patterns = _phrase_and_token_patterns(query)
+        product_match_clauses = [ts_vector.op("@@")(ts_query)]
+        for pattern in like_patterns:
+            product_match_clauses.extend(
+                [
+                    Product.name.ilike(pattern),
+                    Product.category.ilike(pattern),
+                    Product.subcategory.ilike(pattern),
+                    Product.description.ilike(pattern),
+                    product_tag_text.ilike(pattern),
+                ]
+            )
 
-        product_stmt = select(Product.id, Product.name, Product.price, Product.images, Product.category, Product.shop_id).where(
-            and_(
-                Product.is_available == True,
-                or_(
-                    ts_vector.op("@@")(ts_query),
-                    Product.name.ilike(like_pattern),
-                    Product.category.ilike(like_pattern),
-                    Product.description.ilike(like_pattern),
-                ),
+        product_stmt = (
+            select(Product)
+            .join(Shop, Product.shop_id == Shop.id)
+            .options(contains_eager(Product.shop))
+            .where(
+                and_(
+                    Product.is_available == True,
+                    Shop.is_active == True,
+                    or_(*product_match_clauses),
+                )
             )
         )
 
         if lat is not None and lng is not None:
-            product_stmt = product_stmt.order_by(Product.name).limit(product_limit)
-        else:
-            product_stmt = product_stmt.order_by(Product.name).limit(product_limit)
+            product_stmt = product_stmt.where(
+                haversine_distance_km(lat, lng, Shop.latitude, Shop.longitude) <= 8.0
+            )
 
-        product_result = await db.execute(product_stmt)
-        products_raw = product_result.fetchall()
+        product_result = await db.execute(product_stmt.limit(max(product_limit * 8, 80)))
+        product_candidates = list(product_result.unique().scalars().all())
+        ranked_products = rank_products(product_candidates, profile, ranking_context)[:product_limit]
 
-        # Format products
         products = []
-        for prod in products_raw:
-            products.append({
-                "id": str(prod[0]),
-                "name": prod[1],
-                "price": float(prod[2]),
-                "image": prod[3][0] if prod[3] else None,
-                "category": prod[4],
-                "shop_id": str(prod[5]),
-            })
+        for product in ranked_products:
+            shop = getattr(product, "shop", None)
+            item = {
+                "id": str(product.id),
+                "name": product.name,
+                "price": float(product.price or 0),
+                "image": product.images[0] if product.images else None,
+                "category": product.category,
+                "subcategory": product.subcategory,
+                "shop_id": str(product.shop_id),
+                "reason": top_product_reason(product, shop, profile, ranking_context),
+            }
+            if include_debug:
+                item["ranking_score"] = score_product(product, shop, profile, ranking_context)
+                item["ranking_breakdown"] = product_score_breakdown(product, shop, profile, ranking_context)
+            products.append(item)
 
-        # Search shops - select specific columns to avoid lazy loading issues
-        shop_ts_query = func.plainto_tsquery("english", query)
+        shop_ts_query = func.websearch_to_tsquery("english", query)
         shop_ts_vector = func.to_tsvector(
             "english",
             func.coalesce(Shop.name, "")
@@ -99,56 +161,74 @@ async def search_unified(
             + " "
             + func.coalesce(Shop.category, ""),
         )
+        shop_subcategory_text = func.coalesce(func.array_to_string(Shop.subcategories, " "), "")
+        shop_match_clauses = [shop_ts_vector.op("@@")(shop_ts_query)]
+        product_exists_clauses = []
+        for pattern in like_patterns:
+            shop_match_clauses.extend(
+                [
+                    Shop.name.ilike(pattern),
+                    Shop.category.ilike(pattern),
+                    Shop.description.ilike(pattern),
+                    shop_subcategory_text.ilike(pattern),
+                ]
+            )
+            product_exists_clauses.append(
+                exists(
+                    select(Product.id).where(
+                        Product.shop_id == Shop.id,
+                        Product.is_available == True,
+                        or_(
+                            Product.name.ilike(pattern),
+                            Product.category.ilike(pattern),
+                            Product.subcategory.ilike(pattern),
+                            Product.description.ilike(pattern),
+                            product_tag_text.ilike(pattern),
+                        ),
+                    )
+                )
+            )
+        shop_recall_clause = or_(*(shop_match_clauses + product_exists_clauses))
 
-        shop_stmt = select(
-            Shop.id, Shop.name, Shop.category, Shop.cover_image, Shop.logo_url,
-            Shop.avg_rating, Shop.total_reviews, Shop.latitude, Shop.longitude,
-            Shop.delivery_options, Shop.delivery_fee, Shop.min_order, Shop.score
-        ).where(
+        shop_stmt = select(Shop).where(
             and_(
                 Shop.is_active == True,
-                or_(
-                    shop_ts_vector.op("@@")(shop_ts_query),
-                    Shop.name.ilike(like_pattern),
-                    Shop.category.ilike(like_pattern),
-                    Shop.description.ilike(like_pattern),
-                ),
+                shop_recall_clause,
             )
         )
 
         if lat is not None and lng is not None:
-            try:
-                distance_expr = haversine_distance_km(lat, lng, Shop.latitude, Shop.longitude)
-                shop_stmt = shop_stmt.order_by(distance_expr, Shop.score.desc().nullslast()).limit(shop_limit)
-            except Exception:
-                shop_stmt = shop_stmt.order_by(Shop.score.desc().nullslast()).limit(shop_limit)
-        else:
-            shop_stmt = shop_stmt.order_by(Shop.score.desc().nullslast()).limit(shop_limit)
+            shop_stmt = shop_stmt.where(
+                haversine_distance_km(lat, lng, Shop.latitude, Shop.longitude) <= 8.0
+            )
 
-        shop_result = await db.execute(shop_stmt)
-        shops_raw = shop_result.fetchall()
+        shop_result = await db.execute(shop_stmt.limit(max(shop_limit * 8, 50)))
+        shop_candidates = list(shop_result.scalars().all())
+        ranked_shops = rank_shops(shop_candidates, profile, ranking_context)[:shop_limit]
 
-        # Format shops
         shops = []
-        for shop in shops_raw:
-            shop_id, name, category, cover_img, logo, rating, reviews, shop_lat, shop_lng, delivery_opts, delivery_fee, min_order, score = shop
+        for shop in ranked_shops:
             distance = None
             if lat is not None and lng is not None:
-                distance = _py_haversine(lat, lng, shop_lat, shop_lng)
+                distance = _py_haversine(lat, lng, float(shop.latitude), float(shop.longitude))
 
-            shops.append({
-                "id": str(shop_id),
-                "name": name,
-                "category": category,
-                "cover_image": cover_img,
-                "logo_url": logo,
-                "rating": float(rating) if rating else 0,
-                "total_reviews": reviews or 0,
+            item = {
+                "id": str(shop.id),
+                "name": shop.name,
+                "category": shop.category,
+                "cover_image": shop.cover_image,
+                "logo_url": shop.logo_url,
+                "rating": float(shop.avg_rating) if shop.avg_rating else 0,
+                "total_reviews": shop.total_reviews or 0,
                 "distance": distance,
-                "delivery_options": delivery_opts or [],
-                "delivery_fee": float(delivery_fee) if delivery_fee else 0,
-                "min_order": float(min_order) if min_order else None,
-            })
+                "delivery_options": shop.delivery_options or [],
+                "delivery_fee": float(shop.delivery_fee) if shop.delivery_fee else 0,
+                "min_order": float(shop.min_order) if shop.min_order else None,
+                "reason": top_shop_reason(shop, profile, ranking_context),
+            }
+            if include_debug:
+                item["ranking_score"] = score_shop(shop, profile, ranking_context)
+            shops.append(item)
 
         return {"products": products, "shops": shops}
     except Exception as e:

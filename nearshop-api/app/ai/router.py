@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.exceptions import BadRequestError
 from app.auth.models import User
-from app.auth.permissions import get_current_user, require_business, require_customer
+from app.auth.permissions import get_current_user, get_current_user_optional, require_business, require_customer
 from app.config import get_settings
 
 from app.ai.client import get_openai_client
@@ -22,7 +22,7 @@ from app.ai.cataloging import (
 from app.ai.visual_search import generate_image_embedding, search_similar_products
 from app.ai.smart_search import parse_search_query
 from app.ai.pricing import suggest_price
-from app.ai.recommendations import get_recommendations
+from app.ai.recommendations import get_recommendation_payloads, get_recommendations
 from app.ai.demand_gaps import get_demand_gaps
 from app.ai.customer_segments import get_customer_segments
 from app.ai.trending import get_trending_products
@@ -156,6 +156,7 @@ async def recommendations(
     lat: float = Query(..., ge=-90, le=90),
     lng: float = Query(..., ge=-180, le=180),
     limit: int = Query(20, ge=1, le=100),
+    include_debug: bool = Query(False),
     current_user: User = Depends(require_customer),
     db: AsyncSession = Depends(get_db),
 ):
@@ -163,24 +164,14 @@ async def recommendations(
     from app.ai.cache import get_cached_recommendations, set_cached_recommendations
 
     cached = await get_cached_recommendations(str(current_user.id), "content", lat, lng)
-    if cached is not None:
+    if cached is not None and not include_debug:
         return {"products": cached[:limit], "count": min(len(cached), limit), "cached": True}
 
-    products = await get_recommendations(db, current_user.id, lat, lng, limit)
+    products = await get_recommendation_payloads(db, current_user.id, lat, lng, limit)
+    await set_cached_recommendations(str(current_user.id), "content", lat, lng, products)
 
-    # Cache serializable data (products may be ORM objects)
-    cache_data = []
-    for p in products:
-        if hasattr(p, "id"):
-            cache_data.append({
-                "id": str(p.id), "name": p.name, "price": float(p.price or 0),
-                "images": p.images or [], "category": p.category,
-                "shop_id": str(p.shop_id),
-            })
-        else:
-            cache_data.append(p)
-    await set_cached_recommendations(str(current_user.id), "content", lat, lng, cache_data)
-
+    if include_debug:
+        return {"products": products, "count": len(products), "cached": False, "debug": True}
     return {"products": products, "count": len(products), "cached": False}
 
 

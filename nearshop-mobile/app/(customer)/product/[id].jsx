@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
   StatusBar, FlatList, TextInput, KeyboardAvoidingView, Platform,
@@ -21,6 +21,7 @@ import useAuthStore from '../../../store/authStore';
 import useCartStore from '../../../store/cartStore';
 import useLocationStore from '../../../store/locationStore';
 import { ProductDetailSkeleton } from '../../../components/ui/ScreenSkeletons';
+import { extractRankingContextFromParams, trackRankingAction } from '../../../lib/rankingTracking';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -32,6 +33,8 @@ function CartButton({ product, isAvailable, hagglingEnabled }) {
   const getItemCount = useCartStore((s) => s.getItemCount);
   const cartItem = getItemForProduct(product?.id);
   const totalItems = getItemCount();
+
+  const rankingContext = product?.ranking_context || null;
 
   if (!isAvailable) {
     return (
@@ -67,7 +70,8 @@ function CartButton({ product, isAvailable, hagglingEnabled }) {
         addItem(product, {
           id: product.shop_id || product.shop?.id,
           name: product.shop_name || product.shop?.name,
-        });
+        }, rankingContext);
+        trackRankingAction('add_to_cart', product, rankingContext);
         toast.show({ type: 'cart', text1: `${product.name} added to cart` });
       }}
     >
@@ -246,7 +250,8 @@ const sheet = StyleSheet.create({
 
 // ── Main screen ──────────────────────────────────────────────────────────────
 export default function ProductDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { id } = params;
   const { user } = useAuthStore();
   const { lat, lng } = useLocationStore();
   const [product, setProduct] = useState(null);
@@ -255,6 +260,10 @@ export default function ProductDetailScreen() {
   const [inWishlist, setInWishlist] = useState(false);
   const [showHaggle, setShowHaggle] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const rankingContext = useMemo(
+    () => extractRankingContextFromParams(params),
+    [params.surface, params.reason, params.query, params.source_screen, params.position],
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -263,7 +272,7 @@ export default function ProductDetailScreen() {
           getProduct(id),
           getSimilarProducts(id),
         ]);
-        if (pRes.status === 'fulfilled') setProduct(pRes.value.data);
+        if (pRes.status === 'fulfilled') setProduct({ ...pRes.value.data, ranking_context: rankingContext });
         if (sRes.status === 'fulfilled') setSimilar(sRes.value.data?.items ?? sRes.value.data ?? []);
         // Track this product view for recently viewed
         trackView(id).catch(() => {});
@@ -271,6 +280,7 @@ export default function ProductDetailScreen() {
           event_type: 'product_view',
           entity_type: 'product',
           entity_id: id,
+          metadata: rankingContext.ranking_surface ? rankingContext : undefined,
           lat,
           lng,
         }).catch(() => {});
@@ -279,7 +289,7 @@ export default function ProductDetailScreen() {
       }
     };
     load();
-  }, [id, lat, lng]);
+  }, [id, lat, lng, rankingContext]);
 
   const toggleWishlist = async () => {
     try {
@@ -287,6 +297,7 @@ export default function ProductDetailScreen() {
         await removeFromWishlist(id);
       } else {
         await addToWishlist(id);
+        if (product) trackRankingAction('wishlist_add', product, rankingContext);
       }
       setInWishlist((v) => !v);
     } catch {
@@ -331,7 +342,7 @@ export default function ProductDetailScreen() {
     try {
       await createOrder({
         shop_id: product.shop_id,
-        items: [{ product_id: product.id, quantity: 1, price: product.price }],
+        items: [{ product_id: product.id, quantity: 1, price: product.price, ranking_context: rankingContext.ranking_surface ? rankingContext : null }],
       });
       toast.order('Order placed successfully. Tracking is available in Orders.');
     } catch (err) {

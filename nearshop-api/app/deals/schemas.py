@@ -33,6 +33,8 @@ class DealResponse(BaseModel):
     created_at: datetime
     shop_name: Optional[str] = None
     product_name: Optional[str] = None
+    image_url: Optional[str] = None  # Product image URL for display
+    category: Optional[str] = None  # Product category
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -62,7 +62,9 @@ export default function FestivalsScreen() {
       });
       toast.show({ type: 'success', text1: 'Notification sent to followers!' });
     } catch (err) {
-      toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to send notification' });
+      console.error('Notify followers error:', err);
+      const errorMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to send notification';
+      toast.show({ type: 'error', text1: 'Error', text2: String(errorMsg) });
     }
   };
 

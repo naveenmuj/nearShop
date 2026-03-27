@@ -6,6 +6,8 @@ from app.core.database import get_db
 from app.auth.permissions import get_current_user
 from app.admin import service
 from app.admin import ai_analytics
+from app.admin import ranking_analytics
+from app.admin import ranking_outcomes
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -282,3 +284,19 @@ async def ai_top_users(
     db: AsyncSession = Depends(get_db),
 ):
     return await ai_analytics.get_ai_top_users(db, period, limit)
+
+
+@router.get("/ai/ranking-diagnostics")
+async def ai_ranking_diagnostics(
+    user=Depends(require_admin),
+):
+    return await ranking_analytics.get_ranking_diagnostics()
+
+
+@router.get("/ai/ranking-outcomes")
+async def ai_ranking_outcomes(
+    period: str = Query("30d"),
+    user=Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    return await ranking_outcomes.get_ranking_outcomes(db, period)

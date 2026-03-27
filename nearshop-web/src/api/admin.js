@@ -39,3 +39,5 @@ export const getAiDailyTrend        = (period='30d') => client.get(`${a}/ai/dail
 export const getAiRecentCalls       = (limit=50) => client.get(`${a}/ai/recent-calls`, { params: { limit } })
 export const getAiHourlyDistribution= (period='7d') => client.get(`${a}/ai/hourly-distribution`, { params: { period } })
 export const getAiTopUsers          = (period='30d', limit=20) => client.get(`${a}/ai/top-users`, { params: { period, limit } })
+export const getRankingDiagnostics  = () => client.get(`${a}/ai/ranking-diagnostics`)
+export const getRankingOutcomes     = (period='30d') => client.get(`${a}/ai/ranking-outcomes`, { params: { period } })

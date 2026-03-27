@@ -22,7 +22,7 @@ const useCartStore = create((set, get) => ({
     AsyncStorage.setItem(CART_KEY, JSON.stringify(items)).catch(() => {});
   },
 
-  addItem: (product, shop = {}) => {
+  addItem: (product, shop = {}, rankingContext = null) => {
     set((state) => {
       const id = product.id || product.product_id;
       const existing = state.items.find((i) => i.product_id === id);
@@ -45,6 +45,7 @@ const useCartStore = create((set, get) => ({
             compare_price: product.compare_price ? Number(product.compare_price) : null,
             image: Array.isArray(product.images) ? product.images[0] : product.image || null,
             quantity: 1,
+            ranking_context: rankingContext || product.ranking_context || null,
           },
         ],
       };

@@ -14,3 +14,6 @@ export const getOperationalInsights = (shopId, lat, lng) =>
 
 export const trackEvent = (data) =>
   client.post('/analytics/events', data);
+
+export const trackEventsBatch = (events) =>
+  client.post('/analytics/events/batch', { events });

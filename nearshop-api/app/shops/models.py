@@ -58,6 +58,8 @@ class Shop(Base):
     delivery_fee = Column(Numeric(10, 2), server_default=text("0"), nullable=False)
     free_delivery_above = Column(Numeric(10, 2), nullable=True)
     min_order = Column(Numeric(10, 2), nullable=True)
+    delivery_available = Column(String(20), server_default=text("'all_day'"), nullable=False)  # 'all_day', 'peak', 'specific'
+    delivery_hours = Column(JSONB, nullable=True)  # [{"from": "09:00", "to": "18:00"}, ...]
     metadata_ = Column("metadata", JSONB, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

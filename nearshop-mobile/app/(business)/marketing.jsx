@@ -90,7 +90,9 @@ export default function MarketingScreen() {
       });
       toast.show({ type: 'success', text1: 'Notification sent to all followers!' });
     } catch (err) {
-      toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to notify' });
+      console.error('Notify followers error:', err);
+      const errorMsg = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Failed to notify followers';
+      toast.show({ type: 'error', text1: 'Error', text2: String(errorMsg) });
     }
   };
 

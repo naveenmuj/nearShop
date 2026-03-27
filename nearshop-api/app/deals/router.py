@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.auth.models import User
-from app.auth.permissions import require_business, require_customer, get_current_user
+from app.auth.permissions import require_business, require_customer, get_current_user, get_current_user_optional
 from app.deals.schemas import DealCreate, DealResponse, DealListResponse
 from app.deals.service import (
     create_deal,
@@ -44,10 +44,11 @@ async def get_nearby_deals_endpoint(
     category: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+    current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
     deals, total = await get_nearby_deals(
-        db, lat, lng, radius_km, category, page, per_page
+        db, lat, lng, radius_km, category, page, per_page, current_user.id if current_user else None
     )
     return DealListResponse(
         items=[DealResponse.model_validate(d) for d in deals],

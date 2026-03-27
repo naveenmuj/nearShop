@@ -1,15 +1,31 @@
 from datetime import datetime, timedelta, timezone
+import math
 from uuid import UUID
 
 from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import contains_eager
 
 from app.core.geo import haversine_distance_km, within_radius
 from app.auth.models import Follow
 from app.deals.models import Deal
 from app.products.models import Product
+from app.ranking.service import RankingContext, build_user_preference_profile, rank_products
 from app.shops.models import Shop
 from app.stories.models import Story
+
+
+def _py_haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    radius_km = 6371
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(dlng / 2) ** 2
+    )
+    return radius_km * 2 * math.asin(math.sqrt(a))
 
 
 async def get_personalized_feed(
@@ -20,22 +36,15 @@ async def get_personalized_feed(
     page: int = 1,
     per_page: int = 20,
 ) -> list[dict]:
-    """Fetch products from shops within 3 km, ordered by distance + recency."""
+    """Fetch products from nearby shops and rank them with shared personalization."""
     radius_km = 3.0
 
     distance_col = haversine_distance_km(lat, lng, Shop.latitude, Shop.longitude).label("distance_km")
 
     query = (
-        select(
-            Product,
-            Shop.id.label("shop_id"),
-            Shop.name.label("shop_name"),
-            Shop.slug.label("shop_slug"),
-            Shop.logo_url.label("shop_logo"),
-            Shop.avg_rating.label("shop_rating"),
-            distance_col,
-        )
+        select(Product, distance_col)
         .join(Shop, Product.shop_id == Shop.id)
+        .options(contains_eager(Product.shop))
         .where(
             and_(
                 Product.is_available == True,
@@ -43,18 +52,31 @@ async def get_personalized_feed(
                 within_radius(Shop.latitude, Shop.longitude, lat, lng, radius_km),
             )
         )
-        .order_by(distance_col.asc(), Product.created_at.desc())
     )
 
     offset = (page - 1) * per_page
-    query = query.offset(offset).limit(per_page)
+    query = query.limit(min(max(per_page * 5, 80), 200))
 
     result = await db.execute(query)
     rows = result.all()
+    profile = await build_user_preference_profile(db, user_id)
+    candidates: list[Product] = []
+    for product, _distance_km in rows:
+        if product.shop is None:
+            continue
+        candidates.append(product)
+
+    ranked_products = rank_products(
+        candidates,
+        profile,
+        RankingContext(lat=lat, lng=lng, radius_km=radius_km, surface="home_feed"),
+    )
+    ranked_page = ranked_products[offset : offset + per_page]
 
     items: list[dict] = []
-    for row in rows:
-        product = row[0]
+    for product in ranked_page:
+        shop = product.shop
+        distance = _py_haversine(lat, lng, float(shop.latitude), float(shop.longitude))
         items.append(
             {
                 "id": str(product.id),
@@ -71,12 +93,12 @@ async def get_personalized_feed(
                 "wishlist_count": product.wishlist_count,
                 "created_at": product.created_at.isoformat() if product.created_at else None,
                 "shop": {
-                    "id": str(row.shop_id),
-                    "name": row.shop_name,
-                    "slug": row.shop_slug,
-                    "logo_url": row.shop_logo,
-                    "avg_rating": float(row.shop_rating) if row.shop_rating else 0,
-                    "distance_km": round(float(row.distance_km), 2),
+                    "id": str(shop.id),
+                    "name": shop.name,
+                    "slug": shop.slug,
+                    "logo_url": shop.logo_url,
+                    "avg_rating": float(shop.avg_rating) if shop.avg_rating else 0,
+                    "distance_km": round(float(distance), 2),
                 },
             }
         )

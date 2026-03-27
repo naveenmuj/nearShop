@@ -10,6 +10,7 @@ from jose import jwt
 
 BASE_URL = "http://127.0.0.1:8010"
 MAIN_SHOP_ID = "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+REPORT_PATH = Path(__file__).resolve().parents[2] / "docs" / "ranking_quality_report.json"
 
 PERSONAS = {
     "ml.c1.1774488839@example.com": {
@@ -127,9 +128,18 @@ def main() -> None:
             "/api/v1/ai/recommendations/collaborative",
             {"lat": lat, "lng": lng, "limit": 5},
         )
+        unified = get_json(
+            session,
+            BASE_URL,
+            token,
+            "/api/v1/search/unified",
+            {"q": "gaming audio streaming", "lat": lat, "lng": lng, "include_debug": "true"},
+        )
         report["personas"][email] = {
             "content": metric_for_products(content.get("products", []), config["expected_terms"]),
             "collaborative": metric_for_products(collaborative.get("products", []), config["expected_terms"]),
+            "unified_products": metric_for_products(unified.get("products", []), config["expected_terms"]),
+            "unified_shops_count": len(unified.get("shops", [])),
         }
 
     business_token = make_token(env, user_ids["ml.biz.1774488839@example.com"])
@@ -156,7 +166,9 @@ def main() -> None:
         ),
     }
 
+    REPORT_PATH.write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
+    print(f"report_path={REPORT_PATH}")
 
 
 if __name__ == "__main__":

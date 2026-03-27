@@ -9,6 +9,8 @@ from app.core.exceptions import NotFoundError, BadRequestError, ForbiddenError
 from app.core.geo import within_radius
 from app.deals.models import Deal
 from app.deals.schemas import DealCreate
+from app.products.models import Product
+from app.ranking.service import RankingContext, build_user_preference_profile, rank_deals
 from app.shops.models import Shop
 
 
@@ -42,6 +44,12 @@ async def create_deal(
     if active_count >= 5:
         raise BadRequestError("Maximum of 5 active deals per shop reached")
 
+    # Get product data if product_id provided
+    product = None
+    if data.product_id:
+        product_result = await db.execute(select(Product).where(Product.id == data.product_id))
+        product = product_result.scalar_one_or_none()
+
     deal = Deal(
         shop_id=shop_id,
         product_id=data.product_id,
@@ -57,9 +65,17 @@ async def create_deal(
     await db.flush()
     await db.refresh(deal)
 
-    # Attach shop name for response
+    # Attach shop name and product data for response
     deal.shop_name = shop.name  # type: ignore[attr-defined]
-    deal.product_name = None  # type: ignore[attr-defined]
+    if product:
+        deal.product_name = product.name  # type: ignore[attr-defined]
+        deal.image_url = product.images[0] if product.images else None  # type: ignore[attr-defined]
+        deal.category = product.category  # type: ignore[attr-defined]
+    else:
+        deal.product_name = None  # type: ignore[attr-defined]
+        deal.image_url = None  # type: ignore[attr-defined]
+        deal.category = None  # type: ignore[attr-defined]
+    
     return deal
 
 
@@ -71,13 +87,15 @@ async def get_nearby_deals(
     category: str | None = None,
     page: int = 1,
     per_page: int = 20,
+    user_id: UUID | None = None,
 ) -> tuple[list[Deal], int]:
     """Get active deals from nearby shops using Haversine geo filtering."""
     now = datetime.now(timezone.utc)
 
     base_query = (
-        select(Deal)
+        select(Deal, Shop, Product)
         .join(Shop, Deal.shop_id == Shop.id)
+        .outerjoin(Product, Deal.product_id == Product.id)
         .where(
             and_(
                 Deal.is_active == True,
@@ -96,15 +114,49 @@ async def get_nearby_deals(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Order by soonest expiring first
-    base_query = base_query.order_by(Deal.expires_at.asc())
-
-    # Pagination
     offset = (page - 1) * per_page
-    base_query = base_query.offset(offset).limit(per_page)
+    should_rank = user_id is not None
 
-    result = await db.execute(base_query)
-    deals = list(result.scalars().all())
+    if should_rank:
+        result = await db.execute(base_query.limit(min(max(per_page * 5, 80), 200)))
+        rows = result.all()
+        profile = await build_user_preference_profile(db, user_id)
+        ranked_rows = rank_deals(
+            rows,
+            profile,
+            RankingContext(lat=lat, lng=lng, radius_km=radius_km, surface="nearby_deals"),
+        )
+        deals = []
+        for row in ranked_rows[offset : offset + per_page]:
+            deal, shop, product = row
+            # Attach shop name and product data to deal object
+            deal.shop_name = shop.name  # type: ignore[attr-defined]
+            if product:
+                deal.product_name = product.name  # type: ignore[attr-defined]
+                deal.image_url = product.images[0] if product.images else None  # type: ignore[attr-defined]
+                deal.category = product.category  # type: ignore[attr-defined]
+            else:
+                deal.product_name = None  # type: ignore[attr-defined]
+                deal.image_url = None  # type: ignore[attr-defined]
+                deal.category = None  # type: ignore[attr-defined]
+            deals.append(deal)
+    else:
+        ordered_query = base_query.order_by(Deal.expires_at.asc()).offset(offset).limit(per_page)
+        result = await db.execute(ordered_query)
+        deals = []
+        for row in result.all():
+            deal, shop, product = row
+            # Attach shop name and product data to deal object
+            deal.shop_name = shop.name  # type: ignore[attr-defined]
+            if product:
+                deal.product_name = product.name  # type: ignore[attr-defined]
+                deal.image_url = product.images[0] if product.images else None  # type: ignore[attr-defined]
+                deal.category = product.category  # type: ignore[attr-defined]
+            else:
+                deal.product_name = None  # type: ignore[attr-defined]
+                deal.image_url = None  # type: ignore[attr-defined]
+                deal.category = None  # type: ignore[attr-defined]
+            deals.append(deal)
 
     return deals, total
 

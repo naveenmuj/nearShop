@@ -4,3 +4,4 @@ export const getProductAnalytics = (shopId) => client.get(`/analytics/shop/${sho
 export const getDemandInsights = (shopId, lat, lng) => client.get(`/analytics/shop/${shopId}/demand`, { params: { lat, lng } })
 export const getOperationalInsights = (shopId, lat, lng) => client.get(`/analytics/shop/${shopId}/operational-insights`, { params: { lat, lng } })
 export const trackEvent = (data) => client.post('/analytics/events', data)
+export const trackEventsBatch = (events) => client.post('/analytics/events/batch', { events })

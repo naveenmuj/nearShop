@@ -54,3 +54,5 @@ export const getAiDailyTrend = (period = '30d') => authGet(`${a}/ai/daily-trend`
 export const getAiRecentCalls = (limit = 50) => authGet(`${a}/ai/recent-calls`, { params: { limit } });
 export const getAiHourlyDistribution = (period = '7d') => authGet(`${a}/ai/hourly-distribution`, { params: { period } });
 export const getAiTopUsers = (period = '30d', limit = 20) => authGet(`${a}/ai/top-users`, { params: { period, limit } });
+export const getRankingDiagnostics = () => authGet(`${a}/ai/ranking-diagnostics`);
+export const getRankingOutcomes = (period = '30d') => authGet(`${a}/ai/ranking-outcomes`, { params: { period } });

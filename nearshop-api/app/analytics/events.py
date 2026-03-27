@@ -31,6 +31,29 @@ async def track_event(
     return event
 
 
+async def track_events_batch(
+    db: AsyncSession,
+    user_id: UUID,
+    events: list[dict],
+) -> list[UserEvent]:
+    """Create multiple UserEvent records in one request."""
+    tracked: list[UserEvent] = []
+    for item in events:
+        tracked.append(
+            await track_event(
+                db,
+                user_id=user_id,
+                event_type=item["event_type"],
+                entity_type=item.get("entity_type"),
+                entity_id=item.get("entity_id"),
+                metadata=item.get("metadata"),
+                lat=item.get("lat"),
+                lng=item.get("lng"),
+            )
+        )
+    return tracked
+
+
 async def track_search(
     db: AsyncSession,
     user_id: UUID,

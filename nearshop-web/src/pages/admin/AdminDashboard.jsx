@@ -1308,6 +1308,8 @@ function AiUsageSection({ data }) {
   const recent = data.aiRecentCalls || []
   const hourly = data.aiHourly || []
   const topUsers = data.aiTopUsers || []
+  const ranking = data.rankingDiagnostics || null
+  const outcomes = data.rankingOutcomes || null
 
   const [recentPage, setRecentPage] = useState(1)
   const perPage = 15
@@ -1331,6 +1333,106 @@ function AiUsageSection({ data }) {
         <KpiCard icon="💵" label="Total Cost (USD)" value={ov.total_cost_usd} fmt="number" sub={fmtUSD(ov.total_cost_usd)} />
         <KpiCard icon="⚡" label="Avg Response Time" value={ov.avg_response_ms} sub={`${ov.unique_users || 0} unique users`} />
       </div>
+
+      {ranking?.report_available && (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard icon="🎯" label="Content Precision@5" value={ranking.summary?.content_avg_precision_at_5 * 100} fmt="pct" sub={`Best surface: ${ranking.summary?.best_surface?.replace(/_/g, ' ')}`} />
+            <KpiCard icon="🤝" label="Collaborative Precision@5" value={ranking.summary?.collaborative_avg_precision_at_5 * 100} fmt="pct" sub={`${ranking.summary?.persona_count || 0} personas evaluated`} />
+            <KpiCard icon="🔎" label="Unified Precision@5" value={ranking.summary?.unified_avg_precision_at_5 * 100} fmt="pct" sub={`Shop coverage ${ranking.summary?.avg_unified_shop_coverage || 0}`} />
+            <KpiCard icon="🕒" label="Diagnostics Freshness" value={ranking.freshness?.age_hours || 0} sub={ranking.freshness?.status || 'unknown'} />
+          </div>
+
+          <Card>
+            <SecTitle icon="🧭">Ranking Diagnostics</SecTitle>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Bdg color={ranking.freshness?.status === 'fresh' ? C.green : ranking.freshness?.status === 'aging' ? C.amber : C.red}>
+                {ranking.freshness?.status || 'unknown'}
+              </Bdg>
+              <Bdg color={C.primary}>{ranking.version}</Bdg>
+              <Bdg color={C.gray}>{ranking.summary?.persona_count || 0} personas</Bdg>
+              <Bdg color={C.purple}>evaluated {ranking.evaluated_at ? fmtDate(ranking.evaluated_at) : 'n/a'}</Bdg>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Persona</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Content P@5</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Collaborative P@5</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Unified P@5</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Shop Coverage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(ranking.personas || []).map((row) => (
+                    <tr key={row.persona} className="border-b border-gray-50">
+                      <td className="px-3 py-3 text-gray-700">{row.persona}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900">{fmtPct(row.content_precision_at_5 * 100)}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900">{fmtPct(row.collaborative_precision_at_5 * 100)}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900">{fmtPct(row.unified_precision_at_5 * 100)}</td>
+                      <td className="px-3 py-3 text-right text-gray-600">{row.unified_shop_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {ranking.next_actions?.length > 0 && (
+              <div className="mt-4 grid lg:grid-cols-3 gap-3">
+                {ranking.next_actions.map((item) => (
+                  <div key={item} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {outcomes?.summary?.surface_count > 0 && (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard icon="👀" label="Ranking Impressions" value={outcomes.summary?.impressions || 0} />
+            <KpiCard icon="🖱️" label="Ranking CTR" value={outcomes.summary?.ctr || 0} fmt="pct" />
+            <KpiCard icon="🛒" label="Add-to-Cart Rate" value={outcomes.summary?.add_to_cart_rate || 0} fmt="pct" />
+            <KpiCard icon="💳" label="Purchase Rate" value={outcomes.summary?.purchase_rate || 0} fmt="pct" sub={outcomes.summary?.best_surface?.replace(/_/g, ' ')} />
+          </div>
+
+          <Card>
+            <SecTitle icon="📈">Ranking Outcomes</SecTitle>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Surface</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Impressions</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">CTR</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">ATC</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500">Purchase</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(outcomes.surfaces || []).map((row) => (
+                    <tr key={row.surface} className="border-b border-gray-50">
+                      <td className="px-3 py-3">
+                        <div className="font-medium text-gray-800">{row.label}</div>
+                        {row.top_reasons?.[0] ? <div className="text-xs text-gray-400 mt-0.5">Top reason: {row.top_reasons[0].reason}</div> : null}
+                      </td>
+                      <td className="px-3 py-3 text-right text-gray-700">{fmtNum(row.impressions)}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900">{fmtPct(row.ctr)}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900">{fmtPct(row.add_to_cart_rate)}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-gray-900">{fmtPct(row.purchase_rate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
 
       {/* Daily Trend Chart */}
       {trend.length > 0 && (
@@ -1619,6 +1721,8 @@ export default function AdminDashboard() {
           api.getAiRecentCalls(50).then(r => { res.aiRecentCalls = r.data }),
           api.getAiHourlyDistribution(per).then(r => { res.aiHourly = r.data }),
           api.getAiTopUsers(per).then(r => { res.aiTopUsers = r.data }),
+          api.getRankingDiagnostics().then(r => { res.rankingDiagnostics = r.data }),
+          api.getRankingOutcomes(per).then(r => { res.rankingOutcomes = r.data }),
         )
       }
       await Promise.allSettled(calls)
@@ -1628,7 +1732,10 @@ export default function AdminDashboard() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { loadSection(section, period) }, [section, period, loadSection])
+  useEffect(() => {
+    const id = setTimeout(() => { loadSection(section, period) }, 0)
+    return () => clearTimeout(id)
+  }, [section, period, loadSection])
 
   const handlePeriod = p => { loaded.current = new Set(); setPeriod(p) }
 

@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { searchProducts, getSearchSuggestions } from '../../lib/products';
-import { searchShops } from '../../lib/shops';
+import { searchShops, searchUnified } from '../../lib/shops';
 import {
   logSearch,
   getRecentSearches,
@@ -23,6 +23,7 @@ import ShopCard from '../../components/ShopCard';
 import { SearchScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import useLocationStore from '../../store/locationStore';
+import { trackRankingImpressions } from '../../lib/rankingTracking';
 
 const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Clothing', 'Food', 'Beauty', 'Home'];
 
@@ -93,6 +94,15 @@ export default function SearchScreen() {
   const fetchProducts = useCallback(async (q, category, sort) => {
     setLoading(true);
     try {
+      if (q && q.trim()) {
+        const unified = await searchUnified(q.trim(), lat, lng);
+        const unifiedProducts = (unified?.data?.products ?? []).filter((item) => (
+          !category || category === 'All' || item.category === category
+        ));
+        setProducts(unifiedProducts);
+        setShops(unified?.data?.shops ?? []);
+        return;
+      }
       const params = { per_page: 40 };
       if (sort) params.sort_by = sort;
       if (q && q.trim()) params.q = q.trim();
@@ -112,6 +122,12 @@ export default function SearchScreen() {
   const fetchShops = useCallback(async (q) => {
     setLoading(true);
     try {
+      if (q && q.trim()) {
+        const unified = await searchUnified(q.trim(), lat, lng);
+        setProducts(unified?.data?.products ?? []);
+        setShops(unified?.data?.shops ?? []);
+        return;
+      }
       const params = {};
       if (lat != null) params.lat = lat;
       if (lng != null) params.lng = lng;
@@ -272,7 +288,15 @@ export default function SearchScreen() {
 
   const renderProductItem = ({ item, index }) => (
     <View style={[styles.productItemWrap, index % 2 === 0 ? styles.productItemLeft : styles.productItemRight]}>
-      <ProductCard product={item} />
+      <ProductCard
+        product={item}
+        tracking={query.trim() ? {
+          ranking_surface: 'unified_search',
+          source_screen: 'search_results',
+          query: query.trim(),
+          position: index + 1,
+        } : null}
+      />
     </View>
   );
 
@@ -302,6 +326,15 @@ export default function SearchScreen() {
   };
 
   const currentData = activeTab === 'products' ? products : shops;
+
+  useEffect(() => {
+    if (!query.trim() || activeTab !== 'products' || !products.length) return;
+    trackRankingImpressions(products, {
+      ranking_surface: 'unified_search',
+      source_screen: 'search_results',
+      query: query.trim(),
+    });
+  }, [products, query, activeTab]);
 
   return (
     <View style={styles.root}>

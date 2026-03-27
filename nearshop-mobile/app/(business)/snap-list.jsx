@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -47,6 +48,21 @@ export default function SnapListScreen() {
   const dotsRef = useRef(null);
 
   const [publishing, setPublishing] = useState(false);
+
+  // Reset state when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset to capture step when navigating back to this screen
+      setStep('capture');
+      setImageUri(null);
+      setAiResult(null);
+      setAiFailed(false);
+      setName('');
+      setPrice('');
+      setDescription('');
+      setCategory('');
+    }, [])
+  );
 
   useEffect(() => {
     if (step === 'analyzing') {
@@ -183,6 +199,18 @@ export default function SnapListScreen() {
       await client.post(`/products?shop_id=${shopId}`, productData);
 
       alert.success({ title: 'Success', message: 'Product published!' });
+      
+      // Reset all states to start fresh for next product
+      setStep('capture');
+      setImageUri(null);
+      setAiResult(null);
+      setAiFailed(false);
+      setName('');
+      setPrice('');
+      setDescription('');
+      setCategory('');
+      
+      // Navigate back to catalog
       router.back();
     } catch (err) {
       const detail = err.response?.data?.detail;

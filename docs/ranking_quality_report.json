@@ -1,0 +1,851 @@
+{
+  "base_url": "http://127.0.0.1:8010",
+  "evaluated_at": "2026-03-27T09:13:44.725117+00:00",
+  "personas": {
+    "ml.c1.1774488839@example.com": {
+      "content": {
+        "precision_at_5": 0.6,
+        "shop_diversity_at_5": 3,
+        "term_coverage": 1.0,
+        "top_5": [
+          {
+            "name": "Compact Mechanical Keyboard",
+            "hits": [
+              "gaming",
+              "keyboard"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [
+              "gaming",
+              "headset"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "RGB Mouse Pad XL",
+            "hits": [
+              "gaming",
+              "mouse",
+              "mousepad"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "USB Condenser Mic",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "AirPods Pro 2",
+            "hits": [],
+            "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+          }
+        ]
+      },
+      "collaborative": {
+        "precision_at_5": 0.4,
+        "shop_diversity_at_5": 4,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "RGB Mouse Pad XL",
+            "hits": [
+              "gaming",
+              "mouse",
+              "mousepad"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [
+              "gaming",
+              "headset"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "USB Condenser Mic",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Sony WH-1000XM5",
+            "hits": [],
+            "shop_id": "ec2a3d48-170b-4707-ace6-a1a01e9261e8"
+          },
+          {
+            "name": "AirPods Pro 2",
+            "hits": [],
+            "shop_id": "41785b91-b3f9-4488-aed7-eab70f718435"
+          }
+        ]
+      },
+      "unified_products": {
+        "precision_at_5": 0.8,
+        "shop_diversity_at_5": 3,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [
+              "gaming",
+              "headset"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Compact Mechanical Keyboard",
+            "hits": [
+              "keyboard"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "RGB Mouse Pad XL",
+            "hits": [
+              "mouse"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Gaming Mouse Pro",
+            "hits": [
+              "gaming",
+              "mouse"
+            ],
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+          },
+          {
+            "name": "USB Condenser Mic",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          }
+        ]
+      },
+      "unified_shops_count": 5
+    },
+    "ml.c4@example.com": {
+      "content": {
+        "precision_at_5": 1.0,
+        "shop_diversity_at_5": 4,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "Apple AirPods Pro 2",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+          },
+          {
+            "name": "Apple AirPods Pro 2",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
+          },
+          {
+            "name": "USB Condenser Mic",
+            "hits": [
+              "audio"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [
+              "audio"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Sony WH-1000XM5 Headphones",
+            "hits": [
+              "bluetooth",
+              "headphones"
+            ],
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+          }
+        ]
+      },
+      "collaborative": {
+        "precision_at_5": 0.8,
+        "shop_diversity_at_5": 5,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "USB Condenser Mic",
+            "hits": [
+              "audio"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Apple AirPods Pro 2",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+          },
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [
+              "audio"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Sony WH-1000XM5 Headphones",
+            "hits": [
+              "bluetooth",
+              "headphones"
+            ],
+            "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
+          },
+          {
+            "name": "Gaming Mouse Pro",
+            "hits": [],
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+          }
+        ]
+      },
+      "unified_products": {
+        "precision_at_5": 0.4,
+        "shop_diversity_at_5": 3,
+        "term_coverage": 0.6,
+        "top_5": [
+          {
+            "name": "Wireless Earbuds Neo",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Bluetooth Speaker Mini",
+            "hits": [
+              "bluetooth",
+              "speaker"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "USB Condenser Mic",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Apple AirPods Pro 2",
+            "hits": [],
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+          }
+        ]
+      },
+      "unified_shops_count": 5
+    },
+    "ml.c5@example.com": {
+      "content": {
+        "precision_at_5": 0.4,
+        "shop_diversity_at_5": 3,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "USB Condenser Mic",
+            "hits": [
+              "microphone",
+              "streaming",
+              "usb"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "LED Ring Light Kit",
+            "hits": [
+              "ring",
+              "streaming"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "AirPods Pro 2",
+            "hits": [],
+            "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+          },
+          {
+            "name": "Apple AirPods Pro 2",
+            "hits": [],
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+          },
+          {
+            "name": "Sony WH-1000XM5",
+            "hits": [],
+            "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+          }
+        ]
+      },
+      "collaborative": {
+        "precision_at_5": 0.4,
+        "shop_diversity_at_5": 4,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "LED Ring Light Kit",
+            "hits": [
+              "ring",
+              "streaming"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "USB Condenser Mic",
+            "hits": [
+              "microphone",
+              "streaming",
+              "usb"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Gaming Mouse Pro",
+            "hits": [],
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+          },
+          {
+            "name": "Sony WH-1000XM5",
+            "hits": [],
+            "shop_id": "ec2a3d48-170b-4707-ace6-a1a01e9261e8"
+          },
+          {
+            "name": "AirPods Pro 2",
+            "hits": [],
+            "shop_id": "41785b91-b3f9-4488-aed7-eab70f718435"
+          }
+        ]
+      },
+      "unified_products": {
+        "precision_at_5": 0.6,
+        "shop_diversity_at_5": 2,
+        "term_coverage": 0.8,
+        "top_5": [
+          {
+            "name": "USB Condenser Mic",
+            "hits": [
+              "usb"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "LED Ring Light Kit",
+            "hits": [
+              "ring"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Streaming Webcam HD",
+            "hits": [
+              "streaming",
+              "webcam"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Pro Gaming Headset",
+            "hits": [],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Wireless Earbuds Neo",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          }
+        ]
+      },
+      "unified_shops_count": 5
+    }
+  },
+  "merchant_views": {
+    "pricing": {
+      "suggested_price": 1623.75,
+      "current_price": 1299.0,
+      "average_price": 2599.0,
+      "min_price": 999.0,
+      "max_price": 3499.0,
+      "median_price": 2849.0,
+      "comparables_count": 12,
+      "confidence": "high",
+      "reason": "Based on 12 nearby comparable Accessories products",
+      "demand_signal": "medium",
+      "elasticity_note": "Moderate demand - price looks competitive."
+    },
+    "demand_gaps": {
+      "gaps": [
+        {
+          "keyword": "wireless earbuds",
+          "search_volume": 2,
+          "zero_result_searches": 2,
+          "opportunity_score": 6,
+          "suggested_action": "Some customers searched for 'wireless earbuds' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "gaming headset",
+          "search_volume": 2,
+          "zero_result_searches": 2,
+          "opportunity_score": 6,
+          "suggested_action": "Some customers searched for 'gaming headset' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "bluetooth speaker",
+          "search_volume": 1,
+          "zero_result_searches": 1,
+          "opportunity_score": 3,
+          "suggested_action": "Some customers searched for 'bluetooth speaker' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "gaming mouse",
+          "search_volume": 1,
+          "zero_result_searches": 0,
+          "opportunity_score": 1,
+          "suggested_action": "Some customers searched for 'gaming mouse' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "usb hub",
+          "search_volume": 1,
+          "zero_result_searches": 0,
+          "opportunity_score": 1,
+          "suggested_action": "Some customers searched for 'usb hub' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "webcam streaming",
+          "search_volume": 1,
+          "zero_result_searches": 0,
+          "opportunity_score": 1,
+          "suggested_action": "Some customers searched for 'webcam streaming' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "usb microphone",
+          "search_volume": 1,
+          "zero_result_searches": 0,
+          "opportunity_score": 1,
+          "suggested_action": "Some customers searched for 'usb microphone' \u2014 consider stocking it."
+        },
+        {
+          "keyword": "ring light",
+          "search_volume": 1,
+          "zero_result_searches": 0,
+          "opportunity_score": 1,
+          "suggested_action": "Some customers searched for 'ring light' \u2014 consider stocking it."
+        }
+      ],
+      "count": 8
+    },
+    "operational_insights": {
+      "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+      "meta": {
+        "generated_at": "2026-03-27T09:13:49.792547Z",
+        "analysis_window_days": 30,
+        "forecast_horizon_days": 7,
+        "location_applied": false,
+        "methods": {
+          "forecasting": "rolling_average",
+          "inventory_alerts": "rules_based_velocity_threshold",
+          "customer_segments": "rfm_segmentation",
+          "demand_snapshot": "local_search_aggregation"
+        },
+        "sample_sizes": {
+          "orders_last_30_days": 5,
+          "revenue_last_30_days": 19690.0,
+          "active_stocked_products": 3,
+          "customers_segmented": 4,
+          "demand_queries": 0
+        },
+        "confidence": {
+          "forecast": "low",
+          "segments": "low",
+          "demand": "low"
+        },
+        "warnings": [
+          "Forecast confidence is low because the shop has limited order history in the last 30 days.",
+          "Demand snapshot is unavailable because shop location coordinates were not provided.",
+          "Customer segmentation confidence is low because the customer sample size is still small."
+        ]
+      },
+      "sales_forecast": {
+        "next_7_days_revenue": 19690.0,
+        "next_7_days_orders": 5,
+        "recent_daily_avg_revenue": 2812.86,
+        "recent_daily_avg_orders": 0.71,
+        "revenue_trend_pct": null,
+        "orders_trend_pct": null,
+        "daily_revenue_last_30_days": [
+          {
+            "date": "2026-02-26",
+            "value": 0.0
+          },
+          {
+            "date": "2026-02-27",
+            "value": 0.0
+          },
+          {
+            "date": "2026-02-28",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-01",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-02",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-03",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-04",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-05",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-06",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-07",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-08",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-09",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-10",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-11",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-12",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-13",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-14",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-15",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-16",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-17",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-18",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-19",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-20",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-21",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-22",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-23",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-24",
+            "value": 4598.0
+          },
+          {
+            "date": "2026-03-25",
+            "value": 6796.0
+          },
+          {
+            "date": "2026-03-26",
+            "value": 8296.0
+          },
+          {
+            "date": "2026-03-27",
+            "value": 0.0
+          }
+        ],
+        "daily_orders_last_30_days": [
+          {
+            "date": "2026-02-26",
+            "value": 0
+          },
+          {
+            "date": "2026-02-27",
+            "value": 0
+          },
+          {
+            "date": "2026-02-28",
+            "value": 0
+          },
+          {
+            "date": "2026-03-01",
+            "value": 0
+          },
+          {
+            "date": "2026-03-02",
+            "value": 0
+          },
+          {
+            "date": "2026-03-03",
+            "value": 0
+          },
+          {
+            "date": "2026-03-04",
+            "value": 0
+          },
+          {
+            "date": "2026-03-05",
+            "value": 0
+          },
+          {
+            "date": "2026-03-06",
+            "value": 0
+          },
+          {
+            "date": "2026-03-07",
+            "value": 0
+          },
+          {
+            "date": "2026-03-08",
+            "value": 0
+          },
+          {
+            "date": "2026-03-09",
+            "value": 0
+          },
+          {
+            "date": "2026-03-10",
+            "value": 0
+          },
+          {
+            "date": "2026-03-11",
+            "value": 0
+          },
+          {
+            "date": "2026-03-12",
+            "value": 0
+          },
+          {
+            "date": "2026-03-13",
+            "value": 0
+          },
+          {
+            "date": "2026-03-14",
+            "value": 0
+          },
+          {
+            "date": "2026-03-15",
+            "value": 0
+          },
+          {
+            "date": "2026-03-16",
+            "value": 0
+          },
+          {
+            "date": "2026-03-17",
+            "value": 0
+          },
+          {
+            "date": "2026-03-18",
+            "value": 0
+          },
+          {
+            "date": "2026-03-19",
+            "value": 0
+          },
+          {
+            "date": "2026-03-20",
+            "value": 0
+          },
+          {
+            "date": "2026-03-21",
+            "value": 0
+          },
+          {
+            "date": "2026-03-22",
+            "value": 0
+          },
+          {
+            "date": "2026-03-23",
+            "value": 0
+          },
+          {
+            "date": "2026-03-24",
+            "value": 1
+          },
+          {
+            "date": "2026-03-25",
+            "value": 2
+          },
+          {
+            "date": "2026-03-26",
+            "value": 2
+          },
+          {
+            "date": "2026-03-27",
+            "value": 0
+          }
+        ]
+      },
+      "reorder_alerts": [
+        {
+          "product_id": "60e7002f-68af-4278-ae2f-93448f97ae1f",
+          "product_name": "USB-C Hub 7-in-1",
+          "category": "Electronics",
+          "stock_quantity": 2,
+          "low_stock_threshold": 5,
+          "sold_last_30_days": 1,
+          "daily_sales_velocity": 0.03,
+          "days_left": 66.7,
+          "recommended_reorder_qty": 1,
+          "severity": "high",
+          "estimated_revenue_at_risk": 2199.0
+        },
+        {
+          "product_id": "865bda0b-ad37-437b-9e05-bfecf508a446",
+          "product_name": "Mechanical Keyboard X",
+          "category": "Electronics",
+          "stock_quantity": 5,
+          "low_stock_threshold": 5,
+          "sold_last_30_days": 2,
+          "daily_sales_velocity": 0.07,
+          "days_left": 71.4,
+          "recommended_reorder_qty": 1,
+          "severity": "high",
+          "estimated_revenue_at_risk": 3499.0
+        }
+      ],
+      "customer_segments": {
+        "summary": {
+          "total": 4,
+          "at_risk_count": 1,
+          "champions_count": 2,
+          "lost_count": 1
+        },
+        "segments": {
+          "Champions": 2,
+          "Lost": 1,
+          "New Customers": 1
+        },
+        "customers": [
+          {
+            "customer_id": "18e55566-f5d1-444a-98eb-cc07a94402c6",
+            "name": "ML Customer Two",
+            "phone": "",
+            "recency_days": 46,
+            "frequency": 2,
+            "monetary": 6997.0,
+            "r_score": 1,
+            "f_score": 2,
+            "m_score": 2,
+            "segment": "Lost",
+            "segment_color": "#6B7280",
+            "win_back_action": "Re-engage with a steep discount"
+          },
+          {
+            "customer_id": "325d1b1d-0fab-4a0a-905d-7535cb1183fa",
+            "name": "ML Customer One",
+            "phone": "",
+            "recency_days": 1,
+            "frequency": 2,
+            "monetary": 8296.0,
+            "r_score": 5,
+            "f_score": 2,
+            "m_score": 4,
+            "segment": "Champions",
+            "segment_color": "#10B981",
+            "win_back_action": "Keep them happy with exclusive previews"
+          },
+          {
+            "customer_id": "b5df5a5d-c2c9-4c20-9691-a826f7eafc5b",
+            "name": "ML Customer Six",
+            "phone": "",
+            "recency_days": 2,
+            "frequency": 2,
+            "monetary": 9096.0,
+            "r_score": 5,
+            "f_score": 2,
+            "m_score": 5,
+            "segment": "Champions",
+            "segment_color": "#10B981",
+            "win_back_action": "Keep them happy with exclusive previews"
+          },
+          {
+            "customer_id": "a73384aa-b364-4c7e-885e-93a8c1d79218",
+            "name": "ML Customer Three",
+            "phone": "",
+            "recency_days": 2,
+            "frequency": 1,
+            "monetary": 2298.0,
+            "r_score": 5,
+            "f_score": 1,
+            "m_score": 1,
+            "segment": "New Customers",
+            "segment_color": "#06B6D4",
+            "win_back_action": "Onboard them - second purchase deal"
+          }
+        ]
+      },
+      "demand_snapshot": [],
+      "recommended_actions": [
+        {
+          "id": "restock-priority-products",
+          "type": "inventory",
+          "priority": "high",
+          "title": "Restock priority products",
+          "description": "2 product(s) are at risk of going out of stock soon.",
+          "cta_label": "Review inventory",
+          "target": "inventory",
+          "highlights": [
+            "USB-C Hub 7-in-1: reorder 1",
+            "Mechanical Keyboard X: reorder 1"
+          ]
+        }
+      ]
+    }
+  }
+}
