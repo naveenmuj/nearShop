@@ -148,11 +148,11 @@ def main() -> None:
             "/api/v1/ai/demand-gaps",
             {"shop_id": MAIN_SHOP_ID, "lat": lat, "lng": lng},
         ),
-        "phase1": get_json(
+        "operational_insights": get_json(
             session,
             BASE_URL,
             business_token,
-            f"/api/v1/analytics/shop/{MAIN_SHOP_ID}/phase1",
+            f"/api/v1/analytics/shop/{MAIN_SHOP_ID}/operational-insights",
         ),
     }
 

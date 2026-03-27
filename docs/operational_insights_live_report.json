@@ -1,0 +1,166 @@
+﻿{
+  "base_url": "http://127.0.0.1:8010",
+  "evaluated_at": "2026-03-27T03:14:26.528716+00:00",
+  "shops": [
+    {
+      "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9",
+      "shop_name": "TechWorld Store",
+      "order_count_db": 39,
+      "confidence": {
+        "forecast": "high",
+        "segments": "high",
+        "demand": "high"
+      },
+      "warnings": [],
+      "sample_sizes": {
+        "orders_last_30_days": 39,
+        "revenue_last_30_days": 15494141.0,
+        "active_stocked_products": 5,
+        "customers_segmented": 26,
+        "demand_queries": 11
+      },
+      "recommended_actions": [
+        {
+          "id": "restock-priority-products",
+          "priority": "high",
+          "title": "Restock priority products",
+          "target": "inventory"
+        },
+        {
+          "id": "promote-demand-keywords",
+          "priority": "medium",
+          "title": "Promote what customers are searching for",
+          "target": "deals"
+        }
+      ]
+    },
+    {
+      "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+      "shop_name": "Naveen's Electronics Hub",
+      "order_count_db": 38,
+      "confidence": {
+        "forecast": "high",
+        "segments": "high",
+        "demand": "high"
+      },
+      "warnings": [],
+      "sample_sizes": {
+        "orders_last_30_days": 38,
+        "revenue_last_30_days": 14510326.0,
+        "active_stocked_products": 5,
+        "customers_segmented": 26,
+        "demand_queries": 11
+      },
+      "recommended_actions": [
+        {
+          "id": "restock-priority-products",
+          "priority": "high",
+          "title": "Restock priority products",
+          "target": "inventory"
+        },
+        {
+          "id": "promote-demand-keywords",
+          "priority": "medium",
+          "title": "Promote what customers are searching for",
+          "target": "deals"
+        }
+      ]
+    },
+    {
+      "shop_id": "34ad1671-e430-4862-9139-aaa20fd37956",
+      "shop_name": "TechWorld Store",
+      "order_count_db": 38,
+      "confidence": {
+        "forecast": "high",
+        "segments": "high",
+        "demand": "high"
+      },
+      "warnings": [],
+      "sample_sizes": {
+        "orders_last_30_days": 38,
+        "revenue_last_30_days": 15320326.0,
+        "active_stocked_products": 4,
+        "customers_segmented": 26,
+        "demand_queries": 11
+      },
+      "recommended_actions": [
+        {
+          "id": "restock-priority-products",
+          "priority": "high",
+          "title": "Restock priority products",
+          "target": "inventory"
+        },
+        {
+          "id": "promote-demand-keywords",
+          "priority": "medium",
+          "title": "Promote what customers are searching for",
+          "target": "deals"
+        }
+      ]
+    },
+    {
+      "shop_id": "41785b91-b3f9-4488-aed7-eab70f718435",
+      "shop_name": "TechWorld Store",
+      "order_count_db": 38,
+      "confidence": {
+        "forecast": "high",
+        "segments": "high",
+        "demand": "high"
+      },
+      "warnings": [],
+      "sample_sizes": {
+        "orders_last_30_days": 38,
+        "revenue_last_30_days": 14510326.0,
+        "active_stocked_products": 5,
+        "customers_segmented": 26,
+        "demand_queries": 11
+      },
+      "recommended_actions": [
+        {
+          "id": "restock-priority-products",
+          "priority": "high",
+          "title": "Restock priority products",
+          "target": "inventory"
+        },
+        {
+          "id": "promote-demand-keywords",
+          "priority": "medium",
+          "title": "Promote what customers are searching for",
+          "target": "deals"
+        }
+      ]
+    },
+    {
+      "shop_id": "ec2a3d48-170b-4707-ace6-a1a01e9261e8",
+      "shop_name": "TechWorld Store",
+      "order_count_db": 31,
+      "confidence": {
+        "forecast": "high",
+        "segments": "high",
+        "demand": "high"
+      },
+      "warnings": [],
+      "sample_sizes": {
+        "orders_last_30_days": 30,
+        "revenue_last_30_days": 10956729.0,
+        "active_stocked_products": 5,
+        "customers_segmented": 26,
+        "demand_queries": 11
+      },
+      "recommended_actions": [
+        {
+          "id": "restock-priority-products",
+          "priority": "high",
+          "title": "Restock priority products",
+          "target": "inventory"
+        },
+        {
+          "id": "promote-demand-keywords",
+          "priority": "medium",
+          "title": "Promote what customers are searching for",
+          "target": "deals"
+        }
+      ]
+    }
+  ]
+}

@@ -18,9 +18,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getShop, getShopProducts, getShopReviews, followShop, unfollowShop } from '../../../lib/shops';
 import { trackEvent } from '../../../lib/analytics';
 import ProductCard from '../../../components/ProductCard';
+import { ShopDetailSkeleton } from '../../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS, CATEGORY_COLORS, formatPrice } from '../../../constants/theme';
 import useAuthStore from '../../../store/authStore';
 import useLocationStore from '../../../store/locationStore';
+import { toast } from '../../../components/ui/Toast/toastRef';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HERO_HEIGHT = 250;
@@ -80,6 +82,7 @@ export default function ShopDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { user } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { lat, lng } = useLocationStore();
 
   const [shop, setShop] = useState(null);
@@ -182,6 +185,11 @@ export default function ShopDetailScreen() {
   };
 
   const handleFollowToggle = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please sign in to follow this shop.');
+      router.push('/(auth)/email');
+      return;
+    }
     if (followLoading) return;
     setFollowLoading(true);
     const wasFollowed = isFollowed;
@@ -191,13 +199,16 @@ export default function ShopDetailScreen() {
     try {
       if (wasFollowed) {
         await unfollowShop(id);
+        toast.success(`Unfollowed ${shop?.name || 'shop'}.`);
       } else {
         await followShop(id);
+        toast.success(`Following ${shop?.name || 'shop'}.`);
       }
-    } catch {
+    } catch (err) {
       // Revert on failure
       setIsFollowed(wasFollowed);
       setFollowerCount((c) => (wasFollowed ? c + 1 : Math.max(0, c - 1)));
+      toast.error(err?.response?.data?.detail || 'Could not update follow status.');
     } finally {
       setFollowLoading(false);
     }
@@ -215,12 +226,7 @@ export default function ShopDetailScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <ShopDetailSkeleton />;
   }
 
   if (!shop) {

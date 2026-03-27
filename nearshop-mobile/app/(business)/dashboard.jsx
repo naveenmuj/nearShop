@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  ActivityIndicator, RefreshControl, StatusBar, Alert,
+  ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -87,7 +88,7 @@ export default function BizDashboardScreen() {
           } catch (pushErr) {
             console.error('Push navigation failed:', pushErr);
             if (isMountedRef.current) {
-              Alert.alert('Navigation Error', 'Could not navigate to customer mode');
+              alert.error({ title: 'Navigation Error', message: 'Could not navigate to customer mode' });
               setSwitching(false);
             }
           }
@@ -96,7 +97,7 @@ export default function BizDashboardScreen() {
     } catch (err) {
       setSwitching(false);
       console.error('Switch role error:', err);
-      Alert.alert('Error', err?.response?.data?.detail || err?.message || 'Could not switch to customer mode');
+      alert.error({ title: 'Error', message: err?.response?.data?.detail || err?.message || 'Could not switch to customer mode' });
     }
   };
 

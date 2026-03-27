@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, StatusBar, BackHandler } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { createDeal, getShopDeals } from '../../lib/deals';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
@@ -34,8 +35,8 @@ export default function DealsScreen() {
     setLoading(true); setError(null);
     try {
       const [pRes, dRes] = await Promise.allSettled([
-        client.get(`/shops/${shopId}/products`, { params: { per_page: 100 } }),
-        client.get('/deals', { params: { shop_id: shopId } }),
+        import('../../lib/api').then(({ default: client }) => client.get(`/shops/${shopId}/products`, { params: { per_page: 100 } })),
+        getShopDeals(shopId),
       ]);
       if (pRes.status === 'fulfilled') {
         const d = pRes.value.data;
@@ -50,26 +51,26 @@ export default function DealsScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleCreate = async () => {
-    if (!selectedProduct) { Alert.alert('Select Product', 'Please choose a product to create a deal for.'); return; }
-    if (!shopId) { Alert.alert('Shop Not Found', 'Could not find your shop. Please go back and try again.'); return; }
+    if (!selectedProduct) { alert.info({ title: 'Select Product', message: 'Please choose a product to create a deal for.' }); return; }
+    if (!shopId) { alert.error({ title: 'Shop Not Found', message: 'Could not find your shop. Please go back and try again.' }); return; }
     const disc = Number(discountPct);
-    if (!disc || disc <= 0 || disc > 99) { Alert.alert('Invalid Discount', 'Enter a discount between 1% and 99%.'); return; }
+    if (!disc || disc <= 0 || disc > 99) { alert.warning({ title: 'Invalid Discount', message: 'Enter a discount between 1% and 99%.' }); return; }
     setCreating(true);
     try {
-      await client.post('/deals', {
-        shop_id: shopId,
+      await createDeal({
         product_id: selectedProduct.id,
-        discount_percentage: disc,
-        duration_days: duration,
-      });
-      Alert.alert('Deal Created!', `${disc}% off deal created for ${selectedProduct.name}. It will be visible to nearby customers.`);
+        title: `${selectedProduct.name} deal`,
+        discount_pct: disc,
+        duration_hours: duration * 24,
+      }, shopId);
+      alert.success({ title: 'Deal Created!', message: `${disc}% off deal created for ${selectedProduct.name}. It will be visible to nearby customers.` });
       setSelectedProduct(null);
       setDiscountPct('10');
       setTab('active');
       loadData();
     } catch (e) {
       const msg = e?.response?.data?.detail || e?.response?.data?.message || e?.message || 'Failed to create deal. Please try again.';
-      Alert.alert('Error', String(msg));
+      alert.error({ title: 'Error', message: String(msg) });
     } finally {
       setCreating(false);
     }

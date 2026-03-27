@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   BackHandler,
@@ -17,6 +16,8 @@ import { useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { getMyOrders, cancelOrder, downloadInvoice } from '../../lib/orders';
+import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
+import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, STATUS_COLORS, SHADOWS, formatPrice, formatDate } from '../../constants/theme';
 
 const FILTERS = [
@@ -176,30 +177,26 @@ export default function OrdersScreen() {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleCancel = useCallback((order) => {
-    Alert.alert(
-      'Cancel Order',
-      `Are you sure you want to cancel order #${shortId(order.id)}?`,
-      [
-        { text: 'Keep Order', style: 'cancel' },
-        {
-          text: 'Cancel Order',
-          style: 'destructive',
-          onPress: async () => {
-            setCancellingId(order.id);
-            try {
-              await cancelOrder(order.id);
-              await fetchOrders();
-            } catch {
-              Alert.alert('Error', 'Could not cancel this order. Please try again.');
-            } finally {
-              setCancellingId(null);
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+  const handleCancel = useCallback(async (order) => {
+    const confirmed = await alert.confirm({
+      title: 'Cancel Order',
+      message: `Are you sure you want to cancel order #${shortId(order.id)}?`,
+      confirmText: 'Cancel Order',
+      cancelText: 'Keep Order',
+      type: 'danger',
+    });
+    
+    if (confirmed) {
+      setCancellingId(order.id);
+      try {
+        await cancelOrder(order.id);
+        await fetchOrders();
+      } catch {
+        alert.error({ title: 'Error', message: 'Could not cancel this order. Please try again.' });
+      } finally {
+        setCancellingId(null);
+      }
+    }
   }, [fetchOrders]);
 
   const handleDownloadInvoice = useCallback(async (order) => {
@@ -217,15 +214,15 @@ export default function OrdersScreen() {
         if (canOpen) {
           await Linking.openURL(fileUri);
         }
-        Alert.alert(
-          'Success',
-          canOpen
+        alert.success({
+          title: 'Success',
+          message: canOpen
             ? 'Invoice downloaded successfully!'
-            : 'Invoice downloaded. Open it from your device files if it did not launch automatically.'
-        );
+            : 'Invoice downloaded. Open it from your device files if it did not launch automatically.',
+        });
       }
     } catch (err) {
-      Alert.alert('Error', 'Could not download invoice. Please try again.');
+      alert.error({ title: 'Error', message: 'Could not download invoice. Please try again.' });
     } finally {
       setDownloadingInvoice(null);
     }
@@ -314,10 +311,7 @@ export default function OrdersScreen() {
 
       {/* Loading state (initial) */}
       {loading && !refreshing ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loaderText}>Loading orders…</Text>
-        </View>
+        <GenericListSkeleton />
       ) : (
         <FlatList
           data={orders}

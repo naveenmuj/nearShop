@@ -266,7 +266,12 @@ export default function SnapListPage() {
       // Upload image to server (local storage in dev, R2 in production)
       let imageUrl = null
       if (fileInputRef.current?.files?.[0]) {
-        imageUrl = await upload(fileInputRef.current.files[0], 'products')
+        imageUrl = await upload(fileInputRef.current.files[0], {
+          folder: 'products',
+          entityType: 'product',
+          purpose: 'image',
+          shopId,
+        })
       }
 
       await createProduct(

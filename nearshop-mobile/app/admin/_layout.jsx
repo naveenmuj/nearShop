@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, Dimensions, ActivityIndicator,
+  StatusBar, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import useAuthStore from '../../store/authStore';
+import { AdminConsoleSkeleton } from '../../components/ui/ScreenSkeletons';
 
 const TABS = [
   { id: 'overview', icon: '🏠', label: 'Overview' },
@@ -27,13 +30,34 @@ export default function AdminLayout() {
   const [activeTab, setActiveTab] = useState('overview');
   const [period, setPeriod] = useState('30d');
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const authLoading = useAuthStore((s) => s.isLoading);
+
+  if (authLoading) {
+    return <AdminConsoleSkeleton />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={[styles.authBlock, { paddingTop: Math.max(insets.top, 12) }]}>
+          <Text style={styles.authTitle}>Admin access requires sign in</Text>
+          <Text style={styles.authSub}>Your session is not ready or has expired. Sign in again and reopen the console.</Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)/email')} style={styles.authBtn}>
+            <Text style={styles.authBtnText}>Go to Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Text style={styles.backText}>← Back</Text>
@@ -173,11 +197,7 @@ function EmptyState({ icon, title, sub }) {
 }
 
 function Loader() {
-  return (
-    <View style={cs.loader}>
-      <ActivityIndicator size="large" color={COLORS.primary} />
-    </View>
-  );
+  return <AdminConsoleSkeleton />;
 }
 
 function useAdminData(fetcher, deps = []) {
@@ -914,10 +934,41 @@ function AiUsageScreen({ period }) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
+  authBlock: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  authTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  authSub: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  authBtn: {
+    marginTop: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  authBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   header: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
     flexDirection: 'row',

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   Switch,
   StatusBar,
 } from 'react-native';
@@ -17,6 +16,9 @@ import useLocationStore from '../../store/locationStore';
 import { switchRole as apiSwitchRole, deleteAccount as apiDeleteAccount } from '../../lib/auth';
 import { isSoundEnabled, setSoundEnabled, initSound } from '../../lib/sound';
 import { getMyOrders } from '../../lib/orders';
+import { getWishlist } from '../../lib/wishlists';
+import { toast } from '../../components/ui/Toast/toastRef';
+import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, SHADOWS, formatDate } from '../../constants/theme';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -108,8 +110,7 @@ export default function ProfileScreen() {
           setOrderCount(list.length);
         } catch {}
         try {
-          const client = (await import('../../lib/api')).default;
-          const res = await client.get('/wishlists');
+          const res = await getWishlist();
           const d = res?.data;
           const list = Array.isArray(d) ? d : d?.items ?? [];
           setWishlistCount(list.length);
@@ -135,9 +136,11 @@ export default function ProfileScreen() {
       try {
         await apiSwitchRole('business');
         await switchRole('business');
+        toast.success('Business mode is ready.');
         router.replace('/(business)/dashboard');
-      } catch {
-        Alert.alert('Error', 'Could not switch to business mode');
+      } catch (err) {
+        const message = err?.response?.data?.detail || err?.message || 'Could not switch to business mode right now.';
+        toast.error(message);
       }
     } else {
       // Not a business yet — send to registration
@@ -145,93 +148,81 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+  const handleSignOut = async () => {
+    const confirmed = await alert.confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      confirmText: 'Sign Out',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    
+    if (confirmed) {
+      await logout();
+      router.replace('/(auth)/login');
+    }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     const hasBizRole = Array.isArray(user?.roles) && user.roles.includes('business');
 
-    const options = [{ text: 'Cancel', style: 'cancel' }];
-
     if (hasBizRole) {
-      options.push({
-        text: 'Delete Business Only',
-        onPress: () => confirmDelete(false, true),
-      });
-      options.push({
-        text: 'Delete Customer Only',
-        onPress: () => confirmDelete(true, false),
-      });
-      options.push({
-        text: 'Delete Everything',
-        style: 'destructive',
-        onPress: () => confirmDelete(true, true),
+      // Show options for multi-role users using sequential confirms
+      alert.show({
+        title: 'Delete Account',
+        message: 'You have both customer and business roles. Choose what to delete:',
+        type: 'warning',
+        buttons: [
+          { text: 'Cancel', style: 'secondary' },
+          { text: 'Business Only', style: 'secondary', onPress: () => confirmDelete(false, true) },
+          { text: 'Customer Only', style: 'secondary', onPress: () => confirmDelete(true, false) },
+          { text: 'Delete All', style: 'destructive', onPress: () => confirmDelete(true, true) },
+        ],
       });
     } else {
-      options.push({
-        text: 'Delete My Account',
-        style: 'destructive',
-        onPress: () => confirmDelete(true, false),
+      const confirmed = await alert.confirm({
+        title: 'Delete Account',
+        message: 'This will permanently delete your account and all data. This action cannot be undone.',
+        confirmText: 'Delete My Account',
+        cancelText: 'Cancel',
+        variant: 'danger',
       });
+      
+      if (confirmed) {
+        confirmDelete(true, false);
+      }
     }
-
-    Alert.alert(
-      'Delete Account',
-      hasBizRole
-        ? 'You have both customer and business roles. Choose what to delete. Deleting everything will permanently remove your account, all shops, and Firebase login.'
-        : 'This will permanently delete your account and all data. This action cannot be undone.',
-      options,
-      { cancelable: true },
-    );
   };
 
-  const confirmDelete = (delCustomer, delBusiness) => {
+  const confirmDelete = async (delCustomer, delBusiness) => {
     const isFull = delCustomer && delBusiness;
-    Alert.alert(
-      isFull ? 'Permanently Delete?' : 'Confirm Deletion',
-      isFull
+    
+    const confirmed = await alert.confirm({
+      title: isFull ? 'Permanently Delete?' : 'Confirm Deletion',
+      message: isFull
         ? 'This will delete your account, shops, orders, and Firebase login. You cannot undo this.'
         : 'Are you sure? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiDeleteAccount(delCustomer, delBusiness);
-              if (isFull) {
-                await logout();
-                router.replace('/(auth)/login');
-              } else if (delBusiness) {
-                Alert.alert('Done', 'Business data deleted successfully.');
-              } else {
-                await logout();
-                router.replace('/(auth)/login');
-              }
-            } catch (err) {
-              Alert.alert('Error', err?.response?.data?.detail || 'Failed to delete account');
-            }
-          },
-        },
-      ],
-    );
+      confirmText: 'Yes, Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    
+    if (!confirmed) return;
+    
+    try {
+      await apiDeleteAccount(delCustomer, delBusiness);
+      if (isFull) {
+        await logout();
+        router.replace('/(auth)/login');
+      } else if (delBusiness) {
+        toast.success('Business data deleted successfully.');
+      } else {
+        await logout();
+        router.replace('/(auth)/login');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Failed to delete account');
+    }
   };
 
   // ── Avatar ──────────────────────────────────────────────────────────────────

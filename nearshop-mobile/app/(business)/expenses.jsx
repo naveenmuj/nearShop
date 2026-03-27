@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, StatusBar, BackHandler } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import client from '../../lib/api';
@@ -39,13 +40,13 @@ export default function ExpensesScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleAddExpense = async () => {
-    if (!amount || Number(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
+    if (!amount || Number(amount) <= 0) { alert.error({ title: 'Error', message: 'Enter a valid amount' }); return; }
     setSubmitting(true);
     try {
       await client.post('/expenses', { amount: Number(amount), category, description: description || undefined });
-      Alert.alert('Success', 'Expense added');
+      alert.success({ title: 'Success', message: 'Expense added' });
       setAmount(''); setDescription(''); loadData();
-    } catch (e) { Alert.alert('Error', e.response?.data?.detail || 'Failed to add expense'); }
+    } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to add expense' }); }
     finally { setSubmitting(false); }
   };
 

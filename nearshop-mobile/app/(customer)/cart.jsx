@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
-  StatusBar, Alert,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useCartStore from '../../store/cartStore';
+import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN');
@@ -53,11 +54,30 @@ export default function CartScreen() {
   const itemCount = getItemCount();
   const subtotal = getSubtotal();
 
-  const handleRemove = (id) => {
-    Alert.alert('Remove Item', 'Remove this item from your cart?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeItem(id) },
-    ]);
+  const handleRemove = async (id) => {
+    const confirmed = await alert.confirm({
+      title: 'Remove Item',
+      message: 'Remove this item from your cart?',
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+    if (confirmed) {
+      removeItem(id);
+    }
+  };
+
+  const handleClearCart = async () => {
+    const confirmed = await alert.confirm({
+      title: 'Clear Cart',
+      message: 'Remove all items?',
+      confirmText: 'Clear',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+    if (confirmed) {
+      clearCart();
+    }
   };
 
   const renderGroup = ({ item: group }) => (
@@ -85,10 +105,7 @@ export default function CartScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cart ({itemCount})</Text>
         {items.length > 0 && (
-          <TouchableOpacity onPress={() => Alert.alert('Clear Cart', 'Remove all items?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Clear', style: 'destructive', onPress: clearCart },
-          ])}>
+          <TouchableOpacity onPress={handleClearCart}>
             <Text style={styles.clearText}>Clear</Text>
           </TouchableOpacity>
         )}

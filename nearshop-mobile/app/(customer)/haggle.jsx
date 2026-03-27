@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 import { getMyHaggles } from '../../lib/haggle';
+import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 
 const COLORS = {
   primary: '#7F77DD',
@@ -233,7 +234,7 @@ export default function HaggleScreen() {
 
       {/* Content */}
       {loading && haggles.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 60 }} size="large" color={COLORS.primary} />
+        <GenericListSkeleton />
       ) : (
         <FlatList
           data={haggles}

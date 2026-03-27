@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, StatusBar, Alert, Image,
+  ActivityIndicator, StatusBar, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice, formatDate } from '../../../constants/theme';
-import client from '../../../lib/api';
-import { cancelOrder } from '../../../lib/orders';
+import { cancelOrder, getMyOrders, getOrderById } from '../../../lib/orders';
+import { alert } from '../../../components/ui/PremiumAlert';
+import { GenericDetailSkeleton } from '../../../components/ui/ScreenSkeletons';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'completed'];
 const STATUS_LABELS = {
@@ -107,12 +108,12 @@ export default function OrderDetailScreen() {
 
   const loadOrder = useCallback(async () => {
     try {
-      const res = await client.get(`/orders/${id}`);
+      const res = await getOrderById(id);
       setOrder(res.data);
     } catch (err) {
       // Fallback: try from order list
       try {
-        const res = await client.get('/orders/my');
+        const res = await getMyOrders();
         const list = res.data?.items ?? res.data ?? [];
         const found = list.find(o => o.id === id);
         if (found) setOrder(found);
@@ -124,36 +125,30 @@ export default function OrderDetailScreen() {
 
   useEffect(() => { loadOrder(); }, [loadOrder]);
 
-  const handleCancel = () => {
-    Alert.alert(
-      'Cancel Order',
-      'Are you sure you want to cancel this order?',
-      [
-        { text: 'Keep Order', style: 'cancel' },
-        {
-          text: 'Cancel Order', style: 'destructive',
-          onPress: async () => {
-            setCancelling(true);
-            try {
-              await cancelOrder(id);
-              loadOrder();
-            } catch {
-              Alert.alert('Error', 'Could not cancel order.');
-            } finally {
-              setCancelling(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleCancel = async () => {
+    const confirmed = await alert.confirm({
+      title: 'Cancel Order',
+      message: 'Are you sure you want to cancel this order?',
+      confirmText: 'Cancel Order',
+      cancelText: 'Keep Order',
+      type: 'danger',
+    });
+    
+    if (confirmed) {
+      setCancelling(true);
+      try {
+        await cancelOrder(id);
+        loadOrder();
+      } catch {
+        alert.error({ title: 'Error', message: 'Could not cancel order.' });
+      } finally {
+        setCancelling(false);
+      }
+    }
   };
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </SafeAreaView>
-    );
+    return <GenericDetailSkeleton />;
   }
 
   if (!order) {

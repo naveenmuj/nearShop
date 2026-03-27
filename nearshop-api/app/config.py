@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET_NAME: str = "nearshop-media"
 
+    # DigitalOcean Spaces
+    DO_SPACES_ENDPOINT: str = ""
+    DO_SPACES_REGION: str = ""
+    DO_SPACES_ACCESS_KEY: str = ""
+    DO_SPACES_SECRET_KEY: str = ""
+    DO_SPACES_BUCKET: str = ""
+    DO_SPACES_CDN_ENDPOINT: str = ""
+
     # Razorpay
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
@@ -78,7 +86,11 @@ class Settings(BaseSettings):
     # PostGIS-powered geo queries (requires PostGIS extension)
     FEATURE_POSTGIS: bool = False
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 @lru_cache

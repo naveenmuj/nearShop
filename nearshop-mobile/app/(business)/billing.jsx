@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, StatusBar, BackHandler } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -60,7 +61,7 @@ export default function BillingScreen() {
   const removeItem = (idx) => setItems(prev => prev.filter((_, i) => i !== idx));
 
   const handleGenerate = async () => {
-    if (items.length === 0) { Alert.alert('Error', 'Add at least one item'); return; }
+    if (items.length === 0) { alert.error({ title: 'Error', message: 'Add at least one item' }); return; }
     setCreating(true);
     try {
       const res = await client.post('/billing', {
@@ -70,8 +71,8 @@ export default function BillingScreen() {
         payment_method: payMethod, payment_status: payMethod === 'credit' ? 'unpaid' : 'paid',
       });
       setCreatedBill(res?.data ?? null);
-      Alert.alert('Success', `Bill ${res?.data?.bill_number || ''} generated!`);
-    } catch (e) { Alert.alert('Error', e.response?.data?.detail || 'Failed to generate bill'); }
+      alert.success({ title: 'Success', message: `Bill ${res?.data?.bill_number || ''} generated!` });
+    } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to generate bill' }); }
     finally { setCreating(false); }
   };
 

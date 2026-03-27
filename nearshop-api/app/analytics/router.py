@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.auth.models import User
 from app.auth.permissions import require_business, get_current_user
+from app.analytics.schemas import OperationalInsightsResponse
 from app.analytics.service import (
     get_shop_stats,
     get_product_analytics,
     get_demand_insights,
-    get_phase1_insights,
+    get_operational_insights,
 )
 from app.analytics.events import track_event
 
@@ -82,13 +83,13 @@ async def demand_insights_endpoint(
     return await get_demand_insights(db, shop_id, lat, lng)
 
 
-@router.get("/shop/{shop_id}/phase1")
-async def phase1_insights_endpoint(
+@router.get("/shop/{shop_id}/operational-insights", response_model=OperationalInsightsResponse)
+async def operational_insights_endpoint(
     shop_id: UUID,
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
     current_user: User = Depends(require_business),
     db: AsyncSession = Depends(get_db),
 ):
-    """Low-cost ML/statistical insights for Phase 1 merchant features."""
-    return await get_phase1_insights(db, shop_id, lat, lng)
+    """Operational insights for merchant decision support using low-cost statistical methods."""
+    return await get_operational_insights(db, shop_id, lat, lng)

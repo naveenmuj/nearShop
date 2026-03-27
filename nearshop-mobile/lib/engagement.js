@@ -1,4 +1,4 @@
-import client from './api'
+import client, { authPatch } from './api'
 
 export const trackView = (productId) => client.post('/users/recently-viewed', { product_id: productId })
 export const getRecentlyViewed = (limit = 20) => client.get('/users/recently-viewed', { params: { limit } })
@@ -11,4 +11,4 @@ export const getOrderTracking = (orderId) => client.get(`/orders/${orderId}/trac
 export const getUserAchievements = () => client.get('/users/achievements')
 export const getDailySpinStatus = () => client.get('/daily-spin/status')
 export const performDailySpin = () => client.post('/daily-spin')
-export const updateUserSettings = (settings) => client.patch('/auth/settings', settings)
+export const updateUserSettings = (settings) => authPatch('/auth/settings', settings)

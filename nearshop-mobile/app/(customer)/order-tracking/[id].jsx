@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   TouchableOpacity,
   StatusBar,
   Animated,
@@ -15,6 +14,7 @@ import { getOrderTracking } from '../../../lib/engagement'
 import { connectOrderTracking } from '../../../lib/orders'
 import useAuthStore from '../../../store/authStore'
 import OrderTimeline from '../../../components/OrderTimeline'
+import { GenericDetailSkeleton } from '../../../components/ui/ScreenSkeletons'
 import { COLORS, SHADOWS, formatDate } from '../../../constants/theme'
 
 export default function OrderTrackingScreen() {
@@ -132,10 +132,7 @@ export default function OrderTrackingScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Loading tracking…</Text>
-        </View>
+        <GenericDetailSkeleton />
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorIcon}>📦</Text>

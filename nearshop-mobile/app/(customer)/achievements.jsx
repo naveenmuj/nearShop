@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator,
+  View, Text, FlatList, StyleSheet,
   TouchableOpacity, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { getUserAchievements } from '../../lib/engagement';
 import AchievementUnlock from '../../components/AchievementUnlock';
 import { useToast } from '../../components/ui/Toast';
+import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 function AchievementBadge({ item, onPress }) {
@@ -115,10 +116,7 @@ export default function AchievementsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.amber} />
-          <Text style={styles.loadingText}>Loading achievements…</Text>
-        </View>
+        <GenericListSkeleton />
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>

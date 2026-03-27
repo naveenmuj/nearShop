@@ -16,7 +16,7 @@ from app.ai.collaborative_filter import get_cf_recommendations
 from app.ai.pricing import suggest_price
 from app.ai.recommendations import get_recommendations
 from app.ai.trending import get_trending_products
-from app.analytics.service import get_phase1_insights
+from app.analytics.service import get_operational_insights
 from app.products.models import Product
 from app.shops.models import Shop
 
@@ -182,7 +182,7 @@ class PricingRegressionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("nearby comparable Accessories products", result["reason"])
 
 
-class Phase1InsightsRegressionTests(unittest.IsolatedAsyncioTestCase):
+class OperationalInsightsRegressionTests(unittest.IsolatedAsyncioTestCase):
     async def test_restock_action_never_shows_zero_quantity(self):
         shop_id = uuid4()
         product_id = uuid4()
@@ -229,15 +229,75 @@ class Phase1InsightsRegressionTests(unittest.IsolatedAsyncioTestCase):
             "app.analytics.service.get_demand_insights",
             new=AsyncMock(return_value=[]),
         ):
-            result = await get_phase1_insights(db, shop_id)
+            result = await get_operational_insights(db, shop_id)
 
         inventory_action = next(
             action for action in result["recommended_actions"] if action["target"] == "inventory"
         )
         self.assertIn("reorder 1", inventory_action["highlights"][0])
         self.assertTrue(
-            any(action["id"] == "win-back-customers" for action in result["recommended_actions"])
+            all(action["target"] in {"inventory", "demand", "marketing", "analytics"} for action in result["recommended_actions"])
         )
+        self.assertEqual(result["meta"]["confidence"]["forecast"], "low")
+        self.assertFalse(result["meta"]["location_applied"])
+        self.assertTrue(
+            any("limited order history" in warning.lower() for warning in result["meta"]["warnings"])
+        )
+
+    async def test_operational_insights_meta_reports_high_confidence_when_sample_sizes_are_strong(self):
+        shop_id = uuid4()
+        product_id = uuid4()
+        now = datetime.now(timezone.utc)
+        order_rows = [
+            SimpleNamespace(
+                created_at=now - timedelta(days=(idx % 10) + 1),
+                total=1200 + idx * 10,
+                items=[{"product_id": str(product_id), "quantity": 2}],
+            )
+            for idx in range(24)
+        ]
+
+        db = _QueuedAsyncDB(
+            [
+                _FakeResult(rows=order_rows),
+                _FakeResult(
+                    rows=[
+                        SimpleNamespace(
+                            id=product_id,
+                            name="Bluetooth Speaker",
+                            category="Electronics",
+                            stock_quantity=40,
+                            low_stock_threshold=5,
+                            price=2499,
+                            is_available=True,
+                            created_at=now - timedelta(days=15),
+                        )
+                    ]
+                ),
+            ]
+        )
+
+        with patch(
+            "app.analytics.service.get_customer_segments",
+            new=AsyncMock(
+                return_value={
+                    "summary": {"total": 30, "at_risk_count": 2, "champions_count": 6},
+                    "segments": {"Champions": 6, "At Risk": 2, "Loyal": 10},
+                    "customers": [],
+                }
+            ),
+        ), patch(
+            "app.analytics.service.get_demand_insights",
+            new=AsyncMock(return_value=[{"query": "speaker", "count": 28}, {"query": "bluetooth speaker", "count": 17}]),
+        ):
+            result = await get_operational_insights(db, shop_id, lat=12.93, lng=77.61)
+
+        self.assertTrue(result["meta"]["location_applied"])
+        self.assertEqual(result["meta"]["confidence"]["forecast"], "high")
+        self.assertEqual(result["meta"]["confidence"]["segments"], "high")
+        self.assertEqual(result["meta"]["sample_sizes"]["orders_last_30_days"], 24)
+        self.assertEqual(result["meta"]["sample_sizes"]["customers_segmented"], 30)
+        self.assertEqual(result["meta"]["methods"]["forecasting"], "rolling_average")
 
 
 class RecommendationRegressionTests(unittest.IsolatedAsyncioTestCase):

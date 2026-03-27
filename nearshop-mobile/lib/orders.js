@@ -1,41 +1,41 @@
-import client from './api';
+import client, { authGet, authPost, authPut } from './api';
 
-export const createOrder = (data) => client.post('/orders', data);
+export const createOrder = (data) => authPost('/orders', data);
 export const getMyOrders = (params = {}) =>
-  client.get('/orders/my', { params });
-export const getOrderById = (orderId) => client.get(`/orders/${orderId}`);
+  authGet('/orders/my', { params });
+export const getOrderById = (orderId) => authGet(`/orders/${orderId}`);
 export const getShopOrders = (shopId, params = {}) =>
-  client.get(`/orders/shop/${shopId}`, { params });
+  authGet(`/orders/shop/${shopId}`, { params });
 export const updateOrderStatus = (id, status) =>
-  client.put(`/orders/${id}/status`, { status });
+  authPut(`/orders/${id}/status`, { status });
 export const cancelOrder = (id, reason = '') =>
-  client.post(`/orders/${id}/cancel`, { reason });
+  authPost(`/orders/${id}/cancel`, { reason });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYMENT APIs
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const createPaymentOrder = (orderId) =>
-  client.post('/orders/payments/create-order', { order_id: orderId });
+  authPost('/orders/payments/create-order', { order_id: orderId });
 
 export const confirmPayment = (data) =>
-  client.post('/orders/payments/confirm', data);
+  authPost('/orders/payments/confirm', data);
 
 export const getPaymentStatus = (orderId) =>
-  client.get(`/orders/payments/status/${orderId}`);
+  authGet(`/orders/payments/status/${orderId}`);
 
 export const processRefund = (orderId, amount = null, reason = 'customer_request') =>
-  client.post('/orders/payments/refund', { order_id: orderId, amount, reason });
+  authPost('/orders/payments/refund', { order_id: orderId, amount, reason });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INVOICE & EXPORT APIs
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const downloadInvoice = (orderId) =>
-  client.get(`/orders/${orderId}/invoice`, { responseType: 'blob' });
+  authGet(`/orders/${orderId}/invoice`, { responseType: 'blob' });
 
 export const exportOrders = (shopId, options = {}) =>
-  client.post(`/orders/shop/${shopId}/export`, {
+  authPost(`/orders/shop/${shopId}/export`, {
     start_date: options.startDate,
     end_date: options.endDate,
     status: options.status,

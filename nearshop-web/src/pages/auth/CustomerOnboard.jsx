@@ -34,6 +34,9 @@ export default function CustomerOnboard() {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('folder', 'avatars')
+      if (user?.id) formData.append('entity_id', user.id)
+      formData.append('entity_type', 'user')
+      formData.append('purpose', 'avatar')
       const { data } = await api.post('/upload', formData)
       setAvatarUrl(data.url)
     } catch {

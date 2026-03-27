@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, StatusBar, BackHandler, Modal } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Modal } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import client from '../../lib/api';
@@ -39,13 +40,13 @@ export default function InventoryScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleRestock = async () => {
-    if (!restockQty || Number(restockQty) <= 0) { Alert.alert('Error', 'Enter a valid quantity'); return; }
+    if (!restockQty || Number(restockQty) <= 0) { alert.error({ title: 'Error', message: 'Enter a valid quantity' }); return; }
     setRestocking(true);
     try {
       await client.post('/inventory/restock', { product_id: restockModal.product_id || restockModal.id, quantity: Number(restockQty) });
-      Alert.alert('Success', `Restocked ${restockModal.name || 'product'}`);
+      alert.success({ title: 'Success', message: `Restocked ${restockModal.name || 'product'}` });
       setRestockModal(null); setRestockQty(''); loadData();
-    } catch (e) { Alert.alert('Error', e.response?.data?.detail || 'Failed to restock'); }
+    } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to restock' }); }
     finally { setRestocking(false); }
   };
 

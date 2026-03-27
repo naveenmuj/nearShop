@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, StatusBar, Modal, Linking,
+  TextInput, ActivityIndicator, StatusBar, Modal, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { createOrder, createPaymentOrder, confirmPayment } from '../../lib/order
 import { validateCoupon, useCoupon } from '../../lib/deals';
 import { listAddresses, createAddress } from '../../lib/auth';
 import { toast } from '../../components/ui/Toast';
+import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN');
@@ -67,7 +68,7 @@ export default function CheckoutScreen() {
   // Handle coupon validation
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
-      Alert.alert('Error', 'Please enter a coupon code');
+      alert.warning({ title: 'Error', message: 'Please enter a coupon code' });
       return;
     }
     
@@ -81,12 +82,12 @@ export default function CheckoutScreen() {
         setCouponDiscount(data.discount_amount);
         toast.show({ type: 'success', text1: data.message });
       } else {
-        Alert.alert('Invalid Coupon', data.message);
+        alert.warning({ title: 'Invalid Coupon', message: data.message });
         setAppliedCoupon(null);
         setCouponDiscount(0);
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.detail || 'Failed to validate coupon');
+      alert.error({ title: 'Error', message: err.response?.data?.detail || 'Failed to validate coupon' });
     } finally {
       setValidatingCoupon(false);
     }
@@ -101,7 +102,7 @@ export default function CheckoutScreen() {
   // Save new address
   const handleSaveAddress = async () => {
     if (!newAddress.address_line1 || !newAddress.city || !newAddress.pincode) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      alert.warning({ title: 'Error', message: 'Please fill in all required fields' });
       return;
     }
     
@@ -119,13 +120,13 @@ export default function CheckoutScreen() {
       setNewAddress({ label: 'home', address_line1: '', city: '', pincode: '' });
       toast.show({ type: 'success', text1: 'Address saved!' });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.detail || 'Failed to save address');
+      alert.error({ title: 'Error', message: err.response?.data?.detail || 'Failed to save address' });
     }
   };
 
   const handlePlaceOrder = async () => {
     if (deliveryType === 'delivery' && !address.trim()) {
-      Alert.alert('Error', 'Please enter your delivery address');
+      alert.warning({ title: 'Error', message: 'Please enter your delivery address' });
       return;
     }
     setLoading(true);
@@ -156,11 +157,10 @@ export default function CheckoutScreen() {
             
             // For production, you'd use the Razorpay React Native SDK
             // For now, we'll mark as COD and show a message
-            Alert.alert(
-              'Payment',
-              'Online payment requires the Razorpay mobile SDK. Order placed as Cash on Delivery.',
-              [{ text: 'OK' }]
-            );
+            alert.info({
+              title: 'Payment',
+              message: 'Online payment requires the Razorpay mobile SDK. Order placed as Cash on Delivery.',
+            });
           } catch (payErr) {
             console.error('Payment error:', payErr);
           }
@@ -184,7 +184,7 @@ export default function CheckoutScreen() {
     } catch (err) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : 'Failed to place order. Please try again.';
-      Alert.alert('Error', msg);
+      alert.error({ title: 'Error', message: msg });
     } finally {
       setLoading(false);
     }

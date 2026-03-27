@@ -6,7 +6,6 @@ import {
   StyleSheet,
   FlatList,
   RefreshControl,
-  ActivityIndicator,
   StatusBar,
   Pressable,
   Image,
@@ -17,6 +16,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
+import useCartStore from '../../store/cartStore';
 import { getNearbyShops, getSearchHistory } from '../../lib/shops';
 import { searchProducts } from '../../lib/products';
 import { getNearbyDeals } from '../../lib/deals';
@@ -33,6 +33,7 @@ import ProductCard from '../../components/ProductCard';
 import DealCard from '../../components/DealCard';
 import LocationPicker from '../../components/LocationPicker';
 import RecentlyViewed from '../../components/RecentlyViewed';
+import { HomeScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const CATEGORIES = [
@@ -62,6 +63,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { lat, lng, address } = useLocationStore();
+  const cartCount = useCartStore((state) => state.getItemCount());
 
   const [stories, setStories] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -178,12 +180,7 @@ export default function HomeScreen() {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </SafeAreaView>
-    );
+    return <HomeScreenSkeleton />;
   }
 
   const firstName = user?.name ? String(user.name).split(' ')[0] : 'there';
@@ -221,13 +218,27 @@ export default function HomeScreen() {
               <Text style={styles.locationChevron}>▾</Text>
             </Pressable>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.notifBtn, pressed && styles.notifBtnPressed]}
-            onPress={() => router.push('/(customer)/profile')}
-            accessibilityLabel="Notifications"
-          >
-            <Text style={styles.notifIcon}>🔔</Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={({ pressed }) => [styles.cartBtn, pressed && styles.notifBtnPressed]}
+              onPress={() => router.push('/(customer)/cart')}
+              accessibilityLabel="Cart"
+            >
+              <Text style={styles.notifIcon}>🛒</Text>
+              {cartCount > 0 ? (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartCount > 99 ? '99+' : cartCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.notifBtn, pressed && styles.notifBtnPressed]}
+              onPress={() => router.push('/(customer)/profile')}
+              accessibilityLabel="Profile"
+            >
+              <Text style={styles.notifIcon}>🔔</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* ── Error Message ──────────────────────────────────────── */}
@@ -653,6 +664,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   greeting: {
     fontSize: 22,
     fontWeight: '800',
@@ -687,11 +703,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  cartBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
   notifBtnPressed: {
     backgroundColor: COLORS.gray200,
   },
   notifIcon: {
     fontSize: 20,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -1,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  cartBadgeText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: '800',
   },
 
   // Stories

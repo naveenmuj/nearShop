@@ -8,6 +8,8 @@ import useAuthStore from '../store/authStore';
 import useLocationStore from '../store/locationStore';
 import { ToastProvider } from '../components/ui/Toast';
 import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogProvider';
+import { PremiumAlertProvider, PremiumAlertContext, setAlertRef } from '../components/ui/PremiumAlert';
+import { useContext } from 'react';
 
 // Lazy-load network logger to prevent crash if module has issues
 let NetworkLogger = null;
@@ -196,6 +198,15 @@ export function ErrorBoundary({ error, retry }) {
   );
 }
 
+// Component to sync alert ref for imperative API
+function AlertRefSync() {
+  const alertApi = useContext(PremiumAlertContext);
+  useEffect(() => {
+    setAlertRef(alertApi);
+  }, [alertApi]);
+  return null;
+}
+
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const initLocation = useLocationStore((s) => s.initialize);
@@ -222,17 +233,20 @@ export default function RootLayout() {
 
   return (
     <ToastProvider>
-      <ConfirmDialogProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(customer)" />
-          <Stack.Screen name="(business)" />
-          <Stack.Screen name="admin" options={{ headerShown: false }} />
-        </Stack>
-        <NetworkLoggerOverlay />
-      </ConfirmDialogProvider>
+      <PremiumAlertProvider>
+        <ConfirmDialogProvider>
+          <AlertRefSync />
+          <StatusBar style="dark" />
+          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(customer)" />
+            <Stack.Screen name="(business)" />
+            <Stack.Screen name="admin" options={{ headerShown: false }} />
+          </Stack>
+          <NetworkLoggerOverlay />
+        </ConfirmDialogProvider>
+      </PremiumAlertProvider>
     </ToastProvider>
   );
 }

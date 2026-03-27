@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
   StatusBar, FlatList, TextInput, KeyboardAvoidingView, Platform,
-  Modal, Dimensions, Alert, Image,
+  Modal, Dimensions, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -20,6 +20,7 @@ import * as Linking from 'expo-linking';
 import useAuthStore from '../../../store/authStore';
 import useCartStore from '../../../store/cartStore';
 import useLocationStore from '../../../store/locationStore';
+import { ProductDetailSkeleton } from '../../../components/ui/ScreenSkeletons';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -63,7 +64,10 @@ function CartButton({ product, isAvailable, hagglingEnabled }) {
     <Pressable
       style={[styles.orderBtn, !hagglingEnabled && { flex: 1 }]}
       onPress={() => {
-        addItem(product, { id: product.shop_id, name: product.shop_name || product.shop?.name });
+        addItem(product, {
+          id: product.shop_id || product.shop?.id,
+          name: product.shop_name || product.shop?.name,
+        });
         toast.show({ type: 'cart', text1: `${product.name} added to cart` });
       }}
     >
@@ -141,11 +145,11 @@ function HaggleSheet({ visible, product, onClose, onSuccess }) {
   const handleSubmit = async () => {
     const offerPrice = parseFloat(price);
     if (!offerPrice || offerPrice <= 0) {
-      Alert.alert('Invalid price', 'Please enter a valid offer price.');
+      toast.warning('Please enter a valid offer price.');
       return;
     }
     if (offerPrice >= product.price) {
-      Alert.alert('Too high', 'Your offer must be lower than the listed price.');
+      toast.info('Your offer must be lower than the listed price.');
       return;
     }
     setLoading(true);
@@ -158,7 +162,7 @@ function HaggleSheet({ visible, product, onClose, onSuccess }) {
       });
       onSuccess();
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to send offer');
+      toast.error(err?.response?.data?.detail ?? 'Failed to send offer');
     } finally {
       setLoading(false);
     }
@@ -320,7 +324,7 @@ export default function ProductDetailScreen() {
   const handleOrder = async () => {
     if (!product) return;
     if (!product.shop_id) {
-      Alert.alert('Error', 'Shop information is missing. Please try again.');
+      toast.error('Shop information is missing. Please try again.');
       return;
     }
     setOrdering(true);
@@ -329,12 +333,9 @@ export default function ProductDetailScreen() {
         shop_id: product.shop_id,
         items: [{ product_id: product.id, quantity: 1, price: product.price }],
       });
-      Alert.alert('Order placed!', 'Your order has been sent to the shop.', [
-        { text: 'View Orders', onPress: () => router.push('/(customer)/orders') },
-        { text: 'OK' },
-      ]);
+      toast.order('Order placed successfully. Tracking is available in Orders.');
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.detail ?? 'Failed to place order');
+      toast.error(err?.response?.data?.detail ?? 'Failed to place order');
     } finally {
       setOrdering(false);
     }
@@ -342,18 +343,11 @@ export default function ProductDetailScreen() {
 
   const handleHaggleSuccess = () => {
     setShowHaggle(false);
-    Alert.alert('Offer sent!', 'The seller will respond to your offer shortly.', [
-      { text: 'View Haggles', onPress: () => router.push('/(customer)/haggle') },
-      { text: 'OK' },
-    ]);
+    toast.success('Offer sent. The seller will respond shortly.');
   };
 
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   if (!product) {
@@ -644,7 +638,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white, borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.gray200,
   },
-  stickyInner: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  stickyInner: { flexDirection: 'column', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   haggleBtn: {
     flex: 1, paddingVertical: 16, borderRadius: 14,
     backgroundColor: COLORS.amberLight, alignItems: 'center',

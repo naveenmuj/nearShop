@@ -58,6 +58,8 @@ export default function BusinessOnboard() {
           const formData = new FormData()
           formData.append('file', logoFile)
           formData.append('folder', 'shops')
+          formData.append('entity_type', 'shop')
+          formData.append('purpose', 'logo')
           const { data: uploadData } = await api.post('/upload', formData)
           logoUrl = uploadData.url || uploadData.file_url || null
         } catch {

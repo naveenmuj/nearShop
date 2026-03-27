@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
@@ -79,15 +80,15 @@ export default function ReportsScreen() {
         if (canOpen) {
           await Linking.openURL(fileUri);
         }
-        Alert.alert(
-          'Success',
-          canOpen
+        alert.success({
+          title: 'Success',
+          message: canOpen
             ? `Orders exported to ${fileName}`
             : `Orders exported to ${fileName}. Open it from your device files if it did not launch automatically.`
-        );
+        });
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to export orders. Please try again.');
+      alert.error({ title: 'Error', message: 'Failed to export orders. Please try again.' });
     } finally {
       setExporting(false);
     }

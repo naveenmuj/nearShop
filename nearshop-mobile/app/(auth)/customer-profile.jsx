@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, ActivityIndicator, Image, Alert,
+  ScrollView, StyleSheet, ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { toast } from '../../components/ui/Toast';
+import { alert } from '../../components/ui/PremiumAlert';
 import { updateProfile } from '../../lib/auth';
 import useAuthStore from '../../store/authStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -43,7 +44,7 @@ export default function CustomerProfileScreen() {
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow photo access to set a profile picture.');
+      alert.warning({ title: 'Permission needed', message: 'Allow photo access to set a profile picture.' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -69,6 +70,9 @@ export default function CustomerProfileScreen() {
         name: 'avatar.jpg',
       });
       formData.append('folder', 'avatars');
+      if (user?.id) formData.append('entity_id', String(user.id));
+      formData.append('entity_type', 'user');
+      formData.append('purpose', 'avatar');
       const { data } = await client.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

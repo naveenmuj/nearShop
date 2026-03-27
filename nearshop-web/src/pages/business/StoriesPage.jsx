@@ -43,7 +43,12 @@ export default function StoriesPage() {
     }
     setPosting(true)
     try {
-      const mediaUrl = await upload(previewFile, 'stories')
+      const mediaUrl = await upload(previewFile, {
+        folder: 'stories',
+        entityType: 'story',
+        purpose: 'media',
+        shopId,
+      })
       const { data } = await client.post(`/stories?shop_id=${shopId}`, {
         media_url: mediaUrl,
         caption,

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, StyleSheet, Image, Alert,
+  ScrollView, StyleSheet, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { toast } from '../../components/ui/Toast';
+import { alert } from '../../components/ui/PremiumAlert';
 import { completeProfile, uploadFile } from '../../lib/auth';
 import { createShop } from '../../lib/shops';
 import client from '../../lib/api';
@@ -75,7 +76,7 @@ export default function OnboardScreen() {
   const pickLogo = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow photo access to upload a shop logo.');
+      alert.warning({ title: 'Permission needed', message: 'Please allow photo access to upload a shop logo.' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -151,7 +152,11 @@ export default function OnboardScreen() {
         let logoUrl = null;
         if (logoUri) {
           try {
-            const uploadRes = await uploadFile(logoUri, 'shops');
+            const uploadRes = await uploadFile(logoUri, {
+              folder: 'shops',
+              entityType: 'shop',
+              purpose: 'logo',
+            });
             logoUrl = uploadRes?.data?.url || uploadRes?.data?.file_url || null;
           } catch {
             // Logo upload failed — continue without it

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Eye, Users, ShoppingBag, DollarSign, Search } from 'lucide-react'
-import { getShopStats, getProductAnalytics, getDemandInsights, getPhase1Insights } from '../../api/analytics'
+import { getShopStats, getProductAnalytics, getDemandInsights, getOperationalInsights } from '../../api/analytics'
 import { getShopOrders } from '../../api/orders'
 import useMyShop from '../../hooks/useMyShop'
 import { useLocationStore } from '../../store/locationStore'
@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState(null)
   const [products, setProducts] = useState([])
   const [demand, setDemand] = useState([])
-  const [phase1, setPhase1] = useState(null)
+  const [operationalInsights, setOperationalInsights] = useState(null)
   const [orderBreakdown, setOrderBreakdown] = useState({})
   const [loading, setLoading] = useState(true)
 
@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
         getShopStats(shopId, period),
         getProductAnalytics(shopId),
         getDemandInsights(shopId, latitude ?? 12.935, longitude ?? 77.624),
-        getPhase1Insights(shopId, latitude ?? 12.935, longitude ?? 77.624),
+        getOperationalInsights(shopId, latitude ?? 12.935, longitude ?? 77.624),
         getShopOrders(shopId, { per_page: 200 }),
       ])
       if (results[0].status === 'fulfilled') setStats(results[0].value.data)
@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
         const d = results[2].value.data
         setDemand(Array.isArray(d) ? d : d?.items ?? [])
       }
-      if (results[3].status === 'fulfilled') setPhase1(results[3].value.data ?? null)
+      if (results[3].status === 'fulfilled') setOperationalInsights(results[3].value.data ?? null)
       if (results[4].status === 'fulfilled') {
         const orders = results[4].value.data
         const list = Array.isArray(orders) ? orders : orders?.items ?? []
@@ -68,13 +68,15 @@ export default function AnalyticsPage() {
 
   const conversion = stats?.total_views > 0 ? ((stats.total_orders / stats.total_views) * 100).toFixed(1) : '0'
   const avgOrder = stats?.total_orders > 0 ? (stats.total_revenue / stats.total_orders).toFixed(0) : '0'
-  const forecast = phase1?.sales_forecast
-  const reorderAlerts = phase1?.reorder_alerts ?? []
-  const segmentSummary = phase1?.customer_segments?.summary
-  const segmentBreakdown = phase1?.customer_segments?.segments
-    ? Object.entries(phase1.customer_segments.segments).sort((a, b) => b[1] - a[1])
+  const forecast = operationalInsights?.sales_forecast
+  const reorderAlerts = operationalInsights?.reorder_alerts ?? []
+  const segmentSummary = operationalInsights?.customer_segments?.summary
+  const segmentBreakdown = operationalInsights?.customer_segments?.segments
+    ? Object.entries(operationalInsights.customer_segments.segments).sort((a, b) => b[1] - a[1])
     : []
-  const recommendedActions = phase1?.recommended_actions ?? []
+  const recommendedActions = operationalInsights?.recommended_actions ?? []
+  const insightsMeta = operationalInsights?.meta
+  const warnings = insightsMeta?.warnings ?? []
   const actionRouteMap = {
     analytics: '/biz/analytics',
     inventory: '/biz/inventory',
@@ -158,6 +160,35 @@ export default function AnalyticsPage() {
                 {forecast.orders_trend_pct != null && ` · ${forecast.orders_trend_pct >= 0 ? '+' : ''}${forecast.orders_trend_pct}% vs previous week`}
               </p>
             </div>
+          </div>
+        )}
+
+        {insightsMeta && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Operational Insights Quality</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Orders analysed {insightsMeta.sample_sizes?.orders_last_30_days ?? 0} ·
+                  Stocked products {insightsMeta.sample_sizes?.active_stocked_products ?? 0} ·
+                  Customers segmented {insightsMeta.sample_sizes?.customers_segmented ?? 0}
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <span className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Forecast {String(insightsMeta.confidence?.forecast || 'low').toUpperCase()}</span>
+                <span className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Demand {String(insightsMeta.confidence?.demand || 'low').toUpperCase()}</span>
+                <span className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Segments {String(insightsMeta.confidence?.segments || 'low').toUpperCase()}</span>
+              </div>
+            </div>
+            {warnings.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {warnings.map((warning) => (
+                  <div key={warning} className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800 font-medium">
+                    {warning}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

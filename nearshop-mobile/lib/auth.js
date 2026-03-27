@@ -1,4 +1,4 @@
-import client from './api';
+import client, { authDelete, authGet, authPatch, authPost, authPut } from './api';
 
 export const sendOtp = (phone) => client.post('/auth/send-otp', { phone });
 export const verifyOtp = (phone, code) => client.post('/auth/verify-otp', { phone, code });
@@ -29,14 +29,15 @@ export const completeProfile = async (data) => {
   }
 };
 
-export const updateProfile = (data) => client.patch('/auth/profile', data);
-export const getMe = () => client.get('/auth/me');
-export const switchRole = (role) => client.post('/auth/switch-role', { role });
+export const updateProfile = (data) => authPatch('/auth/profile', data);
+export const getMe = () => authGet('/auth/me');
+export const switchRole = (role) => authPost('/auth/switch-role', { role });
 export const refreshToken = (token) => client.post('/auth/refresh', { refresh_token: token });
 export const deleteAccount = (deleteCustomer, deleteBusiness) =>
-  client.delete('/auth/delete-account', { data: { delete_customer: deleteCustomer, delete_business: deleteBusiness } });
+  authDelete('/auth/delete-account', { data: { delete_customer: deleteCustomer, delete_business: deleteBusiness } });
 
-export const uploadFile = async (uri, folder = 'general') => {
+export const uploadFile = async (uri, options = 'general') => {
+  const uploadOptions = typeof options === 'string' ? { folder: options } : (options || {});
   const formData = new FormData();
   const filename = uri.split('/').pop();
   const ext = filename.split('.').pop();
@@ -45,7 +46,13 @@ export const uploadFile = async (uri, folder = 'general') => {
     name: filename,
     type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
   });
-  formData.append('folder', folder);
+  formData.append('folder', uploadOptions.folder || 'general');
+  if (uploadOptions.entityType) formData.append('entity_type', uploadOptions.entityType);
+  if (uploadOptions.entityId) formData.append('entity_id', uploadOptions.entityId);
+  if (uploadOptions.purpose) formData.append('purpose', uploadOptions.purpose);
+  if (uploadOptions.shopId) formData.append('shop_id', uploadOptions.shopId);
+  if (uploadOptions.productId) formData.append('product_id', uploadOptions.productId);
+  if (uploadOptions.documentType) formData.append('document_type', uploadOptions.documentType);
   return client.post('/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
@@ -55,9 +62,9 @@ export const uploadFile = async (uri, folder = 'general') => {
 // ADDRESS APIs
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const createAddress = (data) => client.post('/auth/addresses', data);
-export const listAddresses = () => client.get('/auth/addresses');
-export const getAddress = (addressId) => client.get(`/auth/addresses/${addressId}`);
-export const updateAddress = (addressId, data) => client.put(`/auth/addresses/${addressId}`, data);
-export const deleteAddress = (addressId) => client.delete(`/auth/addresses/${addressId}`);
-export const setDefaultAddress = (addressId) => client.post(`/auth/addresses/${addressId}/set-default`);
+export const createAddress = (data) => authPost('/auth/addresses', data);
+export const listAddresses = () => authGet('/auth/addresses');
+export const getAddress = (addressId) => authGet(`/auth/addresses/${addressId}`);
+export const updateAddress = (addressId, data) => authPut(`/auth/addresses/${addressId}`, data);
+export const deleteAddress = (addressId) => authDelete(`/auth/addresses/${addressId}`);
+export const setDefaultAddress = (addressId) => authPost(`/auth/addresses/${addressId}/set-default`);

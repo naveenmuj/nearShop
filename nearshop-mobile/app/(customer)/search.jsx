@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   ScrollView,
   Keyboard,
   Platform,
@@ -21,6 +20,7 @@ import {
 } from '../../lib/engagement';
 import ProductCard from '../../components/ProductCard';
 import ShopCard from '../../components/ShopCard';
+import { SearchScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import useLocationStore from '../../store/locationStore';
 
@@ -476,10 +476,7 @@ export default function SearchScreen() {
 
       {/* ── Results / Loading / Empty ────────────────────────────────────────── */}
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Searching nearby…</Text>
-        </View>
+        <SearchScreenSkeleton />
       ) : (
         <FlatList
           key={activeTab}

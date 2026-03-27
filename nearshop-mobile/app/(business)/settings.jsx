@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, Switch, Alert, ActivityIndicator, StatusBar,
+  StyleSheet, Switch, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import useAuthStore from '../../store/authStore';
 import { updateShop, requestVerification, getVerificationStatus } from '../../lib/shops';
 import { switchRole as apiSwitchRole } from '../../lib/auth';
 import { COLORS, SHADOWS } from '../../constants/theme';
+import { toast } from '../../components/ui/Toast/toastRef';
+import { alert } from '../../components/ui/PremiumAlert';
 
 const DELIVERY_OPTIONS = [
   { key: 'pickup', label: 'Pickup', icon: '🏪', desc: 'Customer picks up from your shop' },
@@ -107,7 +109,7 @@ export default function SettingsScreen() {
 
   const handleSubmitVerification = async () => {
     if (selectedDocs.length === 0) {
-      Alert.alert('Required', 'Please select at least one document type');
+      alert.warning({ title: 'Required', message: 'Please select at least one document type' });
       return;
     }
     
@@ -116,7 +118,7 @@ export default function SettingsScreen() {
     
     if (missingRequired.length > 0) {
       const missing = DOCUMENT_TYPES.filter(d => missingRequired.includes(d.key)).map(d => d.label);
-      Alert.alert('Required Documents', `Please select: ${missing.join(', ')}`);
+      alert.warning({ title: 'Required Documents', message: `Please select: ${missing.join(', ')}` });
       return;
     }
     
@@ -125,10 +127,10 @@ export default function SettingsScreen() {
       await requestVerification(shopId, selectedDocs);
       setVerificationStatus('pending');
       setShowVerificationForm(false);
-      Alert.alert('Success', 'Verification request submitted! We\'ll review your documents within 2-3 business days.');
+      alert.success({ title: 'Success', message: 'Verification request submitted! We\'ll review your documents within 2-3 business days.' });
     } catch (err) {
       const detail = err.response?.data?.detail;
-      Alert.alert('Error', typeof detail === 'string' ? detail : 'Failed to submit verification');
+      alert.error({ title: 'Error', message: typeof detail === 'string' ? detail : 'Failed to submit verification' });
     } finally {
       setSubmittingVerification(false);
     }
@@ -138,7 +140,7 @@ export default function SettingsScreen() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation', 'Shop name is required');
+      alert.warning({ title: 'Validation', message: 'Shop name is required' });
       return;
     }
     if (!shopId) return;
@@ -159,10 +161,10 @@ export default function SettingsScreen() {
         min_order: minOrder ? Number(minOrder) : undefined,
       };
       await updateShop(shopId, payload);
-      Alert.alert('Saved', 'Shop settings updated successfully!');
+      alert.success({ title: 'Saved', message: 'Shop settings updated successfully!' });
     } catch (err) {
       const detail = err.response?.data?.detail;
-      Alert.alert('Error', typeof detail === 'string' ? detail : 'Failed to save settings');
+      alert.error({ title: 'Error', message: typeof detail === 'string' ? detail : 'Failed to save settings' });
     } finally {
       setSaving(false);
     }
@@ -174,18 +176,23 @@ export default function SettingsScreen() {
       await storeSwitchRole('customer');
       router.replace('/(customer)/home');
     } catch {
-      Alert.alert('Error', 'Could not switch to customer mode');
+      alert.error({ title: 'Error', message: 'Could not switch to customer mode' });
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out', style: 'destructive',
-        onPress: async () => { await logout(); router.replace('/(auth)/login'); },
-      },
-    ]);
+  const handleLogout = async () => {
+    const confirmed = await alert.confirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      confirmText: 'Sign Out',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    
+    if (confirmed) {
+      await logout();
+      router.replace('/(auth)/login');
+    }
   };
 
   if (shopLoading) {

@@ -8,10 +8,10 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -64,7 +64,7 @@ export default function SnapListScreen() {
   const pickFromCamera = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+      alert.warning({ title: 'Permission needed', message: 'Camera permission is required to take photos.' });
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
@@ -88,7 +88,11 @@ export default function SnapListScreen() {
       type: 'image/jpeg',
       name: 'product.jpg',
     });
-    const res = await client.post('/upload?folder=products', formData, {
+    formData.append('folder', 'products');
+    formData.append('entity_type', 'product');
+    formData.append('purpose', 'image');
+    if (shopId) formData.append('shop_id', String(shopId));
+    const res = await client.post('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     });
@@ -143,15 +147,15 @@ export default function SnapListScreen() {
   // ── Publish product ──────────────────────────────────────────────────────
   const handlePublish = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation', 'Product name is required');
+      alert.warning({ title: 'Validation', message: 'Product name is required' });
       return;
     }
     if (!price || isNaN(Number(price)) || Number(price) < 0) {
-      Alert.alert('Validation', 'Please enter a valid price');
+      alert.warning({ title: 'Validation', message: 'Please enter a valid price' });
       return;
     }
     if (!shopId) {
-      Alert.alert('Error', 'No shop found. Please create a shop first.');
+      alert.error({ title: 'Error', message: 'No shop found. Please create a shop first.' });
       return;
     }
 
@@ -178,13 +182,12 @@ export default function SnapListScreen() {
 
       await client.post(`/products?shop_id=${shopId}`, productData);
 
-      Alert.alert('Success', 'Product published!', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      alert.success({ title: 'Success', message: 'Product published!' });
+      router.back();
     } catch (err) {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : 'Failed to publish product. Please try again.';
-      Alert.alert('Error', msg);
+      alert.error({ title: 'Error', message: msg });
     } finally {
       setPublishing(false);
     }

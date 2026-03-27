@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useMyShop from '../../hooks/useMyShop';
 import useLocationStore from '../../store/locationStore';
-import { getShopStats, getProductAnalytics, getDemandInsights, getPhase1Insights } from '../../lib/analytics';
+import { getShopStats, getProductAnalytics, getDemandInsights, getOperationalInsights } from '../../lib/analytics';
 import { getShopOrders } from '../../lib/orders';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
@@ -30,7 +30,7 @@ export default function AnalyticsScreen() {
   const [stats, setStats] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [demandInsights, setDemandInsights] = useState([]);
-  const [phase1, setPhase1] = useState(null);
+  const [operationalInsights, setOperationalInsights] = useState(null);
   const [orderBreakdown, setOrderBreakdown] = useState({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +45,7 @@ export default function AnalyticsScreen() {
         getShopStats(shopId, period),
         getProductAnalytics(shopId),
         getDemandInsights(shopId, lat ?? 12.935, lng ?? 77.624),
-        getPhase1Insights(shopId, lat ?? 12.935, lng ?? 77.624),
+        getOperationalInsights(shopId, lat ?? 12.935, lng ?? 77.624),
         getShopOrders(shopId, { per_page: 100 }),
       ]);
 
@@ -58,7 +58,7 @@ export default function AnalyticsScreen() {
         const d = results[2].value?.data;
         setDemandInsights(Array.isArray(d) ? d : d?.items ?? []);
       }
-      if (results[3].status === 'fulfilled') setPhase1(results[3].value?.data ?? null);
+      if (results[3].status === 'fulfilled') setOperationalInsights(results[3].value?.data ?? null);
       if (results[4].status === 'fulfilled') {
         const orders = results[4].value?.data;
         const list = Array.isArray(orders) ? orders : orders?.items ?? [];
@@ -88,13 +88,16 @@ export default function AnalyticsScreen() {
   const conversionRate = stats && Number(stats.total_views) > 0 && Number(stats.total_orders) >= 0
     ? ((Number(stats.total_orders) / Number(stats.total_views)) * 100).toFixed(1)
     : '0';
-  const forecast = phase1?.sales_forecast;
-  const reorderAlerts = phase1?.reorder_alerts ?? [];
-  const segmentSummary = phase1?.customer_segments?.summary;
-  const segmentBreakdown = phase1?.customer_segments?.segments
-    ? Object.entries(phase1.customer_segments.segments).sort((a, b) => b[1] - a[1])
+  const forecast = operationalInsights?.sales_forecast;
+  const reorderAlerts = operationalInsights?.reorder_alerts ?? [];
+  const segmentSummary = operationalInsights?.customer_segments?.summary;
+  const segmentBreakdown = operationalInsights?.customer_segments?.segments
+    ? Object.entries(operationalInsights.customer_segments.segments).sort((a, b) => b[1] - a[1])
     : [];
-  const recommendedActions = phase1?.recommended_actions ?? [];
+  const recommendedActions = operationalInsights?.recommended_actions ?? [];
+  const insightsMeta = operationalInsights?.meta;
+  const confidence = insightsMeta?.confidence ?? {};
+  const warnings = insightsMeta?.warnings ?? [];
   const actionRouteMap = {
     analytics: '/(business)/analytics',
     inventory: '/(business)/inventory',
@@ -196,6 +199,43 @@ export default function AnalyticsScreen() {
               </Text>
             </View>
           </View>
+        )}
+
+        {insightsMeta && (
+          <>
+            <Text style={styles.sectionTitle}>Operational Insights Quality</Text>
+            <View style={styles.card}>
+              <View style={styles.qualityRow}>
+                <View style={[styles.qualityPill, styles.qualityPillNeutral]}>
+                  <Text style={styles.qualityLabel}>Forecast</Text>
+                  <Text style={styles.qualityValue}>{String(confidence.forecast || 'low').toUpperCase()}</Text>
+                </View>
+                <View style={[styles.qualityPill, styles.qualityPillNeutral]}>
+                  <Text style={styles.qualityLabel}>Demand</Text>
+                  <Text style={styles.qualityValue}>{String(confidence.demand || 'low').toUpperCase()}</Text>
+                </View>
+                <View style={[styles.qualityPill, styles.qualityPillNeutral]}>
+                  <Text style={styles.qualityLabel}>Segments</Text>
+                  <Text style={styles.qualityValue}>{String(confidence.segments || 'low').toUpperCase()}</Text>
+                </View>
+              </View>
+              <Text style={styles.qualityMeta}>
+                Orders analysed: {insightsMeta?.sample_sizes?.orders_last_30_days ?? 0} ·
+                Stocked products: {insightsMeta?.sample_sizes?.active_stocked_products ?? 0} ·
+                Customers segmented: {insightsMeta?.sample_sizes?.customers_segmented ?? 0}
+              </Text>
+              {warnings.length > 0 && (
+                <View style={styles.warningList}>
+                  {warnings.map((warning) => (
+                    <View key={warning} style={styles.warningRow}>
+                      <Text style={styles.warningIcon}>!</Text>
+                      <Text style={styles.warningText}>{warning}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </>
         )}
 
         {(segmentSummary || segmentBreakdown.length > 0) && (
@@ -421,6 +461,24 @@ const styles = StyleSheet.create({
   forecastLabel: { fontSize: 11, color: COLORS.gray500, fontWeight: '600' },
   forecastValue: { fontSize: 20, fontWeight: '800', marginTop: 4 },
   forecastMeta: { fontSize: 11, color: COLORS.gray400, marginTop: 4, lineHeight: 16 },
+  qualityRow: { flexDirection: 'row', gap: 8, padding: 14, paddingBottom: 8 },
+  qualityPill: { flex: 1, borderRadius: 12, padding: 10 },
+  qualityPillNeutral: { backgroundColor: COLORS.gray100 },
+  qualityLabel: { fontSize: 11, fontWeight: '700', color: COLORS.gray500 },
+  qualityValue: { fontSize: 16, fontWeight: '800', color: COLORS.gray900, marginTop: 4 },
+  qualityMeta: { fontSize: 12, color: COLORS.gray500, lineHeight: 18, paddingHorizontal: 14, paddingBottom: 8 },
+  warningList: { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FFF7E7',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  warningIcon: { fontSize: 12, fontWeight: '800', color: COLORS.amber, marginTop: 2 },
+  warningText: { flex: 1, fontSize: 12, color: COLORS.gray700, lineHeight: 17 },
 
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800, marginHorizontal: 16, marginTop: 16, marginBottom: 4 },
   sectionSub: { fontSize: 12, color: COLORS.gray500, marginHorizontal: 16, marginBottom: 10 },

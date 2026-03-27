@@ -6,10 +6,10 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -67,7 +67,7 @@ export default function CatalogScreen() {
       const items = res?.data?.items ?? res?.data ?? [];
       setProducts(Array.isArray(items) ? items : []);
     } catch {
-      Alert.alert('Error', 'Failed to load products');
+      alert.error({ title: 'Error', message: 'Failed to load products' });
     } finally {
       setLoading(false);
     }
@@ -83,47 +83,39 @@ export default function CatalogScreen() {
     p.name?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleToggle = (item) => {
-    Alert.alert(
-      'Toggle Availability',
-      `Mark "${item.name}" as ${item.available ? 'Off' : 'Live'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            try {
-              await toggleAvailability(item.id);
-              loadProducts();
-            } catch {
-              Alert.alert('Error', 'Failed to update availability');
-            }
-          },
-        },
-      ]
-    );
+  const handleToggle = async (item) => {
+    const confirmed = await alert.confirm({
+      title: 'Toggle Availability',
+      message: `Mark "${item.name}" as ${item.available ? 'Off' : 'Live'}?`,
+      confirmText: 'Confirm',
+      cancelText: 'Cancel',
+    });
+    if (confirmed) {
+      try {
+        await toggleAvailability(item.id);
+        loadProducts();
+      } catch {
+        alert.error({ title: 'Error', message: 'Failed to update availability' });
+      }
+    }
   };
 
-  const handleDelete = (item) => {
-    Alert.alert(
-      'Delete Product',
-      `Are you sure you want to delete "${item.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteProduct(item.id);
-              loadProducts();
-            } catch {
-              Alert.alert('Error', 'Failed to delete product');
-            }
-          },
-        },
-      ]
-    );
+  const handleDelete = async (item) => {
+    const confirmed = await alert.confirm({
+      title: 'Delete Product',
+      message: `Are you sure you want to delete "${item.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (confirmed) {
+      try {
+        await deleteProduct(item.id);
+        loadProducts();
+      } catch {
+        alert.error({ title: 'Error', message: 'Failed to delete product' });
+      }
+    }
   };
 
   const renderProduct = ({ item }) => {

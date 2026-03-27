@@ -2,11 +2,12 @@ import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform,
-  StyleSheet, ActivityIndicator, ScrollView, Alert,
+  StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { toast } from '../../components/ui/Toast';
+import { alert } from '../../components/ui/PremiumAlert';
 import auth from '@react-native-firebase/auth';
 import { signInWithEmail, registerWithEmail, signInWithGoogle } from '../../lib/firebaseAuth';
 import useAuthStore from '../../store/authStore';
@@ -93,14 +94,14 @@ export default function EmailLoginScreen() {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      Alert.alert('Error', 'Enter your email address first');
+      alert.warning({ title: 'Error', message: 'Enter your email address first' });
       return;
     }
     try {
       await auth().sendPasswordResetEmail(email.trim());
-      Alert.alert('Email Sent', 'Check your inbox for the password reset link.');
+      alert.success({ title: 'Email Sent', message: 'Check your inbox for the password reset link.' });
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to send reset email');
+      alert.error({ title: 'Error', message: err.message || 'Failed to send reset email' });
     }
   };
 

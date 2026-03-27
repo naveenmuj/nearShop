@@ -189,13 +189,21 @@ def _series_value(series: list[float], start: int, end: int) -> float:
     return sum(window) / len(window) if window else 0.0
 
 
-async def get_phase1_insights(
+def _confidence_label(sample_size: int, high_threshold: int, medium_threshold: int) -> str:
+    if sample_size >= high_threshold:
+        return "high"
+    if sample_size >= medium_threshold:
+        return "medium"
+    return "low"
+
+
+async def get_operational_insights(
     db: AsyncSession,
     shop_id: UUID,
     lat: float | None = None,
     lng: float | None = None,
 ) -> dict:
-    """Return low-cost Phase 1 ML-style insights for a shop.
+    """Return operational insights for a shop using low-cost statistical methods.
 
     The implementation is statistical and rules-based:
     - 7-day sales forecast from rolling averages
@@ -242,6 +250,8 @@ async def get_phase1_insights(
     day_keys = [(now.date() - timedelta(days=offset)).isoformat() for offset in range(29, -1, -1)]
     revenue_series = [round(revenue_by_day.get(day, 0.0), 2) for day in day_keys]
     orders_series = [orders_by_day.get(day, 0) for day in day_keys]
+    total_orders_last_30_days = int(sum(orders_series))
+    total_revenue_last_30_days = round(sum(revenue_series), 2)
 
     recent_revenue_avg = _series_value(revenue_series, 23, 30)
     previous_revenue_avg = _series_value(revenue_series, 16, 23)
@@ -330,6 +340,32 @@ async def get_phase1_insights(
     segment_summary = segments.get("summary", {})
     segment_breakdown = segments.get("segments", {})
     recommended_actions = []
+    warnings = []
+
+    forecast_confidence = _confidence_label(total_orders_last_30_days, high_threshold=20, medium_threshold=8)
+    segment_confidence = _confidence_label(int(segment_summary.get("total") or 0), high_threshold=25, medium_threshold=8)
+    demand_confidence = (
+        _confidence_label(sum(item.get("count", 0) for item in demand[:8]), high_threshold=40, medium_threshold=10)
+        if demand
+        else "low"
+    )
+
+    if forecast_confidence == "low":
+        warnings.append(
+            "Forecast confidence is low because the shop has limited order history in the last 30 days."
+        )
+    if lat is None or lng is None:
+        warnings.append(
+            "Demand snapshot is unavailable because shop location coordinates were not provided."
+        )
+    if not product_rows:
+        warnings.append(
+            "Reorder analysis is limited because no active stocked products were available for evaluation."
+        )
+    if segment_confidence == "low":
+        warnings.append(
+            "Customer segmentation confidence is low because the customer sample size is still small."
+        )
 
     if reorder_alerts:
         urgent = reorder_alerts[:3]
@@ -345,46 +381,6 @@ async def get_phase1_insights(
                 "highlights": [
                     f"{item['product_name']}: reorder {item['recommended_reorder_qty']}"
                     for item in urgent
-                ],
-            }
-        )
-
-    if (segment_summary.get("at_risk_count") or 0) > 0:
-        recommended_actions.append(
-            {
-                "id": "win-back-customers",
-                "type": "marketing",
-                "priority": "high",
-                "title": "Win back at-risk customers",
-                "description": (
-                    f"{segment_summary['at_risk_count']} customer(s) have slowed down. "
-                    "Run a targeted offer before they churn."
-                ),
-                "cta_label": "Create broadcast",
-                "target": "marketing",
-                "highlights": [
-                    f"At-risk customers: {segment_summary['at_risk_count']}",
-                    "Suggested audience: shoppers inactive for 30+ days",
-                ],
-            }
-        )
-
-    if (segment_summary.get("champions_count") or 0) > 0:
-        recommended_actions.append(
-            {
-                "id": "reward-champions",
-                "type": "loyalty",
-                "priority": "medium",
-                "title": "Reward your best customers",
-                "description": (
-                    f"{segment_summary['champions_count']} champion customer(s) are ready for "
-                    "an exclusive preview or loyalty bonus."
-                ),
-                "cta_label": "View customers",
-                "target": "customers",
-                "highlights": [
-                    f"Champions: {segment_summary['champions_count']}",
-                    "Suggested action: early-access deal or loyalty points boost",
                 ],
             }
         )
@@ -445,6 +441,31 @@ async def get_phase1_insights(
 
     return {
         "shop_id": str(shop_id),
+        "meta": {
+            "generated_at": now.isoformat(),
+            "analysis_window_days": 30,
+            "forecast_horizon_days": 7,
+            "location_applied": lat is not None and lng is not None,
+            "methods": {
+                "forecasting": "rolling_average",
+                "inventory_alerts": "rules_based_velocity_threshold",
+                "customer_segments": "rfm_segmentation",
+                "demand_snapshot": "local_search_aggregation",
+            },
+            "sample_sizes": {
+                "orders_last_30_days": total_orders_last_30_days,
+                "revenue_last_30_days": total_revenue_last_30_days,
+                "active_stocked_products": len(product_rows),
+                "customers_segmented": int(segment_summary.get("total") or 0),
+                "demand_queries": len(demand),
+            },
+            "confidence": {
+                "forecast": forecast_confidence,
+                "segments": segment_confidence,
+                "demand": demand_confidence,
+            },
+            "warnings": warnings,
+        },
         "sales_forecast": {
             "next_7_days_revenue": round(recent_revenue_avg * 7, 2),
             "next_7_days_orders": int(round(recent_orders_avg * 7)),

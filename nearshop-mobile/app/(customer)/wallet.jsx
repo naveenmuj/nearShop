@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 import useAuthStore from '../../store/authStore';
 import { getBalance, getCoinHistory, getBadges, getStreak, dailyCheckin } from '../../lib/loyalty';
+import { GenericDetailSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS, formatDate } from '../../constants/theme';
 
 // ─── Level tier labels ───────────────────────────────────────────────────────
@@ -300,13 +301,7 @@ export default function WalletScreen() {
 
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Loading your wallet…</Text>
-      </SafeAreaView>
-    );
+    return <GenericDetailSkeleton />;
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────

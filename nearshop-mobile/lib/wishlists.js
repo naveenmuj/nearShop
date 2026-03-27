@@ -1,7 +1,7 @@
-import client from './api';
+import { authDelete, authGet, authPost } from './api';
 
-export const getWishlist = () => client.get('/wishlists');
-export const addToWishlist = (productId) => client.post(`/wishlists/${productId}`);
+export const getWishlist = () => authGet('/wishlists');
+export const addToWishlist = (productId) => authPost(`/wishlists/${productId}`);
 export const removeFromWishlist = (productId) =>
-  client.delete(`/wishlists/${productId}`);
-export const getPriceDrops = () => client.get('/wishlists/price-drops');
+  authDelete(`/wishlists/${productId}`);
+export const getPriceDrops = () => authGet('/wishlists/price-drops');

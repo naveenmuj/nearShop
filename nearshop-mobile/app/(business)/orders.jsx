@@ -5,11 +5,11 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import useMyShop from '../../hooks/useMyShop';
@@ -101,7 +101,7 @@ export default function BizOrdersScreen() {
       const d = res?.data;
       setOrders(Array.isArray(d) ? d : d?.items ?? d?.orders ?? []);
     } catch {
-      if (!silent) Alert.alert('Error', 'Failed to load orders');
+      if (!silent) alert.error({ title: 'Error', message: 'Failed to load orders' });
     } finally {
       if (!silent) setLoading(false);
     }
@@ -133,30 +133,26 @@ export default function BizOrdersScreen() {
       await updateOrderStatus(order.id, 'confirmed');
       loadOrders(true);
     } catch {
-      Alert.alert('Error', 'Failed to accept order');
+      alert.error({ title: 'Error', message: 'Failed to accept order' });
     }
   };
 
-  const handleReject = (order) => {
-    Alert.alert(
-      'Reject Order',
-      `Reject order #${String(order.id || '').slice(-6).toUpperCase()}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await updateOrderStatus(order.id, 'cancelled');
-              loadOrders(true);
-            } catch {
-              Alert.alert('Error', 'Failed to reject order');
-            }
-          },
-        },
-      ]
-    );
+  const handleReject = async (order) => {
+    const confirmed = await alert.confirm({
+      title: 'Reject Order',
+      message: `Reject order #${String(order.id || '').slice(-6).toUpperCase()}?`,
+      confirmText: 'Reject',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (confirmed) {
+      try {
+        await updateOrderStatus(order.id, 'cancelled');
+        loadOrders(true);
+      } catch {
+        alert.error({ title: 'Error', message: 'Failed to reject order' });
+      }
+    }
   };
 
   const handleProgress = async (order) => {
@@ -166,7 +162,7 @@ export default function BizOrdersScreen() {
       await updateOrderStatus(order.id, next);
       loadOrders(true);
     } catch {
-      Alert.alert('Error', 'Failed to update order status');
+      alert.error({ title: 'Error', message: 'Failed to update order status' });
     }
   };
 

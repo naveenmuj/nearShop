@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  ActivityIndicator,
-  Alert,
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getWishlist, removeFromWishlist, getPriceDrops } from '../../lib/wishlists';
+import { WishlistSkeleton } from '../../components/ui/ScreenSkeletons';
+import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -204,34 +204,31 @@ export default function WishlistScreen() {
   // ── Remove item ──────────────────────────────────────────────────────────────
 
   const handleRemove = useCallback(
-    (productId) => {
-      Alert.alert(
-        'Remove from Wishlist',
-        'Are you sure you want to remove this item?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Remove',
-            style: 'destructive',
-            onPress: async () => {
-              // Optimistic update
-              setSavedItems((prev) =>
-                prev.filter((i) => i.product_id !== productId)
-              );
-              setPriceDropItems((prev) =>
-                prev.filter((i) => i.product_id !== productId)
-              );
-              try {
-                await removeFromWishlist(productId);
-              } catch {
-                // Roll back on failure by re-fetching
-                Alert.alert('Error', 'Could not remove item. Please try again.');
-                fetchData(true);
-              }
-            },
-          },
-        ]
-      );
+    async (productId) => {
+      const confirmed = await alert.confirm({
+        title: 'Remove from Wishlist',
+        message: 'Are you sure you want to remove this item?',
+        confirmText: 'Remove',
+        cancelText: 'Cancel',
+        type: 'danger',
+      });
+      
+      if (confirmed) {
+        // Optimistic update
+        setSavedItems((prev) =>
+          prev.filter((i) => i.product_id !== productId)
+        );
+        setPriceDropItems((prev) =>
+          prev.filter((i) => i.product_id !== productId)
+        );
+        try {
+          await removeFromWishlist(productId);
+        } catch {
+          // Roll back on failure by re-fetching
+          alert.error({ title: 'Error', message: 'Could not remove item. Please try again.' });
+          fetchData(true);
+        }
+      }
     },
     [fetchData]
   );
@@ -284,12 +281,7 @@ export default function WishlistScreen() {
   // ── Loading state ────────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={COLORS.red} />
-        <Text style={styles.loadingText}>Loading wishlist…</Text>
-      </View>
-    );
+    return <WishlistSkeleton />;
   }
 
   // ── Error state ──────────────────────────────────────────────────────────────

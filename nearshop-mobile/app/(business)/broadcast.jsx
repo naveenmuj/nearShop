@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, StatusBar, BackHandler } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler } from 'react-native';
+import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import client from '../../lib/api';
@@ -43,13 +44,13 @@ export default function BroadcastScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleSend = async () => {
-    if (!message.trim()) { Alert.alert('Error', 'Enter a message'); return; }
+    if (!message.trim()) { alert.error({ title: 'Error', message: 'Enter a message' }); return; }
     setSending(true);
     try {
       await client.post('/broadcast/send', { segment: selectedSegment, message: message.trim() });
-      Alert.alert('Success', 'Broadcast sent!');
+      alert.success({ title: 'Success', message: 'Broadcast sent!' });
       setMessage(''); loadData();
-    } catch (e) { Alert.alert('Error', e.response?.data?.detail || 'Failed to send broadcast'); }
+    } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to send broadcast' }); }
     finally { setSending(false); }
   };
 

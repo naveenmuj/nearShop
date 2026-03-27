@@ -10,9 +10,45 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+export async function getStoredAccessToken() {
+  try {
+    return await SecureStore.getItemAsync('access_token');
+  } catch {
+    return null;
+  }
+}
+
+export async function buildAuthConfig(config = {}) {
+  const token = await getStoredAccessToken();
+  const headers = { ...(config.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return { ...config, headers };
+}
+
+export async function authGet(url, config = {}) {
+  return client.get(url, await buildAuthConfig(config));
+}
+
+export async function authPost(url, data = null, config = {}) {
+  return client.post(url, data, await buildAuthConfig(config));
+}
+
+export async function authDelete(url, config = {}) {
+  return client.delete(url, await buildAuthConfig(config));
+}
+
+export async function authPut(url, data = null, config = {}) {
+  return client.put(url, data, await buildAuthConfig(config));
+}
+
+export async function authPatch(url, data = null, config = {}) {
+  return client.patch(url, data, await buildAuthConfig(config));
+}
+
 client.interceptors.request.use(async (config) => {
   try {
     const token = await SecureStore.getItemAsync('access_token');
+    config.headers = config.headers || {};
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -37,6 +73,9 @@ client.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
     // Prevent infinite retry loop - max 1 retry per request
     if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._alreadyRefreshed) {
@@ -46,9 +85,7 @@ client.interceptors.response.use(
       try {
         const refreshToken = await SecureStore.getItemAsync('refresh_token');
         if (!refreshToken) {
-          // No refresh token, clear auth and reject
-          await SecureStore.deleteItemAsync('access_token');
-          await SecureStore.deleteItemAsync('refresh_token');
+          // Some sessions only persist access tokens. Reject without wiping the current session.
           return Promise.reject(error);
         }
 
@@ -57,9 +94,7 @@ client.interceptors.response.use(
         });
 
         if (!data || !data.access_token) {
-          // Refresh failed - clear tokens and reject
-          await SecureStore.deleteItemAsync('access_token');
-          await SecureStore.deleteItemAsync('refresh_token');
+          // Refresh endpoint did not produce a replacement token.
           return Promise.reject(error);
         }
 
@@ -73,8 +108,6 @@ client.interceptors.response.use(
         if (__DEV__) {
           console.error('[API] Token refresh failed:', refreshError.message);
         }
-        await SecureStore.deleteItemAsync('access_token');
-        await SecureStore.deleteItemAsync('refresh_token');
         return Promise.reject(refreshError);
       }
     }
