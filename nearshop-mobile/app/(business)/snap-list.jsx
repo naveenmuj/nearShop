@@ -50,6 +50,10 @@ export default function SnapListScreen() {
 
   const [publishing, setPublishing] = useState(false);
 
+  const goToCreateShop = () => {
+    router.push({ pathname: '/(auth)/onboard', params: { role: 'business' } });
+  };
+
   // Reset state when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
@@ -360,7 +364,13 @@ export default function SnapListScreen() {
               <Text style={styles.shopStatus}>Loading shop...</Text>
             )}
             {!shopLoading && !shopId && (
-              <Text style={styles.shopStatusError}>No shop found. Please create a shop first.</Text>
+              <View style={styles.shopCtaWrap}>
+                <Text style={styles.shopStatusError}>No shop found. Please create a shop first.</Text>
+                <TouchableOpacity style={styles.createShopBtn} onPress={goToCreateShop} activeOpacity={0.85}>
+                  <Ionicons name="storefront-outline" size={16} color={COLORS.white} />
+                  <Text style={styles.createShopBtnText}>Create Shop</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Action Buttons */}
@@ -451,6 +461,18 @@ const styles = StyleSheet.create({
   categoryChipTextActive: { color: COLORS.white, fontWeight: '700' },
   shopStatus: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', marginTop: 16 },
   shopStatusError: { fontSize: 13, color: COLORS.red, textAlign: 'center', marginTop: 16 },
+  shopCtaWrap: { alignItems: 'center', marginTop: 4 },
+  createShopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  createShopBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
   publishBtn: {
     backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginTop: 24,
   },
