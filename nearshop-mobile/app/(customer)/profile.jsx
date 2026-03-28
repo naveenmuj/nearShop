@@ -144,8 +144,11 @@ export default function ProfileScreen() {
             await SecureStore.setItemAsync('refresh_token', response.data.refresh_token);
           }
         }
-        
-        await switchRole('business');
+        if (response?.data?.user) {
+          await useAuthStore.getState().updateUser(response.data.user);
+        } else {
+          await switchRole('business');
+        }
         toast.success('Business mode is ready.');
         router.replace('/(business)/dashboard');
       } catch (err) {

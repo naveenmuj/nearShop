@@ -14,6 +14,7 @@ from app.shops.models import Shop
 from app.products.models import Product
 from app.orders.models import Order
 from app.advisor import service
+from app.ai.error_handling import classify_openai_error
 
 logger = logging.getLogger(__name__)
 
@@ -150,9 +151,10 @@ Top Products: {', '.join(f'{p[0]} (₹{p[1]}, {p[2]} views)' for p in top_produc
         return {"answer": answer, "shop_name": shop.name}
 
     except Exception as e:
-        logger.error(f"AI advisor chat failed: {str(e)}", exc_info=True)
+        ai_error = classify_openai_error(e)
+        logger.error("AI advisor chat failed [%s]: %s", ai_error["code"], e, exc_info=True)
         # Fallback: return context-aware data-driven advice
-        tips = []
+        tips = [f"Live AI is unavailable right now ({ai_error['message']}). Based on your current shop data:"]
         
         # Prioritize based on question context
         question_lower = body.question.lower()
@@ -193,7 +195,13 @@ Top Products: {', '.join(f'{p[0]} (₹{p[1]}, {p[2]} views)' for p in top_produc
         if not tips:
             tips.append("🌟 Your shop is doing well! Keep adding fresh products and creating deals.")
         
-        return {"answer": "\n\n".join(tips), "shop_name": shop.name, "fallback": True}
+        return {
+            "answer": "\n\n".join(tips),
+            "shop_name": shop.name,
+            "fallback": True,
+            "error_code": ai_error["code"],
+            "retryable": ai_error["retryable"],
+        }
 
 
 @router.get("/insights")

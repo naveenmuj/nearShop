@@ -107,7 +107,7 @@ class AuthService:
             await db.refresh(user)
 
         # Generate tokens
-        token_data = {"sub": str(user.id)}
+        token_data = {"sub": str(user.id), "role": user.active_role}
         access_token = create_access_token(token_data)
         refresh_token = create_refresh_token(token_data)
 
@@ -137,7 +137,7 @@ class AuthService:
         if not user.is_active:
             raise UnauthorizedError("User account is deactivated")
 
-        token_data = {"sub": str(user.id)}
+        token_data = {"sub": str(user.id), "role": user.active_role}
         access_token = create_access_token(token_data)
         new_refresh_token = create_refresh_token(token_data)
 
@@ -176,7 +176,7 @@ class AuthService:
         return user
 
     @staticmethod
-    async def switch_role(db: AsyncSession, user_id: UUID, role: str) -> User:
+    async def switch_role(db: AsyncSession, user_id: UUID, role: str) -> dict:
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 
@@ -191,7 +191,15 @@ class AuthService:
         user.active_role = role
         await db.flush()
         await db.refresh(user)
-        return user
+        token_data = {"sub": str(user.id), "role": user.active_role}
+        access_token = create_access_token(token_data)
+        refresh_token = create_refresh_token(token_data)
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": user,
+        }
 
     @staticmethod
     async def update_profile(db: AsyncSession, user_id: UUID, data) -> User:

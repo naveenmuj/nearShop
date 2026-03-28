@@ -78,7 +78,11 @@ export default function BizDashboardScreen() {
 
       // Update local state with explicit error handling
       try {
-        await storeSwitchRole('customer');
+        if (response?.data?.user) {
+          await useAuthStore.getState().updateUser(response.data.user);
+        } else {
+          await storeSwitchRole('customer');
+        }
       } catch (storeErr) {
         console.warn('Store update warning:', storeErr);
         // Continue even if store update has issues

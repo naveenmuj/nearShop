@@ -13,6 +13,7 @@ from app.auth.schemas import (
     FirebaseSignInRequest,
     SendOTPRequest,
     SwitchRoleRequest,
+    TokenResponse,
     UpdateProfileRequest,
     UserResponse,
     VerifyOTPRequest,
@@ -102,14 +103,17 @@ async def complete_profile(
     return UserResponse.model_validate(user)
 
 
-@router.post("/switch-role", response_model=UserResponse)
+@router.post("/switch-role", response_model=TokenResponse)
 async def switch_role(
     body: SwitchRoleRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user = await AuthService.switch_role(db, current_user.id, body.role)
-    return UserResponse.model_validate(user)
+    result = await AuthService.switch_role(db, current_user.id, body.role)
+    return {
+        **result,
+        "user": UserResponse.model_validate(result["user"]),
+    }
 
 
 @router.get("/me", response_model=UserResponse)
@@ -228,7 +232,7 @@ async def firebase_signin(
         await db.flush()
         await db.refresh(user)
 
-    access_token = create_access_token({"sub": str(user.id)})
+    access_token = create_access_token({"sub": str(user.id), "role": user.active_role})
 
     return {
         "user": UserResponse.model_validate(user),

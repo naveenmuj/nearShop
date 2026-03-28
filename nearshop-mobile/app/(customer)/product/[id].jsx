@@ -310,16 +310,15 @@ export default function ProductDetailScreen() {
     const message = `Check out ${product?.name || 'this product'} on NearShop!\n${shareUrl}`;
     
     try {
-      // Try native sharing API first (works on most modern iOS and Android)
+      // Try native sharing API (works on iOS and modern Android)
       await Sharing.shareAsync(shareUrl, { 
         dialogTitle: 'Share Product',
         message: message
       });
     } catch (error) {
-      // If native sharing not available, copy link to clipboard as fallback
-      const Clipboard = await import('expo-clipboard');
-      await Clipboard.setStringAsync(shareUrl);
-      toast.success('Link copied to clipboard!');
+      // If sharing fails, show a simple alert
+      console.error('Share failed:', error);
+      toast.info('Share this link: ' + shareUrl);
     }
   };
 

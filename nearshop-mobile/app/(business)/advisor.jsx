@@ -82,6 +82,7 @@ export default function AdvisorScreen() {
         role: 'assistant',
         text: res.data?.answer || 'I couldn\'t generate advice right now.',
         fallback: res.data?.fallback,
+        retryable: res.data?.retryable,
       }]);
     } catch (err) {
       setChatMessages(prev => [...prev, {
@@ -223,6 +224,11 @@ export default function AdvisorScreen() {
               <View key={i} style={[s.chatBubble, msg.role === 'user' ? s.userBubble : s.aiBubble]}>
                 {msg.role === 'assistant' && <Text style={s.aiAvatar}>🤖</Text>}
                 <View style={[s.bubbleContent, msg.role === 'user' ? s.userContent : s.aiContent]}>
+                  {msg.role === 'assistant' && msg.fallback && (
+                    <Text style={s.fallbackBadge}>
+                      {msg.retryable ? 'Live AI temporarily unavailable' : 'Using offline shop insights'}
+                    </Text>
+                  )}
                   <Text style={[s.bubbleText, msg.role === 'user' ? s.userText : s.aiText]}>{msg.text}</Text>
                 </View>
               </View>
@@ -325,6 +331,7 @@ const s = StyleSheet.create({
   bubbleContent: { maxWidth: '80%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10 },
   userContent: { backgroundColor: COLORS.primary, borderBottomRightRadius: 4, marginLeft: 'auto' },
   aiContent: { backgroundColor: COLORS.white, borderBottomLeftRadius: 4, ...SHADOWS.card, borderWidth: 1, borderColor: COLORS.gray100 },
+  fallbackBadge: { fontSize: 11, fontWeight: '700', color: COLORS.amber, marginBottom: 6 },
   bubbleText: { fontSize: 14, lineHeight: 20 },
   userText: { color: '#fff' },
   aiText: { color: COLORS.gray800 },

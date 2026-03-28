@@ -19,7 +19,7 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 import useMyShop from '../../hooks/useMyShop';
-import client from '../../lib/api';
+import client, { buildAuthConfig } from '../../lib/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const CATEGORIES = [
@@ -36,6 +36,7 @@ export default function SnapListScreen() {
   const [imageUri, setImageUri] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [aiFailed, setAiFailed] = useState(false);
+  const [aiFailureMessage, setAiFailureMessage] = useState('');
 
   // Form state
   const [name, setName] = useState('');
@@ -57,6 +58,7 @@ export default function SnapListScreen() {
       setImageUri(null);
       setAiResult(null);
       setAiFailed(false);
+      setAiFailureMessage('');
       setName('');
       setPrice('');
       setDescription('');
@@ -108,10 +110,11 @@ export default function SnapListScreen() {
     formData.append('entity_type', 'product');
     formData.append('purpose', 'image');
     if (shopId) formData.append('shop_id', String(shopId));
-    const res = await client.post('/upload', formData, {
+    const config = await buildAuthConfig({
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 30000,
     });
+    const res = await client.post('/upload', formData, config);
     const url = res?.data?.url || res?.data?.file_url;
     if (!url) throw new Error('Upload succeeded but no URL returned');
     return url;
@@ -122,6 +125,7 @@ export default function SnapListScreen() {
     setImageUri(uri);
     setStep('analyzing');
     setAiFailed(false);
+    setAiFailureMessage('');
     try {
       const formData = new FormData();
       formData.append('image', {
@@ -129,14 +133,14 @@ export default function SnapListScreen() {
         type: 'image/jpeg',
         name: 'product.jpg',
       });
-      // Use the axios client which has base URL + auth token
-      const response = await client.post('/ai/catalog/snap', formData, {
+      const config = await buildAuthConfig({
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 30000,
       });
+      const response = await client.post('/ai/catalog/snap', formData, config);
       const data = response.data;
       if (data.error || data.fallback) {
-        throw new Error('AI returned fallback');
+        throw new Error(data.message || data.error || 'AI returned fallback');
       }
       setAiResult(data);
       setName(data.name || '');
@@ -149,8 +153,9 @@ export default function SnapListScreen() {
       }
       setDescription(data.description || '');
       setCategory(data.category || '');
-    } catch {
+    } catch (err) {
       setAiFailed(true);
+      setAiFailureMessage(err?.message || 'AI unavailable — fill manually');
       setName('');
       setPrice('');
       setDescription('');
@@ -205,6 +210,7 @@ export default function SnapListScreen() {
       setImageUri(null);
       setAiResult(null);
       setAiFailed(false);
+      setAiFailureMessage('');
       setName('');
       setPrice('');
       setDescription('');
@@ -285,7 +291,7 @@ export default function SnapListScreen() {
             {aiFailed && (
               <View style={styles.aiBanner}>
                 <Ionicons name="warning-outline" size={16} color={COLORS.amber} />
-                <Text style={styles.aiBannerText}>AI unavailable — fill manually</Text>
+                <Text style={styles.aiBannerText}>{aiFailureMessage || 'AI unavailable — fill manually'}</Text>
               </View>
             )}
 

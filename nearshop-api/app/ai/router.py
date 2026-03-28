@@ -13,6 +13,7 @@ from app.config import get_settings
 
 from app.ai.client import get_openai_client
 from app.ai.tracker import tracked_chat
+from app.ai.error_handling import build_shop_description_fallback, classify_openai_error
 from app.ai.cataloging import (
     analyze_product_image,
     analyze_product_image_bytes,
@@ -352,9 +353,14 @@ async def generate_shop_description(
             request_metadata={"shop_name": body.shop_name, "category": body.category},
         )
         description = response.choices[0].message.content.strip().strip('"')
-        return {"description": description}
+        return {"description": description, "fallback": False}
     except Exception as e:
-        logger.error("AI description generation failed: %s: %s", type(e).__name__, e)
-        raise HTTPException(
-            status_code=500, detail=f"AI generation failed: {str(e)}"
-        )
+        ai_error = classify_openai_error(e)
+        logger.error("AI description generation failed [%s]: %s", ai_error["code"], e)
+        return {
+            "description": build_shop_description_fallback(body.shop_name, body.category, body.keywords),
+            "fallback": True,
+            "error_code": ai_error["code"],
+            "detail": ai_error["message"],
+            "retryable": ai_error["retryable"],
+        }

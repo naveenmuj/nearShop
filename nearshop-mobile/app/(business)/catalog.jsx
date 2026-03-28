@@ -166,11 +166,12 @@ export default function CatalogScreen() {
     <View style={styles.emptyState}>
       <Text style={styles.emptyEmoji}>📦</Text>
       <Text style={styles.emptyTitle}>No products yet</Text>
+      <Text style={styles.emptySub}>Analyse a product photo to auto-fill details, then publish it to your catalog.</Text>
       <TouchableOpacity
         style={styles.emptyBtn}
         onPress={() => router.push('/(business)/snap-list')}
       >
-        <Text style={styles.emptyBtnText}>Add your first product</Text>
+        <Text style={styles.emptyBtnText}>Analyze Image</Text>
       </TouchableOpacity>
     </View>
   );
@@ -212,6 +213,21 @@ export default function CatalogScreen() {
           onChangeText={setSearch}
         />
       </View>
+
+      <TouchableOpacity
+        style={styles.analyzeCard}
+        activeOpacity={0.8}
+        onPress={() => router.push('/(business)/snap-list')}
+      >
+        <View style={styles.analyzeIconWrap}>
+          <Ionicons name="sparkles-outline" size={22} color={COLORS.primary} />
+        </View>
+        <View style={styles.analyzeCopy}>
+          <Text style={styles.analyzeTitle}>Analyze product image</Text>
+          <Text style={styles.analyzeSub}>Use camera or gallery to auto-fill product details with AI.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
+      </TouchableOpacity>
 
       {/* List */}
       {loading && products.length === 0 ? (
@@ -390,7 +406,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: COLORS.gray600,
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: COLORS.gray500,
+    textAlign: 'center',
     marginBottom: 16,
+    paddingHorizontal: 24,
   },
   emptyBtn: {
     backgroundColor: COLORS.primary,
@@ -402,6 +425,41 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
     fontSize: 15,
+  },
+  analyzeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    ...SHADOWS.card,
+  },
+  analyzeIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primaryLight,
+  },
+  analyzeCopy: {
+    flex: 1,
+  },
+  analyzeTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    marginBottom: 2,
+  },
+  analyzeSub: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    lineHeight: 17,
   },
   fab: {
     position: 'absolute',

@@ -108,7 +108,11 @@ export default function OnboardScreen() {
       });
       if (data?.description) {
         setDescription(data.description);
-        toast.show({ type: 'success', text1: 'AI description generated!', text2: 'You can edit it if needed' });
+        toast.show({
+          type: data?.fallback ? 'info' : 'success',
+          text1: data?.fallback ? 'Used smart fallback text' : 'AI description generated!',
+          text2: data?.fallback ? (data?.detail || 'You can edit it if needed') : 'You can edit it if needed',
+        });
       } else {
         toast.show({ type: 'info', text1: 'AI service unavailable', text2: 'Please type your description manually' });
       }

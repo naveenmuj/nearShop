@@ -3,11 +3,12 @@ import base64
 import io
 import json
 import logging
+from typing import Any
 
 from PIL import Image
 
-from app.ai.client import get_openai_client
 from app.ai.tracker import tracked_chat
+from app.ai.error_handling import classify_openai_error
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ _SHELF_PROMPT = (
 _FALLBACK_SINGLE = {
     "error": "AI analysis failed",
     "fallback": True,
+    "error_code": "ai_unavailable",
+    "message": "AI image analysis is currently unavailable.",
     "name": "",
     "description": "",
     "category": "general",
@@ -81,6 +84,17 @@ def _parse_json(text: str):
     return json.loads(text)
 
 
+def _build_catalog_error(exc: Exception) -> dict[str, Any]:
+    details = classify_openai_error(exc)
+    return {
+        **_FALLBACK_SINGLE,
+        "error": details["message"],
+        "error_code": details["code"],
+        "message": details["message"],
+        "retryable": details["retryable"],
+    }
+
+
 async def _call_vision(image_data_url: str, prompt: str, max_tokens: int = 1024, feature: str = "cataloging") -> str:
     """Call GPT-4o with an image and return the raw text response."""
     try:
@@ -119,7 +133,7 @@ async def _call_vision(image_data_url: str, prompt: str, max_tokens: int = 1024,
         return content
     except Exception as exc:
         logger.error("OpenAI vision API error: %s: %s", type(exc).__name__, exc)
-        return ""
+        raise
 
 
 async def analyze_product_image_bytes(
@@ -127,10 +141,13 @@ async def analyze_product_image_bytes(
 ) -> dict:
     """Analyze a single product image uploaded as raw bytes."""
     if not image_bytes:
-        return {**_FALLBACK_SINGLE, "error": "Empty image received"}
+        return {**_FALLBACK_SINGLE, "error": "Empty image received", "message": "Empty image received", "error_code": "empty_image"}
 
     data_url, _ = _resize_and_encode(image_bytes, media_type)
-    raw = await _call_vision(data_url, _SINGLE_PRODUCT_PROMPT, max_tokens=1024, feature="cataloging_snap")
+    try:
+        raw = await _call_vision(data_url, _SINGLE_PRODUCT_PROMPT, max_tokens=1024, feature="cataloging_snap")
+    except Exception as exc:
+        return _build_catalog_error(exc)
 
     if not raw:
         return _FALLBACK_SINGLE
@@ -139,7 +156,12 @@ async def analyze_product_image_bytes(
         return _parse_json(raw)
     except (json.JSONDecodeError, ValueError) as exc:
         logger.warning("Could not parse GPT-4o response: %s | raw: %.200s", exc, raw)
-        return {**_FALLBACK_SINGLE, "error": "Could not parse AI response"}
+        return {
+            **_FALLBACK_SINGLE,
+            "error": "Could not parse AI response",
+            "message": "AI returned an invalid response for this image.",
+            "error_code": "ai_parse_error",
+        }
 
 
 async def analyze_shelf_image_bytes(
@@ -150,7 +172,11 @@ async def analyze_shelf_image_bytes(
         return []
 
     data_url, _ = _resize_and_encode(image_bytes, media_type)
-    raw = await _call_vision(data_url, _SHELF_PROMPT, max_tokens=4096, feature="cataloging_shelf")
+    try:
+        raw = await _call_vision(data_url, _SHELF_PROMPT, max_tokens=4096, feature="cataloging_shelf")
+    except Exception as exc:
+        logger.error("Shelf analysis failed: %s", exc)
+        return []
 
     if not raw:
         return []
