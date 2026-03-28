@@ -308,19 +308,18 @@ export default function ProductDetailScreen() {
   const handleShare = async () => {
     const shareUrl = `https://nearshop.in/app/product/${id}`;
     const message = `Check out ${product?.name || 'this product'} on NearShop!\n${shareUrl}`;
+    
     try {
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (isAvailable) {
-        await Sharing.shareAsync(shareUrl, { dialogTitle: 'Share Product' });
-      } else {
-        // Fallback: open WhatsApp
-        const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-        await Linking.openURL(waUrl);
-      }
-    } catch {
-      // Fallback: open WhatsApp
-      const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-      Linking.openURL(waUrl).catch(() => {});
+      // Try native sharing API first (works on most modern iOS and Android)
+      await Sharing.shareAsync(shareUrl, { 
+        dialogTitle: 'Share Product',
+        message: message
+      });
+    } catch (error) {
+      // If native sharing not available, copy link to clipboard as fallback
+      const Clipboard = await import('expo-clipboard');
+      await Clipboard.setStringAsync(shareUrl);
+      toast.success('Link copied to clipboard!');
     }
   };
 

@@ -12,9 +12,22 @@ class WishlistItemResponse(BaseModel):
     product_name: str
     product_price: Decimal
     product_images: Optional[list[str]] = []
+    shop_name: Optional[str] = None
+    shop_id: Optional[str] = None
     price_at_save: Optional[Decimal] = None
     price_dropped: bool = False
     created_at: datetime
+    
+    # Convenience fields for frontend compatibility
+    @property
+    def price(self) -> Decimal:
+        """Alias for product_price for frontend compatibility"""
+        return self.product_price
+    
+    @property
+    def image(self) -> Optional[str]:
+        """First image for frontend compatibility"""
+        return self.product_images[0] if self.product_images and len(self.product_images) > 0 else None
 
     model_config = ConfigDict(from_attributes=True)
 

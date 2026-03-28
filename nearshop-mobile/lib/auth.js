@@ -31,7 +31,11 @@ export const completeProfile = async (data) => {
 
 export const updateProfile = (data) => authPatch('/auth/profile', data);
 export const getMe = () => authGet('/auth/me');
-export const switchRole = (role) => authPost('/auth/switch-role', { role });
+export const switchRole = async (role) => {
+  const response = await authPost('/auth/switch-role', { role });
+  // Return full response so caller can extract tokens if provided
+  return response;
+};
 export const refreshToken = (token) => client.post('/auth/refresh', { refresh_token: token });
 export const deleteAccount = (deleteCustomer, deleteBusiness) =>
   authDelete('/auth/delete-account', { data: { delete_customer: deleteCustomer, delete_business: deleteBusiness } });

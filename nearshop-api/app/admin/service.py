@@ -232,8 +232,8 @@ async def get_top_products(db: AsyncSession, sort_by: str = "view_count", limit:
     return [
         {"id": str(p.id), "name": p.name, "price": float(p.price),
          "category": p.category or "—",
-         "views": p.view_count or 0, "wishlisted": p.wishlist_count or 0,
-         "inquiries": p.inquiry_count or 0, "shop_name": shop_name,
+         "view_count": p.view_count or 0, "wishlist_count": p.wishlist_count or 0,
+         "inquiry_count": p.inquiry_count or 0, "shop_name": shop_name,
          "image": p.images[0] if p.images else None}
         for p, shop_name in result.all()
     ]

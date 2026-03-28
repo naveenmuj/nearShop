@@ -134,7 +134,17 @@ export default function ProfileScreen() {
     if (hasBusiness) {
       // User already has a shop — just switch active role
       try {
-        await apiSwitchRole('business');
+        const response = await apiSwitchRole('business');
+        
+        // If backend provides new tokens, update them
+        if (response?.data?.access_token) {
+          const SecureStore = await import('expo-secure-store');
+          await SecureStore.setItemAsync('access_token', response.data.access_token);
+          if (response.data.refresh_token) {
+            await SecureStore.setItemAsync('refresh_token', response.data.refresh_token);
+          }
+        }
+        
         await switchRole('business');
         toast.success('Business mode is ready.');
         router.replace('/(business)/dashboard');

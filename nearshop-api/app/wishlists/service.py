@@ -82,8 +82,9 @@ async def get_wishlist(
 ) -> tuple[list[dict], int]:
     """Get user's wishlist with product info and price drop detection."""
     base_query = (
-        select(Wishlist, Product)
+        select(Wishlist, Product, Shop)
         .join(Product, Wishlist.product_id == Product.id)
+        .join(Shop, Product.shop_id == Shop.id)
         .where(Wishlist.user_id == user_id)
     )
 
@@ -102,17 +103,26 @@ async def get_wishlist(
     rows = result.all()
 
     items = []
-    for wishlist_entry, product in rows:
+    for wishlist_entry, product, shop in rows:
+        # Skip if product was deleted (shouldn't happen with join, but safe guard)
+        if not product:
+            continue
+            
+        # Use current price, or saved price if current is 0/None
+        display_price = product.price if product.price and product.price > 0 else wishlist_entry.price_at_save
+        
         price_dropped = False
-        if wishlist_entry.price_at_save is not None and product.price is not None:
+        if wishlist_entry.price_at_save is not None and product.price is not None and product.price > 0:
             price_dropped = product.price < wishlist_entry.price_at_save
 
         items.append({
             "id": wishlist_entry.id,
             "product_id": product.id,
             "product_name": product.name,
-            "product_price": product.price,
-            "product_images": product.images or [],
+            "product_price": display_price,
+            "product_images": product.images if product.images and len(product.images) > 0 else [],
+            "shop_name": shop.name if shop else "Unknown Shop",
+            "shop_id": str(shop.id) if shop else None,
             "price_at_save": wishlist_entry.price_at_save,
             "price_dropped": price_dropped,
             "created_at": wishlist_entry.created_at,
@@ -127,22 +137,23 @@ async def check_price_drops(
 ) -> list[dict]:
     """Return wishlist items where the current price dropped >= 5% or >= Rs.50 compared to price_at_save."""
     result = await db.execute(
-        select(Wishlist, Product)
+        select(Wishlist, Product, Shop)
         .join(Product, Wishlist.product_id == Product.id)
+        .join(Shop, Product.shop_id == Shop.id)
         .where(
             and_(
                 Wishlist.user_id == user_id,
                 Wishlist.price_at_save.isnot(None),
                 Product.price.isnot(None),
+                Product.price > 0,  # Only active products
             )
         )
     )
     rows = result.all()
 
     # Collect products with price drops
-    drop_candidates = []
-    shop_ids = set()
-    for wishlist_entry, product in rows:
+    drops = []
+    for wishlist_entry, product, shop in rows:
         saved_price = float(wishlist_entry.price_at_save)
         current_price = float(product.price)
         if saved_price <= 0:
@@ -151,29 +162,23 @@ async def check_price_drops(
         drop_amount = saved_price - current_price
         drop_percentage = (drop_amount / saved_price) * 100
 
+        # Only include if price actually dropped (by at least 5% or Rs.50)
         if drop_amount >= 50 or drop_percentage >= 5:
-            shop_ids.add(product.shop_id)
-            drop_candidates.append((product, saved_price, current_price, drop_amount, drop_percentage))
-
-    # Batch fetch shop names
-    shops_map = {}
-    if shop_ids:
-        shops_result = await db.execute(select(Shop).where(Shop.id.in_(list(shop_ids))))
-        shops_map = {s.id: s for s in shops_result.scalars().all()}
-
-    drops = []
-    for product, saved_price, current_price, drop_amount, drop_percentage in drop_candidates:
-        shop = shops_map.get(product.shop_id)
-        drops.append({
-            "product_id": product.id,
-            "product_name": product.name,
-            "image": (product.images or [None])[0],
-            "old_price": saved_price,
-            "price": current_price,
-            "drop_amount": round(drop_amount, 2),
-            "drop_percentage": round(drop_percentage, 2),
-            "shop_id": product.shop_id,
-            "shop_name": shop.name if shop else "",
-        })
+            drops.append({
+                "id": wishlist_entry.id,
+                "product_id": str(product.id),
+                "product_name": product.name,
+                "image": (product.images or [None])[0],
+                "images": product.images or [],
+                "old_price": saved_price,
+                "price": current_price,
+                "product_price": current_price,  # For consistency
+                "drop_amount": round(drop_amount, 2),
+                "drop_percentage": round(drop_percentage, 2),
+                "shop_id": str(product.shop_id),
+                "shop_name": shop.name if shop else "Unknown Shop",
+                "price_at_save": wishlist_entry.price_at_save,
+                "price_dropped": True,
+            })
 
     return drops

@@ -64,8 +64,17 @@ export default function BizDashboardScreen() {
       setPendingOrders([]);
       setStats(null);
 
-      // Switch role on backend
-      await switchRole('customer');
+      // Switch role on backend and capture new tokens
+      const response = await switchRole('customer');
+      
+      // If backend provides new tokens, update them
+      if (response?.data?.access_token) {
+        const SecureStore = await import('expo-secure-store');
+        await SecureStore.setItemAsync('access_token', response.data.access_token);
+        if (response.data.refresh_token) {
+          await SecureStore.setItemAsync('refresh_token', response.data.refresh_token);
+        }
+      }
 
       // Update local state with explicit error handling
       try {

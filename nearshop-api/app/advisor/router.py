@@ -150,20 +150,50 @@ Top Products: {', '.join(f'{p[0]} (₹{p[1]}, {p[2]} views)' for p in top_produc
         return {"answer": answer, "shop_name": shop.name}
 
     except Exception as e:
-        logger.warning(f"AI advisor chat failed: {e}")
-        # Fallback: return basic data-driven advice
+        logger.error(f"AI advisor chat failed: {str(e)}", exc_info=True)
+        # Fallback: return context-aware data-driven advice
         tips = []
-        if total_products == 0:
-            tips.append("📸 Add products to your catalog using Snap & List for quick AI-powered listing.")
-        if orders_7d == 0:
-            tips.append("📢 Share your shop on WhatsApp to attract nearby customers.")
-        if total_views > 0 and orders_30d == 0:
-            tips.append("💰 You have views but no orders. Try creating deals with 10-20% discounts.")
-        if float(shop.avg_rating or 0) < 4.0 and (shop.total_reviews or 0) > 0:
-            tips.append("⭐ Focus on customer service to improve your rating.")
+        
+        # Prioritize based on question context
+        question_lower = body.question.lower()
+        
+        if any(word in question_lower for word in ['grow', 'sales', 'increase', 'more']):
+            if orders_7d == 0:
+                tips.append("📢 Share your shop link on WhatsApp and social media to reach nearby customers.")
+            if total_products < 5:
+                tips.append("📸 Add more products (aim for 10+) to give customers more choice.")
+            if float(shop.avg_rating or 0) < 4.0 and (shop.total_reviews or 0) > 0:
+                tips.append("⭐ Focus on excellent service to improve your {:.1f} star rating.".format(shop.avg_rating))
+        elif any(word in question_lower for word in ['product', 'catalog', 'inventory']):
+            if total_products == 0:
+                tips.append("📸 Start by adding products using Snap & List for quick AI-powered listing.")
+            else:
+                tips.append("✨ You have {} products. Keep them updated with fresh photos and competitive prices.".format(total_products))
+        elif any(word in question_lower for word in ['order', 'customer']):
+            if orders_7d > 0:
+                tips.append(f"🎉 Great! You have {orders_7d} orders this week. Keep up the momentum!")
+            else:
+                tips.append("💰 Create special deals with 10-20% discounts to attract first-time buyers.")
+        elif any(word in question_lower for word in ['rating', 'review', 'feedback']):
+            if (shop.total_reviews or 0) == 0:
+                tips.append("⭐ Ask satisfied customers to leave reviews to build trust.")
+            else:
+                tips.append(f"⭐ You have {shop.total_reviews} reviews averaging {shop.avg_rating:.1f} stars.")
+        else:
+            # Default contextual tips
+            if total_products == 0:
+                tips.append("📸 Add products to your catalog using Snap & List for quick AI-powered listing.")
+            if orders_7d == 0 and total_views == 0:
+                tips.append("📢 Share your shop on WhatsApp to attract nearby customers.")
+            elif orders_7d == 0 and total_views > 0:
+                tips.append(f"💰 You have {total_views} views but no orders. Try creating deals with 10-20% discounts.")
+            if orders_7d > 0:
+                tips.append(f"🎉 You're doing well with {orders_7d} orders this week!")
+        
         if not tips:
             tips.append("🌟 Your shop is doing well! Keep adding fresh products and creating deals.")
-        return {"answer": "\n".join(tips), "shop_name": shop.name, "fallback": True}
+        
+        return {"answer": "\n\n".join(tips), "shop_name": shop.name, "fallback": True}
 
 
 @router.get("/insights")
