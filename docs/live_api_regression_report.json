@@ -1,6 +1,6 @@
 {
-  "executed_at": "2026-03-27T07:42:26.011702+00:00",
-  "base_url": "http://127.0.0.1:8010/api/v1",
+  "executed_at": "2026-03-27T19:22:50.560054+00:00",
+  "base_url": "http://165.232.182.130/api/v1",
   "entities": {
     "user_id": "a6cad759-947a-4e41-ba33-a990df89432f",
     "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
@@ -39,54 +39,42 @@
     },
     {
       "name": "auth_me_customer",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "id",
-        "phone",
-        "name",
-        "email",
-        "avatar_url",
-        "firebase_uid",
-        "roles",
-        "active_role",
-        "interests",
-        "referral_code",
-        "created_at"
+        "detail"
       ]
     },
     {
       "name": "search_history",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "history"
+        "detail"
       ]
     },
     {
       "name": "recently_viewed",
-      "passed": true,
-      "status_code": 200,
-      "body_preview": "[]"
+      "passed": false,
+      "status_code": 401,
+      "body_keys": [
+        "detail"
+      ]
     },
     {
       "name": "feed_home",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "items",
-        "page",
-        "per_page"
+        "detail"
       ]
     },
     {
       "name": "feed_hook",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "title",
-        "subtitle",
-        "type"
+        "detail"
       ]
     },
     {
@@ -141,65 +129,55 @@
     },
     {
       "name": "ai_trending",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "products",
-        "count"
+        "detail"
       ]
     },
     {
       "name": "ai_recommendations",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "products",
-        "count",
-        "cached"
+        "detail"
       ]
     },
     {
       "name": "analytics_stats",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "shop_id",
-        "period",
-        "total_views",
-        "unique_visitors",
-        "total_orders",
-        "total_revenue"
+        "detail"
       ]
     },
     {
       "name": "analytics_products",
-      "passed": true,
-      "status_code": 200,
-      "body_preview": "[{'id': '608b0a9e-09b4-4015-ae92-08d1d3d19165', 'name': 'iPad Air M2 11-inch', 'price': 59900.0, 'images': ['https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/03f7dfed-fa8b-47f0-8a7f-9cb24dac0850/products/608b0a9e-09b4-4015-ae92-08d1d3d19165/image/91528a4619854259892364aa382864ce.jpg'], "
+      "passed": false,
+      "status_code": 401,
+      "body_keys": [
+        "detail"
+      ]
     },
     {
       "name": "analytics_demand",
-      "passed": true,
-      "status_code": 200,
-      "body_preview": "[{'query': 'nearby shop', 'count': 16}, {'query': 'local offers', 'count': 16}, {'query': 'best deals', 'count': 16}, {'query': 'wireless earbuds', 'count': 2}, {'query': 'gaming headset', 'count': 2}, {'query': 'usb microphone', 'count': 1}, {'query': 'webcam for streaming', 'count': 1}, {'query': "
+      "passed": false,
+      "status_code": 401,
+      "body_keys": [
+        "detail"
+      ]
     },
     {
       "name": "analytics_operational_insights",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body_keys": [
-        "shop_id",
-        "meta",
-        "sales_forecast",
-        "reorder_alerts",
-        "customer_segments",
-        "demand_snapshot",
-        "recommended_actions"
+        "detail"
       ]
     }
   ],
   "summary": {
-    "passed": 18,
-    "failed": 0
+    "passed": 7,
+    "failed": 11
   }
 }

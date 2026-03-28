@@ -1,6 +1,6 @@
 {
-  "executed_at": "2026-03-27T04:26:41.078488+00:00",
-  "base_url": "http://127.0.0.1:8010/api/v1",
+  "executed_at": "2026-03-27T19:22:50.649595+00:00",
+  "base_url": "http://165.232.182.130/api/v1",
   "bucket_public_base": "https://nearshop-bucket.sfo3.digitaloceanspaces.com",
   "entities": {
     "user_id": "a6cad759-947a-4e41-ba33-a990df89432f",
@@ -39,26 +39,10 @@
     },
     {
       "name": "auth_me",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body": {
-        "id": "a6cad759-947a-4e41-ba33-a990df89432f",
-        "phone": null,
-        "name": "Naveen Kumar",
-        "email": "naveen.kumar3610@gmail.com",
-        "avatar_url": null,
-        "firebase_uid": "gjNoj5VEhPShkmSkFXSWQyMCSYc2",
-        "roles": [
-          "customer",
-          "business"
-        ],
-        "active_role": "customer",
-        "interests": [
-          "Electronics",
-          "Grocery"
-        ],
-        "referral_code": "XZHKKQHC",
-        "created_at": "2026-03-25T03:42:16.427307Z"
+        "detail": "Invalid or expired token"
       }
     },
     {
@@ -66,7 +50,7 @@
       "passed": true,
       "status_code": 200,
       "sample_images": [
-        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/fc89fc9b-5dce-4422-8a58-12c2e409bcfa/image/e4fb7c4f2c0b4ad2b1357ed2a7e5771b.jpg"
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/a3bb1ae2-84ef-4557-bb92-e168e051eae9/products/6585aafb-f9d5-4362-9e41-839e0f01ac63/image/d309171c7b744ce7bfb0fcdba5cfa63f.jpg"
       ],
       "body_keys": [
         "items",
@@ -85,41 +69,19 @@
     },
     {
       "name": "upload_user_avatar",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body": {
-        "url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/users/a6cad759-947a-4e41-ba33-a990df89432f/avatar/970c5d2fcd734365b394980ccee604c8.jpg",
-        "key": "dev/users/a6cad759-947a-4e41-ba33-a990df89432f/avatar/970c5d2fcd734365b394980ccee604c8.jpg",
-        "bucket": "nearshop-bucket",
-        "provider": "digitalocean_spaces"
+        "detail": "Invalid or expired token"
       }
-    },
-    {
-      "name": "fetch_uploaded_user_avatar",
-      "passed": true,
-      "status_code": 200,
-      "content_type": "image/jpeg",
-      "url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/users/a6cad759-947a-4e41-ba33-a990df89432f/avatar/970c5d2fcd734365b394980ccee604c8.jpg",
-      "size_bytes": 20308
     },
     {
       "name": "upload_product_image",
-      "passed": true,
-      "status_code": 200,
+      "passed": false,
+      "status_code": 401,
       "body": {
-        "url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/21f467d4-32d9-4cd4-9168-f7de834c3b10/products/0560a713-16a7-4769-8052-56f3ea01826f/image/166c15ae12754fa9b30da2b8a6fc67ef.jpg",
-        "key": "dev/shops/21f467d4-32d9-4cd4-9168-f7de834c3b10/products/0560a713-16a7-4769-8052-56f3ea01826f/image/166c15ae12754fa9b30da2b8a6fc67ef.jpg",
-        "bucket": "nearshop-bucket",
-        "provider": "digitalocean_spaces"
+        "detail": "Invalid or expired token"
       }
-    },
-    {
-      "name": "fetch_uploaded_product_image",
-      "passed": true,
-      "status_code": 200,
-      "content_type": "image/jpeg",
-      "url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/21f467d4-32d9-4cd4-9168-f7de834c3b10/products/0560a713-16a7-4769-8052-56f3ea01826f/image/166c15ae12754fa9b30da2b8a6fc67ef.jpg",
-      "size_bytes": 20475
     },
     {
       "name": "database_media_references",
@@ -130,7 +92,7 @@
     }
   ],
   "summary": {
-    "passed": 10,
-    "failed": 0
+    "passed": 5,
+    "failed": 3
   }
 }
