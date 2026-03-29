@@ -56,6 +56,8 @@ INTENT_TERM_EXPANSIONS = {
     "earbuds": {"audio", "headphones", "bluetooth"},
     "speaker": {"audio", "bluetooth"},
     "headphones": {"audio", "bluetooth", "earbuds"},
+    "headset": {"audio", "headphones", "bluetooth"},
+    "earphone": {"audio", "earbuds", "headphones"},
     "bluetooth": {"audio", "speaker", "earbuds", "headphones"},
     "streaming": {"webcam", "microphone", "ring", "light", "usb"},
     "webcam": {"streaming", "usb"},
@@ -63,6 +65,11 @@ INTENT_TERM_EXPANSIONS = {
     "gaming": {"keyboard", "mouse", "headset", "mousepad"},
     "keyboard": {"gaming"},
     "mouse": {"gaming", "mousepad"},
+    "rice": {"basmati", "sona", "masoori", "grocery", "grain", "staples"},
+    "atta": {"flour", "grocery", "staples"},
+    "dal": {"lentils", "grocery", "staples", "pulses"},
+    "oil": {"grocery", "staples", "cooking"},
+    "grocery": {"rice", "atta", "dal", "oil", "staples"},
 }
 
 

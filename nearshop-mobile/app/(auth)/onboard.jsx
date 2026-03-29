@@ -101,7 +101,9 @@ export default function OnboardScreen() {
     }
     setAiLoading(true);
     try {
-      const { data } = await client.post('/ai/generate-description', {
+      // Use authPost to include authentication token
+      const { authPost } = await import('../../lib/api');
+      const { data } = await authPost('/ai/generate-description', {
         shop_name: shopName.trim(),
         category: shopCat.length > 0 ? shopCat[0] : 'General',
         keywords: description.trim() || shopName.trim(),
@@ -703,6 +705,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
+    minHeight: 350,
     paddingTop: 8,
   },
   modalHeader: {
@@ -720,9 +723,9 @@ const styles = StyleSheet.create({
     color: COLORS.gray900,
   },
   modalBody: {
-    flex: 1,
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 16,
   },
   timeSlot: {
     backgroundColor: COLORS.bg,

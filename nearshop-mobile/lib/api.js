@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import AuthService from './authService';
 
 // Hosted API base for emulator/device testing against the deployed backend.
 const API_BASE = 'http://165.232.182.130';
@@ -10,16 +10,11 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-export async function getStoredAccessToken() {
-  try {
-    return await SecureStore.getItemAsync('access_token');
-  } catch {
-    return null;
-  }
-}
+// Re-export for backward compatibility
+export const getStoredAccessToken = AuthService.getAccessToken;
 
 export async function buildAuthConfig(config = {}) {
-  const token = await getStoredAccessToken();
+  const token = await AuthService.getAccessToken();
   const headers = { ...(config.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
   return { ...config, headers };
@@ -45,9 +40,24 @@ export async function authPatch(url, data = null, config = {}) {
   return client.patch(url, data, await buildAuthConfig(config));
 }
 
+// Refresh lock to prevent concurrent refresh attempts
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 client.interceptors.request.use(async (config) => {
   try {
-    const token = await SecureStore.getItemAsync('access_token');
+    const token = await AuthService.getAccessToken();
     config.headers = config.headers || {};
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -77,38 +87,36 @@ client.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Prevent infinite retry loop - max 1 retry per request
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest._alreadyRefreshed) {
+    // Handle 401 errors with token refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      // If already refreshing, queue this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return client(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
-      originalRequest._alreadyRefreshed = true;
+      isRefreshing = true;
 
       try {
-        const refreshToken = await SecureStore.getItemAsync('refresh_token');
-        if (!refreshToken) {
-          // Some sessions only persist access tokens. Reject without wiping the current session.
-          return Promise.reject(error);
-        }
-
-        const { data } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {
-          refresh_token: refreshToken,
-        });
-
-        if (!data || !data.access_token) {
-          // Refresh endpoint did not produce a replacement token.
-          return Promise.reject(error);
-        }
-
-        await SecureStore.setItemAsync('access_token', String(data.access_token));
-        if (data.refresh_token) {
-          await SecureStore.setItemAsync('refresh_token', String(data.refresh_token));
-        }
-        originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+        const newToken = await AuthService.refreshAccessToken();
+        processQueue(null, newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return client(originalRequest);
       } catch (refreshError) {
+        processQueue(refreshError, null);
         if (__DEV__) {
           console.error('[API] Token refresh failed:', refreshError.message);
         }
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

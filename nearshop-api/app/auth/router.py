@@ -167,6 +167,23 @@ async def delete_account(
     return result
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_tokens(
+    body: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Refresh access and refresh tokens.
+    Pass the current refresh_token to receive a new token pair.
+    """
+    result = await AuthService.refresh_token(db, body.refresh_token)
+    return result
+
+
 @router.post("/firebase-signin")
 async def firebase_signin(
     body: FirebaseSignInRequest,

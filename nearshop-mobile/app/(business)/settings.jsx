@@ -172,11 +172,16 @@ export default function SettingsScreen() {
 
   const handleSwitchToCustomer = async () => {
     try {
-      await apiSwitchRole('customer');
-      await storeSwitchRole('customer');
+      const response = await apiSwitchRole('customer');
+      // Tokens are automatically saved by auth.js switchRole function
+      if (response?.data?.user) {
+        await useAuthStore.getState().updateUser(response.data.user);
+      } else {
+        await storeSwitchRole('customer');
+      }
       router.replace('/(customer)/home');
-    } catch {
-      alert.error({ title: 'Error', message: 'Could not switch to customer mode' });
+    } catch (err) {
+      alert.error({ title: 'Error', message: err?.response?.data?.detail || 'Could not switch to customer mode' });
     }
   };
 

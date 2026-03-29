@@ -150,8 +150,54 @@ def _contains_term(value: str | None, term: str | None) -> bool:
     return bool(value and term and term.lower() in value.lower())
 
 
+def _dedupe_query_parts(parts: list[str | None]) -> list[str]:
+    normalized_seen: set[str] = set()
+    deduped: list[str] = []
+    for part in parts:
+        if not part:
+            continue
+        text = str(part).strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in normalized_seen:
+            continue
+        normalized_seen.add(key)
+        deduped.append(text)
+    return deduped
+
+
+def _filter_products(
+    products: list[dict],
+    *,
+    category: str | None,
+    brand: str | None,
+    color: str | None,
+    material: str | None,
+    min_price: float | None,
+    max_price: float | None,
+) -> list[dict]:
+    filtered = list(products)
+    if category:
+        filtered = [item for item in filtered if _contains_term(item.get("category"), category)]
+    if min_price is not None:
+        filtered = [item for item in filtered if float(item.get("price") or 0) >= float(min_price)]
+    if max_price is not None:
+        filtered = [item for item in filtered if float(item.get("price") or 0) <= float(max_price)]
+    for term in (brand, color, material):
+        if not term:
+            continue
+        filtered = [
+            item for item in filtered
+            if _contains_term(item.get("name"), term)
+            or _contains_term(item.get("category"), term)
+            or _contains_term(item.get("subcategory"), term)
+        ]
+    return filtered
+
+
 def _apply_conversational_filters(results: dict, filters: dict) -> dict:
-    products = list(results.get("products", []))
+    original_products = list(results.get("products", []))
     shops = list(results.get("shops", []))
 
     category = filters.get("category")
@@ -163,30 +209,50 @@ def _apply_conversational_filters(results: dict, filters: dict) -> dict:
     sort_by = filters.get("sort_by")
 
     if category:
-        products = [item for item in products if _contains_term(item.get("category"), category)]
         shops = [item for item in shops if _contains_term(item.get("category"), category)]
 
-    if min_price is not None:
-        products = [item for item in products if float(item.get("price") or 0) >= float(min_price)]
-    if max_price is not None:
-        products = [item for item in products if float(item.get("price") or 0) <= float(max_price)]
+    products = _filter_products(
+        original_products,
+        category=category,
+        brand=brand,
+        color=color,
+        material=material,
+        min_price=min_price,
+        max_price=max_price,
+    )
 
-    for term in (brand, color, material):
-        if not term:
-            continue
-        products = [
-            item for item in products
-            if _contains_term(item.get("name"), term)
-            or _contains_term(item.get("category"), term)
-            or _contains_term(item.get("subcategory"), term)
-        ]
+    # Color/brand/material are the least reliable signals because catalog data is sparse.
+    # If they eliminate every product, relax those terms and keep category/price intent.
+    relaxed = False
+    if not products and any((brand, color, material)):
+        products = _filter_products(
+            original_products,
+            category=category,
+            brand=None,
+            color=None,
+            material=None,
+            min_price=min_price,
+            max_price=max_price,
+        )
+        relaxed = True
 
     if sort_by == "price_low":
         products.sort(key=lambda item: float(item.get("price") or 0))
     elif sort_by == "price_high":
         products.sort(key=lambda item: float(item.get("price") or 0), reverse=True)
 
-    return {"products": products, "shops": shops}
+    return {"products": products, "shops": shops, "filter_relaxed": relaxed}
+
+
+def _build_executed_query(original_query: str, filters: dict) -> str:
+    query_parts = _dedupe_query_parts([
+        filters.get("keywords"),
+        filters.get("category"),
+        filters.get("brand"),
+        filters.get("color"),
+        filters.get("material"),
+    ])
+    return " ".join(query_parts).strip() or original_query
 
 
 @router.post("/search/conversational/run")
@@ -210,19 +276,7 @@ async def conversational_search_run(
         logger.warning("Conversational search execution fallback: %s", exc)
         fallback_used = True
 
-    query_parts: list[str] = []
-    for part in (
-        filters.get("keywords"),
-        filters.get("category"),
-        filters.get("brand"),
-        filters.get("color"),
-        filters.get("material"),
-    ):
-        if not part:
-            continue
-        if part not in query_parts:
-            query_parts.append(part)
-    executed_query = " ".join(query_parts).strip() or original_query
+    executed_query = _build_executed_query(original_query, filters)
 
     results = await search_unified(
         db,

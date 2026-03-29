@@ -1,24 +1,25 @@
 import client, { authDelete, authGet, authPatch, authPost, authPut } from './api';
+import AuthService from './authService';
 
 export const sendOtp = (phone) => client.post('/auth/send-otp', { phone });
 export const verifyOtp = (phone, code) => client.post('/auth/verify-otp', { phone, code });
 
-// Complete profile with fallback endpoints
+// Complete profile with fallback endpoints - requires auth
 export const completeProfile = async (data) => {
   try {
-    // Try primary endpoint
-    return await client.post('/auth/complete-profile', data);
+    // Try primary endpoint with authentication
+    return await authPost('/auth/complete-profile', data);
   } catch (err) {
     // If 404, try alternative endpoint names
     if (err.response?.status === 404) {
       console.warn('Primary endpoint /auth/complete-profile failed, trying alternatives...');
       try {
         // Try alternative: /auth/profile
-        return await client.post('/auth/profile', data);
+        return await authPatch('/auth/profile', data);
       } catch (err2) {
         // Try alternative: /users/complete-profile
         try {
-          return await client.post('/users/complete-profile', data);
+          return await authPost('/users/complete-profile', data);
         } catch (err3) {
           // All failed, return original error
           throw err;
@@ -31,11 +32,28 @@ export const completeProfile = async (data) => {
 
 export const updateProfile = (data) => authPatch('/auth/profile', data);
 export const getMe = () => authGet('/auth/me');
+
+/**
+ * Switch user role - uses centralized auth service for proper token management
+ * 
+ * @param {string} role - The role to switch to ('customer' or 'business')
+ * @returns {Promise<Object>} - The API response with user and tokens
+ */
 export const switchRole = async (role) => {
   const response = await authPost('/auth/switch-role', { role });
-  // Return full response so caller can extract tokens if provided
+  
+  // Save tokens if backend provides new ones
+  if (response?.data?.access_token) {
+    await AuthService.saveTokens({
+      access_token: response.data.access_token,
+      refresh_token: response.data.refresh_token,
+    });
+  }
+  
+  // Return full response so caller can use user data
   return response;
 };
+
 export const refreshToken = (token) => client.post('/auth/refresh', { refresh_token: token });
 export const deleteAccount = (deleteCustomer, deleteBusiness) =>
   authDelete('/auth/delete-account', { data: { delete_customer: deleteCustomer, delete_business: deleteBusiness } });
@@ -57,9 +75,13 @@ export const uploadFile = async (uri, options = 'general') => {
   if (uploadOptions.shopId) formData.append('shop_id', uploadOptions.shopId);
   if (uploadOptions.productId) formData.append('product_id', uploadOptions.productId);
   if (uploadOptions.documentType) formData.append('document_type', uploadOptions.documentType);
-  return client.post('/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  
+  // Use authPost for proper token handling with multipart data
+  const token = await AuthService.getAccessToken();
+  const headers = { 'Content-Type': 'multipart/form-data' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  
+  return client.post('/upload', formData, { headers });
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

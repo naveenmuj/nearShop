@@ -86,12 +86,13 @@ function Chevron() {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, switchRole } = useAuthStore();
-  const { address } = useLocationStore();
+  const { address, refreshLocation } = useLocationStore();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundOn, setSoundOn] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
 
   const locality = address || 'Location not set';
 
@@ -125,6 +126,22 @@ export default function ProfileScreen() {
     await setSoundEnabled(val);
   };
 
+  const handleRefreshLocation = async () => {
+    setIsRefreshingLocation(true);
+    try {
+      const result = await refreshLocation();
+      if (result.success) {
+        toast.success('Location updated!');
+      } else {
+        toast.error(result.error || 'Could not get location');
+      }
+    } catch (err) {
+      toast.error('Location refresh failed');
+    } finally {
+      setIsRefreshingLocation(false);
+    }
+  };
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   // 'business' is added to roles array only after completing business onboarding
@@ -134,16 +151,9 @@ export default function ProfileScreen() {
     if (hasBusiness) {
       // User already has a shop — just switch active role
       try {
+        // Tokens are automatically saved by auth.js switchRole function
         const response = await apiSwitchRole('business');
         
-        // If backend provides new tokens, update them
-        if (response?.data?.access_token) {
-          const SecureStore = await import('expo-secure-store');
-          await SecureStore.setItemAsync('access_token', response.data.access_token);
-          if (response.data.refresh_token) {
-            await SecureStore.setItemAsync('refresh_token', response.data.refresh_token);
-          }
-        }
         if (response?.data?.user) {
           await useAuthStore.getState().updateUser(response.data.user);
         } else {
@@ -381,10 +391,14 @@ export default function ProfileScreen() {
           <MenuRow
             icon="📍"
             label="Location"
+            onPress={handleRefreshLocation}
             right={
-              <Text style={styles.menuValueText} numberOfLines={1}>
-                {locality}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.menuValueText} numberOfLines={1}>
+                  {isRefreshingLocation ? 'Updating...' : locality}
+                </Text>
+                <Text style={{ fontSize: 12, color: COLORS.primary }}>↻</Text>
+              </View>
             }
           />
           <MenuRow

@@ -48,8 +48,19 @@ export default function MoreScreen() {
   const { switchRole: storeSwitchRole, logout } = useAuthStore();
 
   const handleSwitchCustomer = async () => {
-    try { await apiSwitchRole('customer'); } catch {}
-    await storeSwitchRole('customer');
+    try {
+      const response = await apiSwitchRole('customer');
+      // Tokens are automatically saved by auth.js switchRole function
+      if (response?.data?.user) {
+        await useAuthStore.getState().updateUser(response.data.user);
+      } else {
+        await storeSwitchRole('customer');
+      }
+    } catch (err) {
+      // If role switch fails, still try to navigate but log the error
+      console.warn('Role switch API failed:', err?.message);
+      await storeSwitchRole('customer');
+    }
     router.replace('/(customer)/home');
   };
 
