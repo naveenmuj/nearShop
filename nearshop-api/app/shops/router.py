@@ -353,6 +353,69 @@ async def unfollow_shop_endpoint(
     return {"detail": "Shop unfollowed successfully"}
 
 
+@router.get("/{shop_id}/followers")
+async def get_shop_followers(
+    shop_id: UUID,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the list of followers for a shop (only visible to shop owner)."""
+    from app.shops.models import Follow
+    from app.auth.models import User as UserModel
+    from datetime import datetime, timedelta
+    
+    # Verify this shop belongs to the current user
+    shop_result = await db.execute(
+        select(Shop).where(and_(Shop.id == shop_id, Shop.owner_id == current_user.id))
+    )
+    shop = shop_result.scalar_one_or_none()
+    if not shop:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Not authorized to view followers")
+    
+    # Get followers with user details
+    offset = (page - 1) * per_page
+    
+    # Count total
+    count_result = await db.execute(
+        select(func.count(Follow.id)).where(Follow.shop_id == shop_id)
+    )
+    total = count_result.scalar() or 0
+    
+    # Get followers
+    followers_result = await db.execute(
+        select(Follow, UserModel)
+        .join(UserModel, Follow.user_id == UserModel.id)
+        .where(Follow.shop_id == shop_id)
+        .order_by(Follow.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
+    )
+    
+    # Calculate "new" badge threshold (e.g., last 7 days)
+    new_threshold = datetime.utcnow() - timedelta(days=7)
+    
+    followers = []
+    for follow, user in followers_result.fetchall():
+        followers.append({
+            "id": str(user.id),
+            "name": user.name or "Customer",
+            "phone": user.phone,
+            "avatar_url": user.avatar_url,
+            "followed_at": follow.created_at,
+            "is_new": follow.created_at >= new_threshold if follow.created_at else False,
+        })
+    
+    return {
+        "items": followers,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
+
+
 @router.get("/{shop_id}/qr-code")
 async def get_shop_qr_code(
     shop_id: UUID,

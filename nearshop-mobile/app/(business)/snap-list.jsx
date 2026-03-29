@@ -22,9 +22,10 @@ import useMyShop from '../../hooks/useMyShop';
 import client, { buildAuthConfig } from '../../lib/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
-const CATEGORIES = [
-  'Grocery', 'Bakery', 'Dairy', 'Snacks', 'Beverages',
-  'Fruits', 'Vegetables', 'Household', 'Personal Care', 'Other',
+const BASE_CATEGORIES = [
+  'Electronics', 'Grocery', 'Bakery', 'Dairy', 'Snacks', 'Beverages',
+  'Fruits', 'Vegetables', 'Household', 'Personal Care', 'Clothing',
+  'Sports', 'Books', 'Toys', 'Beauty', 'Home Decor', 'Other',
 ];
 
 const STEPS = ['capture', 'analyzing', 'review'];
@@ -43,6 +44,8 @@ export default function SnapListScreen() {
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const [aiSuggestedCategory, setAiSuggestedCategory] = useState('');
 
   // Animated dots for analyzing step
   const [dots, setDots] = useState('.');
@@ -130,6 +133,8 @@ export default function SnapListScreen() {
     setStep('analyzing');
     setAiFailed(false);
     setAiFailureMessage('');
+    setAiSuggestedCategory('');
+    setCustomCategory('');
     try {
       const formData = new FormData();
       formData.append('image', {
@@ -156,7 +161,27 @@ export default function SnapListScreen() {
         setPrice(String(data.price));
       }
       setDescription(data.description || '');
-      setCategory(data.category || '');
+      
+      // Handle category from AI - check if it's in our predefined list
+      const aiCategory = data.category || '';
+      setAiSuggestedCategory(aiCategory);
+      
+      // Check if AI category matches any predefined category (case-insensitive)
+      const matchedCategory = BASE_CATEGORIES.find(
+        cat => cat.toLowerCase() === aiCategory.toLowerCase()
+      );
+      
+      if (matchedCategory) {
+        setCategory(matchedCategory);
+        setCustomCategory('');
+      } else if (aiCategory) {
+        // AI suggested a category not in our list - use "Other" and set custom
+        setCategory('Other');
+        setCustomCategory(aiCategory);
+      } else {
+        setCategory('');
+        setCustomCategory('');
+      }
     } catch (err) {
       setAiFailed(true);
       setAiFailureMessage(err?.message || 'AI unavailable — fill manually');
@@ -164,6 +189,8 @@ export default function SnapListScreen() {
       setPrice('');
       setDescription('');
       setCategory('');
+      setCustomCategory('');
+      setAiSuggestedCategory('');
     } finally {
       setStep('review');
     }
@@ -197,11 +224,16 @@ export default function SnapListScreen() {
       }
 
       // Step 2: Create product with proper schema (with auth)
+      // Use custom category if "Other" is selected
+      const finalCategory = category === 'Other' && customCategory.trim() 
+        ? customCategory.trim() 
+        : category;
+      
       const productData = {
         name: name.trim(),
         price: Number(price),
         description: description.trim() || undefined,
-        category: category || undefined,
+        category: finalCategory || undefined,
         images: imageUrl ? [imageUrl] : [],
       };
 
@@ -221,6 +253,8 @@ export default function SnapListScreen() {
       setPrice('');
       setDescription('');
       setCategory('');
+      setCustomCategory('');
+      setAiSuggestedCategory('');
       
       // Navigate back to catalog
       router.back();
@@ -345,21 +379,74 @@ export default function SnapListScreen() {
               numberOfLines={3}
             />
 
-            {/* Category Chips */}
-            <Text style={styles.fieldLabel}>Category</Text>
+            {/* Category Chips - Show AI suggested category first if available */}
+            <View style={styles.categoryHeader}>
+              <Text style={styles.fieldLabel}>Category</Text>
+              {aiSuggestedCategory && !aiFailed && (
+                <View style={styles.aiSuggestBadge}>
+                  <Ionicons name="sparkles" size={12} color={COLORS.primary} />
+                  <Text style={styles.aiSuggestText}>AI: {aiSuggestedCategory}</Text>
+                </View>
+              )}
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-              {CATEGORIES.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-                  onPress={() => setCategory(cat)}
-                >
-                  <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {/* Reorder categories: put selected/AI-suggested first */}
+              {(() => {
+                // Build ordered category list
+                let orderedCategories = [...BASE_CATEGORIES];
+                
+                // Move selected category to front if it's in the list and not "Other"
+                if (category && category !== 'Other' && orderedCategories.includes(category)) {
+                  orderedCategories = orderedCategories.filter(c => c !== category);
+                  orderedCategories.unshift(category);
+                }
+                
+                return orderedCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryChip, 
+                      category === cat && styles.categoryChipActive,
+                      cat === aiSuggestedCategory && category !== cat && styles.categoryChipAiSuggested,
+                    ]}
+                    onPress={() => {
+                      setCategory(cat);
+                      if (cat !== 'Other') {
+                        setCustomCategory('');
+                      }
+                    }}
+                  >
+                    {cat === category && aiSuggestedCategory && cat.toLowerCase() === aiSuggestedCategory.toLowerCase() && (
+                      <Ionicons name="sparkles" size={12} color={COLORS.white} style={{ marginRight: 4 }} />
+                    )}
+                    <Text style={[
+                      styles.categoryChipText, 
+                      category === cat && styles.categoryChipTextActive,
+                    ]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ));
+              })()}
             </ScrollView>
+
+            {/* Custom category input when "Other" is selected */}
+            {category === 'Other' && (
+              <View style={styles.customCategoryWrap}>
+                <Text style={styles.customCategoryLabel}>
+                  {customCategory && aiSuggestedCategory === customCategory 
+                    ? '✨ AI Suggested Category:' 
+                    : 'Enter Category:'}
+                </Text>
+                <TextInput
+                  style={styles.customCategoryInput}
+                  value={customCategory}
+                  onChangeText={setCustomCategory}
+                  placeholder="Enter category name..."
+                  placeholderTextColor={COLORS.gray400}
+                />
+              </View>
+            )}
 
             {/* Shop status */}
             {shopLoading && (
@@ -453,14 +540,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.gray900,
   },
   inputMultiline: { minHeight: 80, textAlignVertical: 'top', paddingTop: 11 },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, marginBottom: 6 },
+  aiSuggestBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: COLORS.primaryLight || '#E8F4FD', borderRadius: 12,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  aiSuggestText: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
   categoryScroll: { flexGrow: 0, marginTop: 2 },
   categoryChip: {
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: COLORS.white,
     borderWidth: 1, borderColor: COLORS.gray200, marginRight: 8, marginBottom: 4,
   },
   categoryChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  categoryChipAiSuggested: { borderColor: COLORS.primary, borderWidth: 2 },
   categoryChipText: { fontSize: 13, fontWeight: '500', color: COLORS.gray600 },
   categoryChipTextActive: { color: COLORS.white, fontWeight: '700' },
+  customCategoryWrap: { marginTop: 12 },
+  customCategoryLabel: { fontSize: 12, fontWeight: '600', color: COLORS.gray600, marginBottom: 6 },
+  customCategoryInput: {
+    backgroundColor: COLORS.white, borderRadius: 10, borderWidth: 1, borderColor: COLORS.primary,
+    paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: COLORS.gray900,
+  },
   shopStatus: { fontSize: 13, color: COLORS.gray400, textAlign: 'center', marginTop: 16 },
   shopStatusError: { fontSize: 13, color: COLORS.red, textAlign: 'center', marginTop: 16 },
   shopCtaWrap: { alignItems: 'center', marginTop: 4 },

@@ -220,8 +220,11 @@ async def follow_shop(
     user_id: UUID,
     shop_id: UUID,
 ) -> None:
-    """Follow a shop."""
-    # Verify shop exists
+    """Follow a shop and notify the shop owner."""
+    from app.auth.models import User
+    from app.notifications.service import create_notification
+    
+    # Verify shop exists and get owner info
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:
@@ -236,9 +239,30 @@ async def follow_shop(
     if existing.scalar_one_or_none():
         raise BadRequestError("Already following this shop")
 
+    # Get follower's name for the notification
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    follower_name = user.name if user and user.name else "A customer"
+
     follow = Follow(user_id=user_id, shop_id=shop_id)
     db.add(follow)
     await db.flush()
+    
+    # Send notification to shop owner
+    if shop.owner_id:
+        try:
+            await create_notification(
+                db,
+                user_id=shop.owner_id,
+                notification_type="new_follower",
+                reference_type="follow",
+                reference_id=user_id,  # Store follower's user_id as reference
+                user_name=follower_name,
+            )
+        except Exception as e:
+            # Don't fail the follow if notification fails
+            import logging
+            logging.warning(f"Failed to send follow notification: {e}")
 
 
 async def unfollow_shop(

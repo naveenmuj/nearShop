@@ -187,7 +187,7 @@ function AnimatedButton({ label, onPress, variant = 'primary', color, style, del
   const isDestructive = variant === 'destructive';
   
   return (
-    <Animated.View style={[{ flex: 1, transform: [{ scale: Animated.multiply(scaleAnim, pressAnim) }] }, style]}>
+    <Animated.View style={[{ transform: [{ scale: Animated.multiply(scaleAnim, pressAnim) }] }, style]}>
       <TouchableOpacity
         style={[
           styles.button,
@@ -205,7 +205,7 @@ function AnimatedButton({ label, onPress, variant = 'primary', color, style, del
           isPrimary && styles.buttonTextPrimary,
           isDestructive && styles.buttonTextPrimary,
           !isPrimary && !isDestructive && styles.buttonTextSecondary,
-        ]}>
+        ]} numberOfLines={1}>
           {label}
         </Text>
       </TouchableOpacity>
@@ -488,16 +488,19 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
     paddingBottom: 24,
-    gap: 12,
+    gap: 10,
+    justifyContent: 'center',
   },
   button: {
     paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 90,
   },
   buttonSecondary: {
     backgroundColor: COLORS.gray100,

@@ -124,6 +124,7 @@ export default function CatalogScreen() {
     return (
       <TouchableOpacity
         style={styles.productRow}
+        onPress={() => router.push({ pathname: '/(business)/product-details', params: { id: item.id } })}
         onLongPress={() => handleToggle(item)}
         activeOpacity={0.7}
       >

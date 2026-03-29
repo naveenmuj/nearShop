@@ -16,6 +16,7 @@ export const unfollowShop = (id) => authDelete(`/shops/${id}/follow`);
 export const createShop = (data) => authPost('/shops', data);
 export const updateShop = (id, data) => authPut(`/shops/${id}`, data);
 export const getMyShops = () => authGet('/shops/mine');
+export const getShopFollowers = (id, params = {}) => authGet(`/shops/${id}/followers`, { params });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SHOP VERIFICATION APIs
