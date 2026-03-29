@@ -1,19 +1,19 @@
-import client from './api';
+import { authGet, authPost } from './api';
 
 export const getShopStats = (shopId, period = '7d') =>
-  client.get(`/analytics/shop/${shopId}/stats`, { params: { period } });
+  authGet(`/analytics/shop/${shopId}/stats`, { params: { period } });
 
 export const getProductAnalytics = (shopId) =>
-  client.get(`/analytics/shop/${shopId}/products`);
+  authGet(`/analytics/shop/${shopId}/products`);
 
 export const getDemandInsights = (shopId, lat, lng) =>
-  client.get(`/analytics/shop/${shopId}/demand`, { params: { lat, lng } });
+  authGet(`/analytics/shop/${shopId}/demand`, { params: { lat, lng } });
 
 export const getOperationalInsights = (shopId, lat, lng) =>
-  client.get(`/analytics/shop/${shopId}/operational-insights`, { params: { lat, lng } });
+  authGet(`/analytics/shop/${shopId}/operational-insights`, { params: { lat, lng } });
 
 export const trackEvent = (data) =>
-  client.post('/analytics/events', data);
+  authPost('/analytics/events', data);
 
 export const trackEventsBatch = (events) =>
-  client.post('/analytics/events/batch', { events });
+  authPost('/analytics/events/batch', { events });

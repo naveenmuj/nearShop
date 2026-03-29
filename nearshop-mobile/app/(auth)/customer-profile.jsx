@@ -11,7 +11,7 @@ import { alert } from '../../components/ui/PremiumAlert';
 import { updateProfile } from '../../lib/auth';
 import useAuthStore from '../../store/authStore';
 import { COLORS, SHADOWS } from '../../constants/theme';
-import client from '../../lib/api';
+import client, { buildAuthConfig } from '../../lib/api';
 
 const INTERESTS = [
   'Clothing & Fashion', 'Electronics', 'Grocery & Daily Needs',
@@ -73,9 +73,10 @@ export default function CustomerProfileScreen() {
       if (user?.id) formData.append('entity_id', String(user.id));
       formData.append('entity_type', 'user');
       formData.append('purpose', 'avatar');
-      const { data } = await client.post('/upload', formData, {
+      const config = await buildAuthConfig({
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      const { data } = await client.post('/upload', formData, config);
       const url = data?.url || data?.file_url;
       if (url) setAvatarUri(url);
     } catch {

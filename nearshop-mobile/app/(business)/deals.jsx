@@ -35,7 +35,7 @@ export default function DealsScreen() {
     setLoading(true); setError(null);
     try {
       const [pRes, dRes] = await Promise.allSettled([
-        import('../../lib/api').then(({ default: client }) => client.get(`/shops/${shopId}/products`, { params: { per_page: 100 } })),
+        import('../../lib/api').then(({ authGet }) => authGet(`/shops/${shopId}/products`, { params: { per_page: 100 } })),
         getShopDeals(shopId),
       ]);
       if (pRes.status === 'fulfilled') {

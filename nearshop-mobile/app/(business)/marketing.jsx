@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -32,7 +32,7 @@ export default function MarketingScreen() {
   const loadProducts = useCallback(async () => {
     if (!shopId) return;
     try {
-      const res = await client.get(`/shops/${shopId}/products`, { params: { per_page: 100 } });
+      const res = await authGet(`/shops/${shopId}/products`, { params: { per_page: 100 } });
       const items = res.data?.items ?? res.data ?? [];
       setProducts(Array.isArray(items) ? items : []);
     } catch {}
@@ -64,7 +64,7 @@ export default function MarketingScreen() {
       if (selectedProducts.length > 0) {
         payload.product_ids = selectedProducts;
       }
-      const res = await client.post('/marketing/whatsapp-text', payload);
+      const res = await authPost('/marketing/whatsapp-text', payload);
       setGeneratedText(res.data?.text ?? '');
     } catch (err) {
       toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to generate' });
@@ -83,7 +83,7 @@ export default function MarketingScreen() {
   const notifyFollowers = async () => {
     if (!generatedText) return;
     try {
-      await client.post('/broadcast/send', {
+      await authPost('/broadcast/send', {
         title: TEMPLATES.find(t => t.key === template)?.label || 'New Update',
         message: generatedText.substring(0, 200),
         segment: 'all',

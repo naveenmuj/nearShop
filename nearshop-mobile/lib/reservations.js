@@ -1,6 +1,6 @@
-import client from './api';
+import { authPost, authGet, authDelete } from './api';
 
 export const createReservation = (productId) =>
-  client.post('/reservations', { product_id: productId });
-export const getMyReservations = () => client.get('/reservations/my');
-export const cancelReservation = (id) => client.delete(`/reservations/${id}`);
+  authPost('/reservations', { product_id: productId });
+export const getMyReservations = () => authGet('/reservations/my');
+export const cancelReservation = (id) => authDelete(`/reservations/${id}`);

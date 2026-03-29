@@ -343,160 +343,40 @@ async def get_personalized_recommendations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Get personalized product and shop recommendations based on:
-    - Order history
-    - Search history
-    - Browsing patterns
-    """
-    recommendations = []
-    
-    if not current_user:
-        # Return popular items for anonymous users
-        popular_products = await db.execute(
-            select(Product.id, Product.name, Product.price, Product.images, Product.category)
-            .where(Product.is_available == True)
-            .order_by(Product.view_count.desc())
-            .limit(limit)
-        )
-        
-        for prod in popular_products.fetchall():
-            recommendations.append({
-                "type": "product",
-                "id": str(prod[0]),
-                "name": prod[1],
-                "price": float(prod[2]),
-                "image": prod[3][0] if prod[3] else None,
-                "category": prod[4],
-                "reason": "Popular in your area",
-            })
-        
-        return {"recommendations": recommendations, "personalized": False}
-    
-    # Get user's order history for recommendations
-    orders_result = await db.execute(
-        select(Order)
-        .where(Order.customer_id == current_user.id)
-        .order_by(Order.created_at.desc())
-        .limit(20)
+    """Compatibility wrapper for older clients. Delegates to the tuned AI recommendation engine."""
+    from app.ai.recommendations import get_recommendation_payloads
+
+    if lat is None or lng is None:
+        return {
+            "recommendations": [],
+            "personalized": False,
+            "detail": "location_required",
+        }
+
+    products = await get_recommendation_payloads(
+        db,
+        current_user.id,
+        lat,
+        lng,
+        limit,
     )
-    orders = orders_result.scalars().all()
-    
-    # Extract frequently ordered products
-    product_counts = {}
-    shop_counts = {}
-    categories_ordered = set()
-    
-    for order in orders:
-        shop_counts[str(order.shop_id)] = shop_counts.get(str(order.shop_id), 0) + 1
-        
-        items = order.items or []
-        if isinstance(items, str):
-            import json
-            items = json.loads(items)
-        
-        for item in items:
-            product_id = item.get("product_id")
-            if product_id:
-                product_counts[product_id] = product_counts.get(product_id, 0) + item.get("quantity", 1)
-            category = item.get("category")
-            if category:
-                categories_ordered.add(category)
-    
-    # Recommend frequently ordered products (reorder suggestions)
-    if product_counts:
-        top_product_ids = sorted(product_counts, key=product_counts.get, reverse=True)[:5]
-        
-        for prod_id in top_product_ids:
-            try:
-                prod_result = await db.execute(
-                    select(Product.id, Product.name, Product.price, Product.images, Product.category)
-                    .where(Product.id == prod_id, Product.is_available == True)
-                )
-                prod = prod_result.first()
-                if prod:
-                    recommendations.append({
-                        "type": "product",
-                        "id": str(prod[0]),
-                        "name": prod[1],
-                        "price": float(prod[2]),
-                        "image": prod[3][0] if prod[3] else None,
-                        "category": prod[4],
-                        "reason": "Buy again",
-                    })
-            except Exception:
-                pass
-    
-    # Recommend favorite shops
-    if shop_counts:
-        top_shop_ids = sorted(shop_counts, key=shop_counts.get, reverse=True)[:3]
-        
-        for shop_id in top_shop_ids:
-            try:
-                from uuid import UUID as UUIDType
-                shop_result = await db.execute(
-                    select(Shop.id, Shop.name, Shop.category, Shop.logo_url)
-                    .where(Shop.id == UUIDType(shop_id), Shop.is_active == True)
-                )
-                shop = shop_result.first()
-                if shop:
-                    recommendations.append({
-                        "type": "shop",
-                        "id": str(shop[0]),
-                        "name": shop[1],
-                        "category": shop[2],
-                        "image": shop[3],
-                        "reason": f"Ordered {shop_counts[shop_id]} times",
-                    })
-            except Exception:
-                pass
-    
-    # Recommend products from categories user orders from
-    if categories_ordered and len(recommendations) < limit:
-        for category in list(categories_ordered)[:3]:
-            cat_products = await db.execute(
-                select(Product.id, Product.name, Product.price, Product.images, Product.category)
-                .where(
-                    Product.is_available == True,
-                    Product.category.ilike(f"%{category}%"),
-                )
-                .order_by(Product.view_count.desc())
-                .limit(3)
-            )
-            
-            existing_ids = {r["id"] for r in recommendations}
-            for prod in cat_products.fetchall():
-                if str(prod[0]) not in existing_ids and len(recommendations) < limit:
-                    recommendations.append({
-                        "type": "product",
-                        "id": str(prod[0]),
-                        "name": prod[1],
-                        "price": float(prod[2]),
-                        "image": prod[3][0] if prod[3] else None,
-                        "category": prod[4],
-                        "reason": f"Because you like {category}",
-                    })
-    
-    # Fill remaining with popular products
-    if len(recommendations) < limit:
-        existing_ids = {r["id"] for r in recommendations}
-        popular_products = await db.execute(
-            select(Product.id, Product.name, Product.price, Product.images, Product.category)
-            .where(Product.is_available == True)
-            .order_by(Product.view_count.desc())
-            .limit(limit - len(recommendations) + 5)
-        )
-        
-        for prod in popular_products.fetchall():
-            if str(prod[0]) not in existing_ids and len(recommendations) < limit:
-                recommendations.append({
-                    "type": "product",
-                    "id": str(prod[0]),
-                    "name": prod[1],
-                    "price": float(prod[2]),
-                    "image": prod[3][0] if prod[3] else None,
-                    "category": prod[4],
-                    "reason": "Popular near you",
-                })
-    
-    return {"recommendations": recommendations[:limit], "personalized": True}
+    recommendations = [
+        {
+            "type": "product",
+            "id": item["id"],
+            "name": item["name"],
+            "price": item["price"],
+            "image": item["images"][0] if item.get("images") else None,
+            "image_url": item["images"][0] if item.get("images") else None,
+            "images": item.get("images", []),
+            "category": item.get("category"),
+            "subcategory": item.get("subcategory"),
+            "shop_id": item.get("shop_id"),
+            "shop_name": item.get("shop_name"),
+            "reason": item.get("reason"),
+            "ranking_score": item.get("ranking_score"),
+            "ranking_breakdown": item.get("ranking_breakdown"),
+        }
+        for item in products
+    ]
+    return {"recommendations": recommendations, "personalized": True}

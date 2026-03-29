@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -22,7 +22,7 @@ export default function FestivalsScreen() {
   const loadData = useCallback(async () => {
     setError(null);
     try {
-      const res = await client.get('/marketing/festivals');
+      const res = await authGet('/marketing/festivals');
       setFestivals(res.data?.festivals ?? res.data ?? []);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Failed to load festivals');
@@ -44,7 +44,7 @@ export default function FestivalsScreen() {
 
   const shareOnWhatsApp = async (f) => {
     try {
-      const res = await client.post('/marketing/whatsapp-text', { template: 'festival' });
+      const res = await authPost('/marketing/whatsapp-text', { template: 'festival' });
       const text = res.data?.text || `${f.name} Special! Visit us for amazing festival deals.`;
       Linking.openURL(`whatsapp://send?text=${encodeURIComponent(text)}`).catch(() => {});
     } catch {
@@ -55,7 +55,7 @@ export default function FestivalsScreen() {
 
   const notifyFollowers = async (f) => {
     try {
-      await client.post('/broadcast/send', {
+      await authPost('/broadcast/send', {
         title: `${f.name} Special!`,
         message: `Get ready for ${f.name}! We have special deals and offers waiting for you. Visit now!`,
         segment: 'all',

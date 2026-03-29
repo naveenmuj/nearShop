@@ -1,8 +1,8 @@
-import client from './api';
+import { authGet, authPost } from './api';
 
-export const getBalance = () => client.get('/loyalty/balance');
+export const getBalance = () => authGet('/loyalty/balance');
 export const getCoinHistory = (params = {}) =>
-  client.get('/loyalty/history', { params });
-export const getBadges = () => client.get('/loyalty/badges');
-export const getStreak = () => client.get('/loyalty/streak');
-export const dailyCheckin = () => client.post('/loyalty/streak/checkin');
+  authGet('/loyalty/history', { params });
+export const getBadges = () => authGet('/loyalty/badges');
+export const getStreak = () => authGet('/loyalty/streak');
+export const dailyCheckin = () => authPost('/loyalty/streak/checkin');

@@ -4,7 +4,7 @@ import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import { getShopProducts } from '../../lib/shops';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -37,7 +37,7 @@ export default function BillingScreen() {
   const loadHistory = useCallback(async () => {
     setLoading(true);
     try {
-      const [bRes, sRes] = await Promise.allSettled([client.get('/billing', { params: { per_page: 30 } }), client.get('/billing/stats', { params: { period: '30d' } })]);
+      const [bRes, sRes] = await Promise.allSettled([authGet('/billing', { params: { per_page: 30 } }), authGet('/billing/stats', { params: { period: '30d' } })]);
       if (bRes.status === 'fulfilled') setBills(bRes.value?.data?.bills ?? bRes.value?.data?.items ?? []);
       if (sRes.status === 'fulfilled') setStats(sRes.value?.data ?? null);
     } catch {} finally { setLoading(false); }
@@ -64,7 +64,7 @@ export default function BillingScreen() {
     if (items.length === 0) { alert.error({ title: 'Error', message: 'Add at least one item' }); return; }
     setCreating(true);
     try {
-      const res = await client.post('/billing', {
+      const res = await authPost('/billing', {
         customer_name: customerName || undefined, customer_phone: customerPhone || undefined,
         items: items.map(i => ({ product_id: i.product_id || undefined, name: i.name, price: Number(i.price), quantity: i.quantity })),
         gst_percentage: Number(gstPct) || 0, discount_amount: Number(discount) || 0,

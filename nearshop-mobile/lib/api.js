@@ -16,7 +16,16 @@ export const getStoredAccessToken = AuthService.getAccessToken;
 export async function buildAuthConfig(config = {}) {
   const token = await AuthService.getAccessToken();
   const headers = { ...(config.headers || {}) };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+    if (__DEV__) {
+      console.log('[API] Token found for request:', token.slice(0, 20) + '...');
+    }
+  } else {
+    if (__DEV__) {
+      console.warn('[API] No token available for authenticated request!');
+    }
+  }
   return { ...config, headers };
 }
 
@@ -55,23 +64,36 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-client.interceptors.request.use(async (config) => {
-  try {
-    const token = await AuthService.getAccessToken();
-    config.headers = config.headers || {};
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Request interceptor - adds token if available
+client.interceptors.request.use(
+  async (config) => {
+    // Skip token for unauthenticated endpoints
+    const publicEndpoints = ['/auth/send-otp', '/auth/verify-otp', '/auth/firebase-signin', '/auth/refresh'];
+    const isPublic = publicEndpoints.some(ep => config.url?.includes(ep));
+    
+    if (!isPublic) {
+      try {
+        const token = await AuthService.getAccessToken();
+        config.headers = config.headers || {};
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (e) {
+        if (__DEV__) {
+          console.warn('[API] Error getting token:', e.message);
+        }
+      }
     }
-  } catch (e) {
-    // SecureStore may not be available
-  }
-  if (__DEV__) {
-    const auth = config.headers.Authorization ? '🔑 authed' : '🔓 anon';
-    console.log(`[API →] ${config.method?.toUpperCase()} ${config.baseURL}${config.url} ${auth}`, config.params || '');
-  }
-  config._startTime = Date.now();
-  return config;
-});
+    
+    if (__DEV__) {
+      const auth = config.headers?.Authorization ? '🔑 authed' : '🔓 anon';
+      console.log(`[API →] ${config.method?.toUpperCase()} ${config.baseURL}${config.url} ${auth}`, config.params || '');
+    }
+    config._startTime = Date.now();
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 client.interceptors.response.use(
   (response) => {

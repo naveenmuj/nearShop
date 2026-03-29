@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import client from '../../lib/api';
+import { authGet } from '../../lib/api';
 import useMyShop from '../../hooks/useMyShop';
 import { exportOrders } from '../../lib/orders';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -29,7 +29,7 @@ export default function ReportsScreen() {
     setLoading(true); setError(null);
     try {
       const [rRes] = await Promise.allSettled([
-        client.get(`/shops/${shopId}/eod-report`, { params: { report_date: fmtDate(date) } }),
+        authGet(`/shops/${shopId}/eod-report`, { params: { report_date: fmtDate(date) } }),
       ]);
       if (rRes.status === 'fulfilled') setReport(rRes.value.data);
       else setError('No report available for this date');

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, StatusBar, BackHandler, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -26,7 +26,7 @@ export default function ReviewsScreen() {
     setError(null);
     try {
       // Use correct endpoint
-      const res = await client.get(`/reviews/shop/${shopId}`);
+      const res = await authGet(`/reviews/shop/${shopId}`);
       const d = res.data;
       setReviews(Array.isArray(d) ? d : d?.items ?? d?.reviews ?? []);
     } catch (err) {
@@ -44,7 +44,7 @@ export default function ReviewsScreen() {
     if (!text) return;
     setReplyingId(reviewId);
     try {
-      await client.post(`/reviews/${reviewId}/reply`, { reply: text });
+      await authPost(`/reviews/${reviewId}/reply`, { reply: text });
       toast.show({ type: 'success', text1: 'Reply posted!' });
       setReplyText(prev => ({ ...prev, [reviewId]: '' }));
       loadData(true);

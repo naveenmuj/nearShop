@@ -1,14 +1,21 @@
-import client, { authPatch } from './api'
+import client, { authGet, authPost, authDelete, authPatch } from './api'
 
-export const trackView = (productId) => client.post('/users/recently-viewed', { product_id: productId })
-export const getRecentlyViewed = (limit = 20) => client.get('/users/recently-viewed', { params: { limit } })
-export const clearRecentlyViewed = () => client.delete('/users/recently-viewed')
+// User engagement - requires auth
+export const trackView = (productId) => authPost('/users/recently-viewed', { product_id: productId })
+export const getRecentlyViewed = (limit = 20) => authGet('/users/recently-viewed', { params: { limit } })
+export const clearRecentlyViewed = () => authDelete('/users/recently-viewed')
+
+// Search - public
 export const getSearchSuggestions = (q, limit = 5) => client.get('/search/suggestions', { params: { q, limit } })
-export const logSearch = (query) => client.post('/search/log', { query })
-export const getRecentSearches = () => client.get('/search/recent')
-export const deleteRecentSearch = (query) => client.delete(`/search/recent/${encodeURIComponent(query)}`)
-export const getOrderTracking = (orderId) => client.get(`/orders/${orderId}/tracking`)
-export const getUserAchievements = () => client.get('/users/achievements')
-export const getDailySpinStatus = () => client.get('/daily-spin/status')
-export const performDailySpin = () => client.post('/daily-spin')
+export const logSearch = (query) => authPost('/search/log', { query })
+export const getRecentSearches = () => authGet('/search/recent')
+export const deleteRecentSearch = (query) => authDelete(`/search/recent/${encodeURIComponent(query)}`)
+
+// Order tracking - requires auth
+export const getOrderTracking = (orderId) => authGet(`/orders/${orderId}/tracking`)
+
+// User features - requires auth
+export const getUserAchievements = () => authGet('/users/achievements')
+export const getDailySpinStatus = () => authGet('/daily-spin/status')
+export const performDailySpin = () => authPost('/daily-spin')
 export const updateUserSettings = (settings) => authPatch('/auth/settings', settings)

@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Activi
 import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
@@ -31,8 +31,8 @@ export default function BroadcastScreen() {
     setLoading(true); setError(null);
     try {
       const [sRes, hRes] = await Promise.allSettled([
-        client.get('/broadcast/segments'),
-        client.get('/broadcast/history'),
+        authGet('/broadcast/segments'),
+        authGet('/broadcast/history'),
       ]);
       if (sRes.status === 'fulfilled') setSegments(sRes.value.data?.segments ?? sRes.value.data ?? []);
       if (hRes.status === 'fulfilled') setHistory(hRes.value.data?.broadcasts ?? hRes.value.data ?? []);
@@ -47,10 +47,14 @@ export default function BroadcastScreen() {
     if (!message.trim()) { alert.error({ title: 'Error', message: 'Enter a message' }); return; }
     setSending(true);
     try {
-      await client.post('/broadcast/send', { segment: selectedSegment, message: message.trim() });
+      await authPost('/broadcast/send', { segment: selectedSegment, message: message.trim() });
       alert.success({ title: 'Success', message: 'Broadcast sent!' });
       setMessage(''); loadData();
-    } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to send broadcast' }); }
+    } catch (e) { 
+      const detail = e.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : (typeof detail === 'object' ? JSON.stringify(detail) : 'Failed to send broadcast');
+      alert.error({ title: 'Error', message: msg }); 
+    }
     finally { setSending(false); }
   };
 

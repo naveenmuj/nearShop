@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet } from '../../lib/api';
 import { getCustomerSegments } from '../../lib/api/ai';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -26,7 +26,7 @@ export default function CustomersScreen() {
     setLoading(true); setError(null);
     try {
       const [oRes, segRes] = await Promise.allSettled([
-        client.get(`/orders/shop/${shopId}`, { params: { per_page: 500 } }),
+        authGet(`/orders/shop/${shopId}`, { params: { per_page: 500 } }),
         getCustomerSegments(shopId),
       ]);
 

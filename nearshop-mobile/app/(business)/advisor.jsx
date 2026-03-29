@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -52,7 +52,7 @@ export default function AdvisorScreen() {
   const loadSuggestions = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await client.get('/advisor/suggestions');
+      const res = await authGet('/advisor/suggestions');
       setSuggestions(res.data?.suggestions ?? res.data ?? []);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Failed to load suggestions');
@@ -77,7 +77,7 @@ export default function AdvisorScreen() {
     setChatLoading(true);
 
     try {
-      const res = await client.post('/advisor/chat', { question: q });
+      const res = await authPost('/advisor/chat', { question: q });
       setChatMessages(prev => [...prev, {
         role: 'assistant',
         text: res.data?.answer || 'I couldn\'t generate advice right now.',

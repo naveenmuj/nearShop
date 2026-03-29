@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Activi
 import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
@@ -25,9 +25,9 @@ export default function InventoryScreen() {
     setLoading(true); setError(null);
     try {
       const [vRes, lRes, mRes] = await Promise.allSettled([
-        client.get('/inventory/value'),
-        client.get('/inventory/low-stock'),
-        client.get('/inventory/margins'),
+        authGet('/inventory/value'),
+        authGet('/inventory/low-stock'),
+        authGet('/inventory/margins'),
       ]);
       if (vRes.status === 'fulfilled') setStockValue(vRes.value.data);
       if (lRes.status === 'fulfilled') setLowStock(lRes.value.data?.items ?? lRes.value.data ?? []);
@@ -43,7 +43,7 @@ export default function InventoryScreen() {
     if (!restockQty || Number(restockQty) <= 0) { alert.error({ title: 'Error', message: 'Enter a valid quantity' }); return; }
     setRestocking(true);
     try {
-      await client.post('/inventory/restock', { product_id: restockModal.product_id || restockModal.id, quantity: Number(restockQty) });
+      await authPost('/inventory/restock', { product_id: restockModal.product_id || restockModal.id, quantity: Number(restockQty) });
       alert.success({ title: 'Success', message: `Restocked ${restockModal.name || 'product'}` });
       setRestockModal(null); setRestockQty(''); loadData();
     } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to restock' }); }

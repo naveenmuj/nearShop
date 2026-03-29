@@ -1,14 +1,14 @@
-import client from './api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authGet, authPost } from './api';
+import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
-// REST APIs
-export const startHaggle = (data) => client.post('/haggle/start', data);
-export const sendOffer = (id, data) => client.post(`/haggle/${id}/offer`, data);
-export const acceptHaggle = (id) => client.post(`/haggle/${id}/accept`);
-export const rejectHaggle = (id) => client.post(`/haggle/${id}/reject`);
-export const getMyHaggles = () => client.get('/haggle/my');
-export const getShopHaggles = (shopId) => client.get(`/haggle/shop/${shopId}`);
+// REST APIs - all require auth
+export const startHaggle = (data) => authPost('/haggle/start', data);
+export const sendOffer = (id, data) => authPost(`/haggle/${id}/offer`, data);
+export const acceptHaggle = (id) => authPost(`/haggle/${id}/accept`);
+export const rejectHaggle = (id) => authPost(`/haggle/${id}/reject`);
+export const getMyHaggles = () => authGet('/haggle/my');
+export const getShopHaggles = (shopId) => authGet(`/haggle/shop/${shopId}`);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEBSOCKET FOR REAL-TIME HAGGLE CHAT
@@ -21,8 +21,8 @@ export const getShopHaggles = (shopId) => client.get(`/haggle/shop/${shopId}`);
  * @returns {Promise<Object>} - Connection object with send and close methods
  */
 export const createHaggleConnection = async (sessionId, handlers = {}) => {
-  // Get token from storage
-  const token = await AsyncStorage.getItem('auth_token');
+  // Get token from SecureStore (consistent with the rest of the app)
+  const token = await SecureStore.getItemAsync('access_token');
   if (!token) {
     throw new Error('No auth token found');
   }

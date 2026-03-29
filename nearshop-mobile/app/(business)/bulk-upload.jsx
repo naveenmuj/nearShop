@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
-import client from '../../lib/api';
+import { authPost } from '../../lib/api';
 import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -88,7 +88,7 @@ export default function BulkUploadScreen() {
         images: [],
       }));
 
-      const res = await client.post(`/products/bulk?shop_id=${shopId}`, payload);
+      const res = await authPost(`/products/bulk?shop_id=${shopId}`, payload);
       setResult(res.data);
 
       if (res.data.created_count > 0) {

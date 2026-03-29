@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, Activi
 import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import client from '../../lib/api';
+import { authGet, authPost } from '../../lib/api';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 
@@ -27,8 +27,8 @@ export default function ExpensesScreen() {
     setLoading(true); setError(null);
     try {
       const [eRes, pRes] = await Promise.allSettled([
-        client.get('/expenses', { params: { period: '30d' } }),
-        client.get('/expenses/profit-loss', { params: { period: '30d' } }),
+        authGet('/expenses', { params: { period: '30d' } }),
+        authGet('/expenses/profit-loss', { params: { period: '30d' } }),
       ]);
       if (eRes.status === 'fulfilled') setExpenses(eRes.value.data?.expenses ?? eRes.value.data ?? []);
       if (pRes.status === 'fulfilled') setPnl(pRes.value.data);
@@ -43,7 +43,7 @@ export default function ExpensesScreen() {
     if (!amount || Number(amount) <= 0) { alert.error({ title: 'Error', message: 'Enter a valid amount' }); return; }
     setSubmitting(true);
     try {
-      await client.post('/expenses', { amount: Number(amount), category, description: description || undefined });
+      await authPost('/expenses', { amount: Number(amount), category, description: description || undefined });
       alert.success({ title: 'Success', message: 'Expense added' });
       setAmount(''); setDescription(''); loadData();
     } catch (e) { alert.error({ title: 'Error', message: e.response?.data?.detail || 'Failed to add expense' }); }

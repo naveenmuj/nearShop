@@ -1,6 +1,6 @@
-import client from './api';
+import { authGet, authPut } from './api';
 
-export const getNotifications = () => client.get('/notifications');
-export const getUnreadCount = () => client.get('/notifications/unread-count');
-export const markAllRead = () => client.put('/notifications/read-all');
-export const markRead = (id) => client.put(`/notifications/${id}/read`);
+export const getNotifications = () => authGet('/notifications');
+export const getUnreadCount = () => authGet('/notifications/unread-count');
+export const markAllRead = () => authPut('/notifications/read-all');
+export const markRead = (id) => authPut(`/notifications/${id}/read`);

@@ -1,8 +1,11 @@
-import client from './api';
+import client, { authGet, authPost } from './api';
 
+// Stories feed - public (for discovery)
 export const getStoriesFeed = () => client.get('/stories/feed');
 export const getDiscoverStories = (lat, lng) =>
   client.get('/stories/discover', { params: { lat, lng } });
-export const viewStory = (id) => client.post(`/stories/${id}/view`);
+
+// Story interactions - requires auth
+export const viewStory = (id) => authPost(`/stories/${id}/view`);
 export const createStory = (data, shopId) =>
-  client.post(`/stories?shop_id=${shopId}`, data);
+  authPost(`/stories?shop_id=${shopId}`, data);

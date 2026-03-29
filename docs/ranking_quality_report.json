@@ -1,6 +1,6 @@
 {
   "base_url": "http://127.0.0.1:8010",
-  "evaluated_at": "2026-03-27T09:13:44.725117+00:00",
+  "evaluated_at": "2026-03-29T08:40:52.676527+00:00",
   "personas": {
     "ml.c1.1774488839@example.com": {
       "content": {
@@ -41,7 +41,7 @@
           {
             "name": "AirPods Pro 2",
             "hits": [],
-            "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+            "shop_id": "3afe20be-b58e-41e0-b6fb-af62f3bed6fb"
           }
         ]
       },
@@ -90,17 +90,15 @@
         "term_coverage": 0.8,
         "top_5": [
           {
+            "name": "USB Condenser Mic",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
             "name": "Pro Gaming Headset",
             "hits": [
               "gaming",
               "headset"
-            ],
-            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-          },
-          {
-            "name": "Compact Mechanical Keyboard",
-            "hits": [
-              "keyboard"
             ],
             "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
           },
@@ -112,21 +110,23 @@
             "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
           },
           {
+            "name": "Compact Mechanical Keyboard",
+            "hits": [
+              "keyboard"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
             "name": "Gaming Mouse Pro",
             "hits": [
               "gaming",
               "mouse"
             ],
             "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
-          },
-          {
-            "name": "USB Condenser Mic",
-            "hits": [],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           }
         ]
       },
-      "unified_shops_count": 5
+      "unified_shops_count": 2
     },
     "ml.c4@example.com": {
       "content": {
@@ -214,15 +214,13 @@
         ]
       },
       "unified_products": {
-        "precision_at_5": 0.4,
+        "precision_at_5": 0.6,
         "shop_diversity_at_5": 3,
-        "term_coverage": 0.6,
+        "term_coverage": 0.8,
         "top_5": [
           {
-            "name": "Wireless Earbuds Neo",
-            "hits": [
-              "earbuds"
-            ],
+            "name": "USB Condenser Mic",
+            "hits": [],
             "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           },
           {
@@ -234,28 +232,32 @@
             "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           },
           {
-            "name": "USB Condenser Mic",
-            "hits": [],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-          },
-          {
             "name": "Pro Gaming Headset",
             "hits": [],
             "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
           },
           {
-            "name": "Apple AirPods Pro 2",
-            "hits": [],
+            "name": "Wireless Earbuds Neo",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Sony WH-1000XM5 Headphones",
+            "hits": [
+              "headphones"
+            ],
             "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
           }
         ]
       },
-      "unified_shops_count": 5
+      "unified_shops_count": 3
     },
     "ml.c5@example.com": {
       "content": {
-        "precision_at_5": 0.4,
-        "shop_diversity_at_5": 3,
+        "precision_at_5": 0.6,
+        "shop_diversity_at_5": 4,
         "term_coverage": 0.8,
         "top_5": [
           {
@@ -278,17 +280,19 @@
           {
             "name": "AirPods Pro 2",
             "hits": [],
-            "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
-          },
-          {
-            "name": "Apple AirPods Pro 2",
-            "hits": [],
-            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+            "shop_id": "3afe20be-b58e-41e0-b6fb-af62f3bed6fb"
           },
           {
             "name": "Sony WH-1000XM5",
             "hits": [],
-            "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+            "shop_id": "ffcdfece-b55f-4628-96fa-a551aeb82703"
+          },
+          {
+            "name": "Anker 65W USB-C Charger",
+            "hits": [
+              "usb"
+            ],
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
           }
         ]
       },
@@ -359,18 +363,18 @@
             "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           },
           {
+            "name": "Bluetooth Speaker Mini",
+            "hits": [],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
             "name": "Pro Gaming Headset",
             "hits": [],
             "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-          },
-          {
-            "name": "Wireless Earbuds Neo",
-            "hits": [],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           }
         ]
       },
-      "unified_shops_count": 5
+      "unified_shops_count": 3
     }
   },
   "merchant_views": {
@@ -451,7 +455,7 @@
     "operational_insights": {
       "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
       "meta": {
-        "generated_at": "2026-03-27T09:13:49.792547Z",
+        "generated_at": "2026-03-29T08:41:05.698909Z",
         "analysis_window_days": 30,
         "forecast_horizon_days": 7,
         "location_applied": false,
@@ -487,14 +491,6 @@
         "revenue_trend_pct": null,
         "orders_trend_pct": null,
         "daily_revenue_last_30_days": [
-          {
-            "date": "2026-02-26",
-            "value": 0.0
-          },
-          {
-            "date": "2026-02-27",
-            "value": 0.0
-          },
           {
             "date": "2026-02-28",
             "value": 0.0
@@ -606,17 +602,17 @@
           {
             "date": "2026-03-27",
             "value": 0.0
+          },
+          {
+            "date": "2026-03-28",
+            "value": 0.0
+          },
+          {
+            "date": "2026-03-29",
+            "value": 0.0
           }
         ],
         "daily_orders_last_30_days": [
-          {
-            "date": "2026-02-26",
-            "value": 0
-          },
-          {
-            "date": "2026-02-27",
-            "value": 0
-          },
           {
             "date": "2026-02-28",
             "value": 0
@@ -728,6 +724,14 @@
           {
             "date": "2026-03-27",
             "value": 0
+          },
+          {
+            "date": "2026-03-28",
+            "value": 0
+          },
+          {
+            "date": "2026-03-29",
+            "value": 0
           }
         ]
       },
@@ -776,7 +780,7 @@
             "customer_id": "18e55566-f5d1-444a-98eb-cc07a94402c6",
             "name": "ML Customer Two",
             "phone": "",
-            "recency_days": 46,
+            "recency_days": 48,
             "frequency": 2,
             "monetary": 6997.0,
             "r_score": 1,
@@ -790,7 +794,7 @@
             "customer_id": "325d1b1d-0fab-4a0a-905d-7535cb1183fa",
             "name": "ML Customer One",
             "phone": "",
-            "recency_days": 1,
+            "recency_days": 3,
             "frequency": 2,
             "monetary": 8296.0,
             "r_score": 5,
@@ -804,7 +808,7 @@
             "customer_id": "b5df5a5d-c2c9-4c20-9691-a826f7eafc5b",
             "name": "ML Customer Six",
             "phone": "",
-            "recency_days": 2,
+            "recency_days": 4,
             "frequency": 2,
             "monetary": 9096.0,
             "r_score": 5,
@@ -818,7 +822,7 @@
             "customer_id": "a73384aa-b364-4c7e-885e-93a8c1d79218",
             "name": "ML Customer Three",
             "phone": "",
-            "recency_days": 2,
+            "recency_days": 4,
             "frequency": 1,
             "monetary": 2298.0,
             "r_score": 5,

@@ -1,4 +1,4 @@
-import client from './api';
+import client, { authPost, authPut, authDelete } from './api';
 
 export const searchProducts = (params = {}) =>
   client.get('/products/search', { params });
@@ -10,8 +10,12 @@ export const getSearchSuggestions = (q, lat, lng) => {
 };
 export const getProduct = (id) => client.get(`/products/${id}`);
 export const getSimilarProducts = (id) => client.get(`/products/${id}/similar`);
+// FIXED: createProduct requires auth
 export const createProduct = (shopId, data) =>
-  client.post(`/products?shop_id=${shopId}`, data);
-export const updateProduct = (id, data) => client.put(`/products/${id}`, data);
-export const toggleAvailability = (id) => client.put(`/products/${id}/availability`);
-export const deleteProduct = (id) => client.delete(`/products/${id}`);
+  authPost(`/products?shop_id=${shopId}`, data);
+// FIXED: updateProduct requires auth
+export const updateProduct = (id, data) => authPut(`/products/${id}`, data);
+// FIXED: toggleAvailability requires auth
+export const toggleAvailability = (id) => authPut(`/products/${id}/availability`);
+// FIXED: deleteProduct requires auth
+export const deleteProduct = (id) => authDelete(`/products/${id}`);

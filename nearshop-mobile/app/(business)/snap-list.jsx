@@ -196,7 +196,7 @@ export default function SnapListScreen() {
         }
       }
 
-      // Step 2: Create product with proper schema
+      // Step 2: Create product with proper schema (with auth)
       const productData = {
         name: name.trim(),
         price: Number(price),
@@ -205,7 +205,9 @@ export default function SnapListScreen() {
         images: imageUrl ? [imageUrl] : [],
       };
 
-      await client.post(`/products?shop_id=${shopId}`, productData);
+      // Use buildAuthConfig for proper auth
+      const config = await buildAuthConfig();
+      await client.post(`/products?shop_id=${shopId}`, productData, config);
 
       alert.success({ title: 'Success', message: 'Product published!' });
       
