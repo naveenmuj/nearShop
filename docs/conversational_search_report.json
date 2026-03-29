@@ -1,5 +1,5 @@
 {
-  "executed_at": "2026-03-29T07:17:14.051359+00:00",
+  "executed_at": "2026-03-29T07:24:38.147621+00:00",
   "base_url": "http://165.232.182.130/api/v1",
   "local_mocked_checks": [
     {
@@ -62,7 +62,7 @@
         ],
         "filter_relaxed": false,
         "original_query": "cheap black headphones under 3000",
-        "executed_query": "black headphones Electronics Black",
+        "executed_query": "black headphones Electronics",
         "parsed_filters": {
           "keywords": "black headphones",
           "category": "Electronics",
@@ -404,7 +404,7 @@
         ],
         "filter_relaxed": true,
         "original_query": "cheap black headphones under 3000 near me",
-        "executed_query": "black headphones black",
+        "executed_query": "black headphones",
         "parsed_filters": {
           "keywords": "black headphones",
           "category": null,
@@ -616,12 +616,12 @@
             "ranking_variant": null
           },
           {
-            "id": "92044018-01f4-4519-9377-ee40779c49dc",
-            "name": "MacBook Air M3 15-inch",
-            "price": 149900.0,
-            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/92044018-01f4-4519-9377-ee40779c49dc/image/e29e158813b9419aaced80e640c55063.jpg",
+            "id": "e1a86028-37d7-4d51-b4c1-b5cb0f345894",
+            "name": "iPhone 15 Pro Max 256GB",
+            "price": 134900.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/e1a86028-37d7-4d51-b4c1-b5cb0f345894/image/46741651f1f742c0b5ff63e94b64f851.jpg",
             "category": "Electronics",
-            "subcategory": "Laptops",
+            "subcategory": "Mobiles",
             "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
             "reason": "Best semantic match for the current search",
             "ranking_profile": "query_focus_v1",
@@ -629,12 +629,12 @@
             "ranking_variant": null
           },
           {
-            "id": "e1a86028-37d7-4d51-b4c1-b5cb0f345894",
-            "name": "iPhone 15 Pro Max 256GB",
-            "price": 134900.0,
-            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/e1a86028-37d7-4d51-b4c1-b5cb0f345894/image/46741651f1f742c0b5ff63e94b64f851.jpg",
+            "id": "92044018-01f4-4519-9377-ee40779c49dc",
+            "name": "MacBook Air M3 15-inch",
+            "price": 149900.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/92044018-01f4-4519-9377-ee40779c49dc/image/e29e158813b9419aaced80e640c55063.jpg",
             "category": "Electronics",
-            "subcategory": "Mobiles",
+            "subcategory": "Laptops",
             "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
             "reason": "Best semantic match for the current search",
             "ranking_profile": "query_focus_v1",

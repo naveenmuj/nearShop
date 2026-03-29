@@ -96,6 +96,22 @@ def _phrase_and_token_patterns(query: str) -> list[str]:
     return patterns
 
 
+def _is_shop_intent_query(query: str) -> bool:
+    terms = set(_query_terms(query))
+    return any(term in terms for term in {"shop", "shops", "store", "stores", "seller", "sellers", "nearby", "market"})
+
+
+def _shop_matches_query_fields(shop: Shop, query: str) -> bool:
+    terms = _expanded_query_terms(query)
+    haystacks = [
+        (shop.name or "").lower(),
+        (shop.category or "").lower(),
+        (shop.description or "").lower(),
+        " ".join((shop.subcategories or [])).lower(),
+    ]
+    return any(term in haystack for term in terms for haystack in haystacks if haystack)
+
+
 async def search_unified(
     db: AsyncSession,
     query: str,
@@ -185,6 +201,7 @@ async def search_unified(
         product_result = await db.execute(product_stmt.limit(max(product_limit * 8, 80)))
         product_candidates = list(product_result.unique().scalars().all())
         ranked_products = rank_products(product_candidates, profile, ranking_context)[:product_limit]
+        matched_shop_ids = {str(product.shop_id) for product in ranked_products if getattr(product, "shop_id", None)}
 
         products = []
         for product in ranked_products:
@@ -278,6 +295,13 @@ async def search_unified(
         shop_result = await db.execute(shop_stmt.limit(max(shop_limit * 8, 50)))
         shop_candidates = list(shop_result.scalars().all())
         ranked_shops = rank_shops(shop_candidates, profile, ranking_context)[:shop_limit]
+        if ranked_products and not _is_shop_intent_query(query):
+            filtered_ranked_shops = [
+                shop for shop in ranked_shops
+                if str(shop.id) in matched_shop_ids or _shop_matches_query_fields(shop, query)
+            ]
+            if filtered_ranked_shops:
+                ranked_shops = filtered_ranked_shops[:shop_limit]
 
         shops = []
         for shop in ranked_shops:
