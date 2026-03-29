@@ -1,15 +1,18 @@
 import json
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 
-import psycopg2
 import requests
 from jose import jwt
 
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
+from app.ranking.demo_fixtures import ensure_recommendation_fixtures
+
 
 BASE_URL = "http://127.0.0.1:8010"
-MAIN_SHOP_ID = "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
 REPORT_PATH = Path(__file__).resolve().parents[2] / "docs" / "ranking_quality_report.json"
 
 PERSONAS = {
@@ -87,23 +90,19 @@ def get_json(session: requests.Session, base_url: str, token: str, path: str, pa
 
 def main() -> None:
     env = load_env()
-    dsn = env["DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://").replace("ssl=require", "sslmode=require")
 
-    conn = psycopg2.connect(dsn)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT id::text, email
-        FROM users
-        WHERE email = ANY(%s)
-        """,
-        (list(PERSONAS.keys()) + ["ml.biz.1774488839@example.com"],),
-    )
-    user_ids = {email: user_id for user_id, email in cur.fetchall()}
-    cur.execute("SELECT latitude, longitude FROM shops WHERE id=%s", (MAIN_SHOP_ID,))
-    lat, lng = cur.fetchone()
-    cur.close()
-    conn.close()
+    from app.core.database import async_session_factory
+    import asyncio
+
+    async def _bootstrap() -> dict:
+        async with async_session_factory() as db:
+            return await ensure_recommendation_fixtures(db)
+
+    fixture_state = asyncio.run(_bootstrap())
+    user_ids = fixture_state["persona_ids"] | {"ml.biz.1774488839@example.com": fixture_state["business_id"]}
+    anchor_shop_id = fixture_state["anchor_shop_id"]
+    lat = fixture_state["anchor_lat"]
+    lng = fixture_state["anchor_lng"]
 
     session = requests.Session()
     report = {
@@ -149,20 +148,20 @@ def main() -> None:
             BASE_URL,
             business_token,
             "/api/v1/ai/pricing/suggest/057ddbe8-9713-4b33-87b8-e5e04c322ac4",
-            {"shop_id": MAIN_SHOP_ID},
+            {"shop_id": anchor_shop_id},
         ),
         "demand_gaps": get_json(
             session,
             BASE_URL,
             business_token,
             "/api/v1/ai/demand-gaps",
-            {"shop_id": MAIN_SHOP_ID, "lat": lat, "lng": lng},
+            {"shop_id": anchor_shop_id, "lat": lat, "lng": lng},
         ),
         "operational_insights": get_json(
             session,
             BASE_URL,
             business_token,
-            f"/api/v1/analytics/shop/{MAIN_SHOP_ID}/operational-insights",
+            f"/api/v1/analytics/shop/{anchor_shop_id}/operational-insights",
         ),
     }
 

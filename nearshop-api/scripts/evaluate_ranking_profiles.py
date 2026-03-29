@@ -17,11 +17,8 @@ import app.stories.models  # noqa: F401
 from app.ai.recommendations import get_recommendation_payloads
 from app.auth.models import User
 from app.core.database import async_session_factory
+from app.ranking.demo_fixtures import ensure_recommendation_fixtures
 from app.search.service import search_unified
-from app.shops.models import Shop
-
-
-MAIN_SHOP_ID = "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
 REPORT_PATH = Path(__file__).resolve().parents[2] / "docs" / "ranking_profile_comparison_report.json"
 PROFILE_IDS = ["balanced_v1", "query_focus_v1", "conversion_focus_v1"]
 
@@ -82,17 +79,15 @@ def _combined_score(content_precision: float, unified_precision: float) -> float
 
 async def main() -> None:
     async with async_session_factory() as db:
+        fixture_state = await ensure_recommendation_fixtures(db)
         user_rows = (
             await db.execute(
                 select(User.id, User.email).where(User.email.in_(list(PERSONAS.keys())))
             )
         ).all()
         user_ids = {email: user_id for user_id, email in user_rows}
-
-        shop = (
-            await db.execute(select(Shop.latitude, Shop.longitude).where(Shop.id == MAIN_SHOP_ID))
-        ).first()
-        lat, lng = shop
+        lat = fixture_state["anchor_lat"]
+        lng = fixture_state["anchor_lng"]
 
         report = {
             "evaluated_at": datetime.now(timezone.utc).isoformat(),

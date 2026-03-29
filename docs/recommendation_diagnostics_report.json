@@ -1,0 +1,2040 @@
+{
+  "generated_at": "2026-03-29T10:43:09.789592+00:00",
+  "personas": {
+    "ml.c1.1774488839@example.com": {
+      "profile_summary": {
+        "recent_queries": [
+          {
+            "token": "gaming",
+            "weight": 3
+          },
+          {
+            "token": "mechanical",
+            "weight": 2
+          },
+          {
+            "token": "keyboard",
+            "weight": 2
+          },
+          {
+            "token": "mouse",
+            "weight": 2
+          },
+          {
+            "token": "rgb",
+            "weight": 1
+          },
+          {
+            "token": "mousepad",
+            "weight": 1
+          },
+          {
+            "token": "headset",
+            "weight": 1
+          }
+        ],
+        "categories": [
+          {
+            "token": "electronics",
+            "weight": 71
+          },
+          {
+            "token": "gaming",
+            "weight": 3
+          },
+          {
+            "token": "keyboard",
+            "weight": 3
+          },
+          {
+            "token": "mouse",
+            "weight": 3
+          },
+          {
+            "token": "headset",
+            "weight": 3
+          }
+        ],
+        "subcategories": [
+          {
+            "token": "gaming accessories",
+            "weight": 42
+          },
+          {
+            "token": "gaming keyboards",
+            "weight": 38
+          },
+          {
+            "token": "laptop accessories",
+            "weight": 8
+          },
+          {
+            "token": "gaming audio",
+            "weight": 7
+          }
+        ],
+        "tags": [
+          {
+            "token": "gaming",
+            "weight": 39
+          },
+          {
+            "token": "rgb",
+            "weight": 29
+          },
+          {
+            "token": "keyboard",
+            "weight": 16
+          },
+          {
+            "token": "mechanical",
+            "weight": 16
+          },
+          {
+            "token": "mouse",
+            "weight": 14
+          },
+          {
+            "token": "esports",
+            "weight": 14
+          },
+          {
+            "token": "compact",
+            "weight": 7
+          },
+          {
+            "token": "mousepad",
+            "weight": 6
+          },
+          {
+            "token": "deskmat",
+            "weight": 6
+          },
+          {
+            "token": "headset",
+            "weight": 3
+          },
+          {
+            "token": "audio",
+            "weight": 3
+          },
+          {
+            "token": "mic",
+            "weight": 3
+          }
+        ],
+        "followed_shops": [
+          "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+        ],
+        "viewed_products_count": 5,
+        "ordered_products_count": 5
+      },
+      "candidate_counts": {
+        "nearby_candidates": 74,
+        "seed_ranked": 74,
+        "candidate_pool": 60,
+        "final_selected": 5
+      },
+      "top_seed_candidates": [
+        {
+          "id": "865bda0b-ad37-437b-9e05-bfecf508a446",
+          "name": "Mechanical Keyboard X",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Gaming Keyboards",
+          "tags": [
+            "keyboard",
+            "mechanical",
+            "gaming",
+            "rgb"
+          ],
+          "hits": [
+            "gaming",
+            "keyboard"
+          ],
+          "tokens": [
+            "electronics",
+            "gaming",
+            "keyboard",
+            "keyboards",
+            "mechanical",
+            "rgb",
+            "x"
+          ],
+          "seed_score": 288.23
+        },
+        {
+          "id": "057ddbe8-9713-4b33-87b8-e5e04c322ac4",
+          "name": "Gaming Mouse Pro",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Gaming Accessories",
+          "tags": [
+            "gaming",
+            "mouse",
+            "rgb",
+            "esports"
+          ],
+          "hits": [
+            "gaming",
+            "mouse"
+          ],
+          "tokens": [
+            "accessories",
+            "electronics",
+            "esports",
+            "gaming",
+            "mouse",
+            "pro",
+            "rgb"
+          ],
+          "seed_score": 286.94
+        },
+        {
+          "id": "1c1b8982-38c3-46c6-8202-26ef44b3f604",
+          "name": "RGB Mouse Pad XL",
+          "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95",
+          "shop_name": "ML Gamer Garage",
+          "category": "Electronics",
+          "subcategory": "Gaming Accessories",
+          "tags": [
+            "mousepad",
+            "gaming",
+            "rgb",
+            "deskmat"
+          ],
+          "hits": [
+            "gaming",
+            "mouse",
+            "mousepad"
+          ],
+          "tokens": [
+            "accessories",
+            "deskmat",
+            "electronics",
+            "gaming",
+            "mouse",
+            "mousepad",
+            "pad",
+            "rgb",
+            "xl"
+          ],
+          "seed_score": 277.02
+        },
+        {
+          "id": "baa5bc2a-9b83-4ba2-aa52-bfd9dd0d4560",
+          "name": "Compact Mechanical Keyboard",
+          "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95",
+          "shop_name": "ML Gamer Garage",
+          "category": "Electronics",
+          "subcategory": "Gaming Keyboards",
+          "tags": [
+            "keyboard",
+            "gaming",
+            "mechanical",
+            "compact"
+          ],
+          "hits": [
+            "gaming",
+            "keyboard"
+          ],
+          "tokens": [
+            "compact",
+            "electronics",
+            "gaming",
+            "keyboard",
+            "keyboards",
+            "mechanical"
+          ],
+          "seed_score": 268.77
+        },
+        {
+          "id": "584d7fb1-d036-42ce-b0d5-a1f347119b10",
+          "name": "Pro Gaming Headset",
+          "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95",
+          "shop_name": "ML Gamer Garage",
+          "category": "Electronics",
+          "subcategory": "Gaming Audio",
+          "tags": [
+            "headset",
+            "gaming",
+            "audio",
+            "mic"
+          ],
+          "hits": [
+            "gaming",
+            "headset"
+          ],
+          "tokens": [
+            "audio",
+            "electronics",
+            "gaming",
+            "headset",
+            "mic",
+            "pro"
+          ],
+          "seed_score": 150.89
+        },
+        {
+          "id": "60e7002f-68af-4278-ae2f-93448f97ae1f",
+          "name": "USB-C Hub 7-in-1",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Laptop Accessories",
+          "tags": [
+            "usb",
+            "hub",
+            "docking",
+            "productivity"
+          ],
+          "hits": [],
+          "tokens": [
+            "1",
+            "7",
+            "accessories",
+            "c",
+            "docking",
+            "electronics",
+            "hub",
+            "in",
+            "laptop",
+            "productivity",
+            "usb"
+          ],
+          "seed_score": 104.86
+        },
+        {
+          "id": "55ab36aa-382f-4ead-9478-ca26a2d68d02",
+          "name": "USB Condenser Mic",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "microphone",
+            "usb",
+            "streaming",
+            "podcast"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "condenser",
+            "creator",
+            "electronics",
+            "mic",
+            "microphone",
+            "podcast",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 57.85
+        },
+        {
+          "id": "d05aa0d3-27a0-47e1-af24-415cfb7a2f60",
+          "name": "USB Audio Interface Mini",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "usb",
+            "audio",
+            "interface",
+            "streaming"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "creator",
+            "electronics",
+            "interface",
+            "mini",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 55.02
+        },
+        {
+          "id": "7d87fab4-4e10-417b-b32d-020d71db1596",
+          "name": "Bluetooth Speaker Mini",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Portable Audio",
+          "tags": [
+            "speaker",
+            "bluetooth",
+            "portable",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "electronics",
+            "mini",
+            "portable",
+            "speaker"
+          ],
+          "seed_score": 37.42
+        },
+        {
+          "id": "072f53f5-28f8-4ff7-bebe-cd6eccd7216b",
+          "name": "Anker 65W USB-C Charger",
+          "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "anker",
+            "charger",
+            "usb-c",
+            "fast-charging"
+          ],
+          "hits": [],
+          "tokens": [
+            "65w",
+            "accessories",
+            "anker",
+            "c",
+            "charger",
+            "electronics",
+            "fast-charging",
+            "usb",
+            "usb-c"
+          ],
+          "seed_score": 37.0
+        }
+      ],
+      "final_selected": [
+        {
+          "id": "584d7fb1-d036-42ce-b0d5-a1f347119b10",
+          "name": "Pro Gaming Headset",
+          "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95",
+          "shop_name": "ML Gamer Garage",
+          "category": "Electronics",
+          "subcategory": "Gaming Audio",
+          "tags": [
+            "headset",
+            "gaming",
+            "audio",
+            "mic"
+          ],
+          "hits": [
+            "gaming",
+            "headset"
+          ],
+          "tokens": [
+            "audio",
+            "electronics",
+            "gaming",
+            "headset",
+            "mic",
+            "pro"
+          ],
+          "seed_score": 150.89,
+          "ranking_breakdown": {
+            "match": 130.4,
+            "intent": 7.0,
+            "popularity": 12.99,
+            "query": 78.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.417
+          },
+          "ranking_score": 248.807
+        },
+        {
+          "id": "55ab36aa-382f-4ead-9478-ca26a2d68d02",
+          "name": "USB Condenser Mic",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "microphone",
+            "usb",
+            "streaming",
+            "podcast"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "condenser",
+            "creator",
+            "electronics",
+            "mic",
+            "microphone",
+            "podcast",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 57.85,
+          "ranking_breakdown": {
+            "match": 31.5,
+            "intent": 0.0,
+            "popularity": 18.25,
+            "query": 62.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.792
+          },
+          "ranking_score": 132.542
+        },
+        {
+          "id": "d05aa0d3-27a0-47e1-af24-415cfb7a2f60",
+          "name": "USB Audio Interface Mini",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "usb",
+            "audio",
+            "interface",
+            "streaming"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "creator",
+            "electronics",
+            "interface",
+            "mini",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 55.02,
+          "ranking_breakdown": {
+            "match": 39.0,
+            "intent": 1.5,
+            "popularity": 9.17,
+            "query": 62.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.25
+          },
+          "ranking_score": 131.92
+        },
+        {
+          "id": "d6b29012-c803-40ce-8834-824cd7370357",
+          "name": "Sony WH-1000XM5 Headphones",
+          "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "shop_name": "ML Premium Audio",
+          "category": "Electronics",
+          "subcategory": "Noise Cancelling Headphones",
+          "tags": [
+            "sony",
+            "headphones",
+            "bluetooth",
+            "anc",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "1000xm5",
+            "anc",
+            "audio",
+            "bluetooth",
+            "cancelling",
+            "electronics",
+            "headphones",
+            "noise",
+            "sony",
+            "wh"
+          ],
+          "seed_score": 32.76,
+          "ranking_breakdown": {
+            "match": 31.5,
+            "intent": 0.0,
+            "popularity": 16.46,
+            "query": 54.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.375
+          },
+          "ranking_score": 122.335
+        },
+        {
+          "id": "a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2",
+          "name": "Wireless Earbuds Neo",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "earbuds",
+            "bluetooth",
+            "wireless",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "neo",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 33.34,
+          "ranking_breakdown": {
+            "match": 31.5,
+            "intent": 0.0,
+            "popularity": 18.49,
+            "query": 54.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.667
+          },
+          "ranking_score": 124.657
+        }
+      ],
+      "selected_misses": [
+        {
+          "id": "55ab36aa-382f-4ead-9478-ca26a2d68d02",
+          "name": "USB Condenser Mic",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "microphone",
+            "usb",
+            "streaming",
+            "podcast"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "condenser",
+            "creator",
+            "electronics",
+            "mic",
+            "microphone",
+            "podcast",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 57.85,
+          "ranking_breakdown": {
+            "match": 31.5,
+            "intent": 0.0,
+            "popularity": 18.25,
+            "query": 62.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.792
+          },
+          "ranking_score": 132.542
+        },
+        {
+          "id": "d05aa0d3-27a0-47e1-af24-415cfb7a2f60",
+          "name": "USB Audio Interface Mini",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "usb",
+            "audio",
+            "interface",
+            "streaming"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "creator",
+            "electronics",
+            "interface",
+            "mini",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 55.02,
+          "ranking_breakdown": {
+            "match": 39.0,
+            "intent": 1.5,
+            "popularity": 9.17,
+            "query": 62.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.25
+          },
+          "ranking_score": 131.92
+        },
+        {
+          "id": "d6b29012-c803-40ce-8834-824cd7370357",
+          "name": "Sony WH-1000XM5 Headphones",
+          "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "shop_name": "ML Premium Audio",
+          "category": "Electronics",
+          "subcategory": "Noise Cancelling Headphones",
+          "tags": [
+            "sony",
+            "headphones",
+            "bluetooth",
+            "anc",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "1000xm5",
+            "anc",
+            "audio",
+            "bluetooth",
+            "cancelling",
+            "electronics",
+            "headphones",
+            "noise",
+            "sony",
+            "wh"
+          ],
+          "seed_score": 32.76,
+          "ranking_breakdown": {
+            "match": 31.5,
+            "intent": 0.0,
+            "popularity": 16.46,
+            "query": 54.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.375
+          },
+          "ranking_score": 122.335
+        },
+        {
+          "id": "a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2",
+          "name": "Wireless Earbuds Neo",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "earbuds",
+            "bluetooth",
+            "wireless",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "neo",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 33.34,
+          "ranking_breakdown": {
+            "match": 31.5,
+            "intent": 0.0,
+            "popularity": 18.49,
+            "query": 54.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.667
+          },
+          "ranking_score": 124.657
+        }
+      ]
+    },
+    "ml.c4@example.com": {
+      "profile_summary": {
+        "recent_queries": [
+          {
+            "token": "bluetooth",
+            "weight": 3
+          },
+          {
+            "token": "headphones",
+            "weight": 2
+          },
+          {
+            "token": "earbuds",
+            "weight": 2
+          },
+          {
+            "token": "audio",
+            "weight": 1
+          },
+          {
+            "token": "speaker",
+            "weight": 1
+          },
+          {
+            "token": "portable",
+            "weight": 1
+          },
+          {
+            "token": "noise",
+            "weight": 1
+          },
+          {
+            "token": "cancelling",
+            "weight": 1
+          }
+        ],
+        "categories": [
+          {
+            "token": "electronics",
+            "weight": 49
+          },
+          {
+            "token": "audio",
+            "weight": 3
+          },
+          {
+            "token": "headphones",
+            "weight": 3
+          },
+          {
+            "token": "earbuds",
+            "weight": 3
+          },
+          {
+            "token": "bluetooth",
+            "weight": 3
+          }
+        ],
+        "subcategories": [
+          {
+            "token": "true wireless earbuds",
+            "weight": 34
+          },
+          {
+            "token": "portable audio",
+            "weight": 22
+          },
+          {
+            "token": "noise cancelling headphones",
+            "weight": 10
+          }
+        ],
+        "tags": [
+          {
+            "token": "bluetooth",
+            "weight": 30
+          },
+          {
+            "token": "audio",
+            "weight": 27
+          },
+          {
+            "token": "earbuds",
+            "weight": 17
+          },
+          {
+            "token": "wireless",
+            "weight": 14
+          },
+          {
+            "token": "speaker",
+            "weight": 9
+          },
+          {
+            "token": "anc",
+            "weight": 7
+          },
+          {
+            "token": "portable",
+            "weight": 6
+          },
+          {
+            "token": "sony",
+            "weight": 4
+          },
+          {
+            "token": "headphones",
+            "weight": 4
+          },
+          {
+            "token": "stereo",
+            "weight": 3
+          },
+          {
+            "token": "apple",
+            "weight": 3
+          },
+          {
+            "token": "airpods",
+            "weight": 3
+          }
+        ],
+        "followed_shops": [
+          "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "5fba1f87-5ffa-406b-916a-38179742b090"
+        ],
+        "viewed_products_count": 5,
+        "ordered_products_count": 2
+      },
+      "candidate_counts": {
+        "nearby_candidates": 74,
+        "seed_ranked": 74,
+        "candidate_pool": 60,
+        "final_selected": 5
+      },
+      "top_seed_candidates": [
+        {
+          "id": "a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2",
+          "name": "Wireless Earbuds Neo",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "earbuds",
+            "bluetooth",
+            "wireless",
+            "audio"
+          ],
+          "hits": [
+            "audio",
+            "bluetooth",
+            "earbuds"
+          ],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "neo",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 254.94
+        },
+        {
+          "id": "ef431c76-ea90-4024-80de-115de5d14311",
+          "name": "Apple AirPods Pro 2",
+          "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "shop_name": "ML Premium Audio",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "apple",
+            "airpods",
+            "earbuds",
+            "bluetooth",
+            "anc"
+          ],
+          "hits": [
+            "bluetooth",
+            "earbuds"
+          ],
+          "tokens": [
+            "2",
+            "airpods",
+            "anc",
+            "apple",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "pro",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 252.2
+        },
+        {
+          "id": "c500c50c-d9a1-4a66-b969-487f9350ee48",
+          "name": "Studio Bluetooth Speaker",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Portable Audio",
+          "tags": [
+            "speaker",
+            "bluetooth",
+            "audio",
+            "stereo"
+          ],
+          "hits": [
+            "audio",
+            "bluetooth",
+            "speaker"
+          ],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "electronics",
+            "portable",
+            "speaker",
+            "stereo",
+            "studio"
+          ],
+          "seed_score": 215.83
+        },
+        {
+          "id": "7d87fab4-4e10-417b-b32d-020d71db1596",
+          "name": "Bluetooth Speaker Mini",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Portable Audio",
+          "tags": [
+            "speaker",
+            "bluetooth",
+            "portable",
+            "audio"
+          ],
+          "hits": [
+            "audio",
+            "bluetooth",
+            "speaker"
+          ],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "electronics",
+            "mini",
+            "portable",
+            "speaker"
+          ],
+          "seed_score": 207.02
+        },
+        {
+          "id": "d6b29012-c803-40ce-8834-824cd7370357",
+          "name": "Sony WH-1000XM5 Headphones",
+          "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "shop_name": "ML Premium Audio",
+          "category": "Electronics",
+          "subcategory": "Noise Cancelling Headphones",
+          "tags": [
+            "sony",
+            "headphones",
+            "bluetooth",
+            "anc",
+            "audio"
+          ],
+          "hits": [
+            "audio",
+            "bluetooth",
+            "headphones"
+          ],
+          "tokens": [
+            "1000xm5",
+            "anc",
+            "audio",
+            "bluetooth",
+            "cancelling",
+            "electronics",
+            "headphones",
+            "noise",
+            "sony",
+            "wh"
+          ],
+          "seed_score": 204.26
+        },
+        {
+          "id": "078eacab-a36d-4977-9988-b0469118c741",
+          "name": "Apple AirPods Pro 2",
+          "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "apple",
+            "airpods",
+            "earbuds",
+            "wireless"
+          ],
+          "hits": [
+            "earbuds"
+          ],
+          "tokens": [
+            "2",
+            "accessories",
+            "airpods",
+            "apple",
+            "earbuds",
+            "electronics",
+            "pro",
+            "wireless"
+          ],
+          "seed_score": 98.55
+        },
+        {
+          "id": "1e100b2a-7a3e-4326-837f-9d4679a9ee0d",
+          "name": "Apple AirPods Pro 2",
+          "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "apple",
+            "airpods",
+            "earbuds",
+            "wireless"
+          ],
+          "hits": [
+            "earbuds"
+          ],
+          "tokens": [
+            "2",
+            "accessories",
+            "airpods",
+            "apple",
+            "earbuds",
+            "electronics",
+            "pro",
+            "wireless"
+          ],
+          "seed_score": 98.55
+        },
+        {
+          "id": "a14093d2-2730-4fb6-a650-80e5923b93f3",
+          "name": "Sony WH-1000XM5 Headphones",
+          "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "sony",
+            "headphones",
+            "noise-canceling",
+            "bluetooth"
+          ],
+          "hits": [
+            "bluetooth",
+            "headphones"
+          ],
+          "tokens": [
+            "1000xm5",
+            "accessories",
+            "bluetooth",
+            "electronics",
+            "headphones",
+            "noise-canceling",
+            "sony",
+            "wh"
+          ],
+          "seed_score": 94.8
+        },
+        {
+          "id": "16a86dba-ab1c-4615-9a0f-6aefefc877c3",
+          "name": "Sony WH-1000XM5 Headphones",
+          "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "sony",
+            "headphones",
+            "noise-canceling",
+            "bluetooth"
+          ],
+          "hits": [
+            "bluetooth",
+            "headphones"
+          ],
+          "tokens": [
+            "1000xm5",
+            "accessories",
+            "bluetooth",
+            "electronics",
+            "headphones",
+            "noise-canceling",
+            "sony",
+            "wh"
+          ],
+          "seed_score": 94.8
+        },
+        {
+          "id": "584d7fb1-d036-42ce-b0d5-a1f347119b10",
+          "name": "Pro Gaming Headset",
+          "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95",
+          "shop_name": "ML Gamer Garage",
+          "category": "Electronics",
+          "subcategory": "Gaming Audio",
+          "tags": [
+            "headset",
+            "gaming",
+            "audio",
+            "mic"
+          ],
+          "hits": [
+            "audio"
+          ],
+          "tokens": [
+            "audio",
+            "electronics",
+            "gaming",
+            "headset",
+            "mic",
+            "pro"
+          ],
+          "seed_score": 61.99
+        }
+      ],
+      "final_selected": [
+        {
+          "id": "ef431c76-ea90-4024-80de-115de5d14311",
+          "name": "Apple AirPods Pro 2",
+          "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "shop_name": "ML Premium Audio",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "apple",
+            "airpods",
+            "earbuds",
+            "bluetooth",
+            "anc"
+          ],
+          "hits": [
+            "bluetooth",
+            "earbuds"
+          ],
+          "tokens": [
+            "2",
+            "airpods",
+            "anc",
+            "apple",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "pro",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 252.2,
+          "ranking_breakdown": {
+            "match": 230.6,
+            "intent": 7.0,
+            "popularity": 15.35,
+            "query": 80.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.458
+          },
+          "ranking_score": 353.408
+        },
+        {
+          "id": "c500c50c-d9a1-4a66-b969-487f9350ee48",
+          "name": "Studio Bluetooth Speaker",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Portable Audio",
+          "tags": [
+            "speaker",
+            "bluetooth",
+            "audio",
+            "stereo"
+          ],
+          "hits": [
+            "audio",
+            "bluetooth",
+            "speaker"
+          ],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "electronics",
+            "portable",
+            "speaker",
+            "stereo",
+            "studio"
+          ],
+          "seed_score": 215.83,
+          "ranking_breakdown": {
+            "match": 202.7,
+            "intent": 7.0,
+            "popularity": 8.68,
+            "query": 72.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.292
+          },
+          "ranking_score": 310.672
+        },
+        {
+          "id": "d6b29012-c803-40ce-8834-824cd7370357",
+          "name": "Sony WH-1000XM5 Headphones",
+          "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7",
+          "shop_name": "ML Premium Audio",
+          "category": "Electronics",
+          "subcategory": "Noise Cancelling Headphones",
+          "tags": [
+            "sony",
+            "headphones",
+            "bluetooth",
+            "anc",
+            "audio"
+          ],
+          "hits": [
+            "audio",
+            "bluetooth",
+            "headphones"
+          ],
+          "tokens": [
+            "1000xm5",
+            "anc",
+            "audio",
+            "bluetooth",
+            "cancelling",
+            "electronics",
+            "headphones",
+            "noise",
+            "sony",
+            "wh"
+          ],
+          "seed_score": 204.26,
+          "ranking_breakdown": {
+            "match": 171.8,
+            "intent": 7.0,
+            "popularity": 16.46,
+            "query": 80.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.375
+          },
+          "ranking_score": 295.635
+        },
+        {
+          "id": "078eacab-a36d-4977-9988-b0469118c741",
+          "name": "Apple AirPods Pro 2",
+          "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "apple",
+            "airpods",
+            "earbuds",
+            "wireless"
+          ],
+          "hits": [
+            "earbuds"
+          ],
+          "tokens": [
+            "2",
+            "accessories",
+            "airpods",
+            "apple",
+            "earbuds",
+            "electronics",
+            "pro",
+            "wireless"
+          ],
+          "seed_score": 98.55,
+          "ranking_breakdown": {
+            "match": 84.3,
+            "intent": 0.0,
+            "popularity": 0.65,
+            "query": 72.5,
+            "geo": 8.0,
+            "quality": 8.0,
+            "freshness": 3.421
+          },
+          "ranking_score": 176.871
+        },
+        {
+          "id": "1e100b2a-7a3e-4326-837f-9d4679a9ee0d",
+          "name": "Apple AirPods Pro 2",
+          "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "apple",
+            "airpods",
+            "earbuds",
+            "wireless"
+          ],
+          "hits": [
+            "earbuds"
+          ],
+          "tokens": [
+            "2",
+            "accessories",
+            "airpods",
+            "apple",
+            "earbuds",
+            "electronics",
+            "pro",
+            "wireless"
+          ],
+          "seed_score": 98.55,
+          "ranking_breakdown": {
+            "match": 84.3,
+            "intent": 0.0,
+            "popularity": 0.65,
+            "query": 72.5,
+            "geo": 8.0,
+            "quality": 8.0,
+            "freshness": 2.854
+          },
+          "ranking_score": 176.304
+        }
+      ],
+      "selected_misses": []
+    },
+    "ml.c5@example.com": {
+      "profile_summary": {
+        "recent_queries": [
+          {
+            "token": "usb",
+            "weight": 3
+          },
+          {
+            "token": "streaming",
+            "weight": 3
+          },
+          {
+            "token": "microphone",
+            "weight": 2
+          },
+          {
+            "token": "webcam",
+            "weight": 2
+          },
+          {
+            "token": "setup",
+            "weight": 1
+          },
+          {
+            "token": "creator",
+            "weight": 1
+          },
+          {
+            "token": "for",
+            "weight": 1
+          },
+          {
+            "token": "light",
+            "weight": 1
+          },
+          {
+            "token": "ring",
+            "weight": 1
+          }
+        ],
+        "categories": [
+          {
+            "token": "electronics",
+            "weight": 65
+          },
+          {
+            "token": "streaming",
+            "weight": 3
+          },
+          {
+            "token": "webcam",
+            "weight": 3
+          },
+          {
+            "token": "microphone",
+            "weight": 3
+          },
+          {
+            "token": "creator",
+            "weight": 3
+          }
+        ],
+        "subcategories": [
+          {
+            "token": "creator audio",
+            "weight": 32
+          },
+          {
+            "token": "creator lighting",
+            "weight": 20
+          },
+          {
+            "token": "creator cameras",
+            "weight": 19
+          },
+          {
+            "token": "laptop accessories",
+            "weight": 8
+          },
+          {
+            "token": "accessories",
+            "weight": 8
+          }
+        ],
+        "tags": [
+          {
+            "token": "streaming",
+            "weight": 36
+          },
+          {
+            "token": "creator",
+            "weight": 23
+          },
+          {
+            "token": "webcam",
+            "weight": 14
+          },
+          {
+            "token": "usb",
+            "weight": 13
+          },
+          {
+            "token": "4k",
+            "weight": 11
+          },
+          {
+            "token": "microphone",
+            "weight": 10
+          },
+          {
+            "token": "ring",
+            "weight": 9
+          },
+          {
+            "token": "light",
+            "weight": 9
+          },
+          {
+            "token": "podcast",
+            "weight": 7
+          },
+          {
+            "token": "boom",
+            "weight": 3
+          },
+          {
+            "token": "audio",
+            "weight": 3
+          },
+          {
+            "token": "interface",
+            "weight": 3
+          }
+        ],
+        "followed_shops": [
+          "5fba1f87-5ffa-406b-916a-38179742b090",
+          "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
+        ],
+        "viewed_products_count": 5,
+        "ordered_products_count": 4
+      },
+      "candidate_counts": {
+        "nearby_candidates": 74,
+        "seed_ranked": 74,
+        "candidate_pool": 60,
+        "final_selected": 5
+      },
+      "top_seed_candidates": [
+        {
+          "id": "bdfaf7b2-40e7-4972-b80d-c787a824df7a",
+          "name": "Desk Boom Arm",
+          "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f",
+          "shop_name": "ML Creator Studio",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "microphone",
+            "boom",
+            "streaming",
+            "creator"
+          ],
+          "hits": [
+            "microphone",
+            "streaming"
+          ],
+          "tokens": [
+            "arm",
+            "audio",
+            "boom",
+            "creator",
+            "desk",
+            "electronics",
+            "microphone",
+            "streaming"
+          ],
+          "seed_score": 242.06
+        },
+        {
+          "id": "e62c7cb2-c538-4b45-92a5-6aac6755071e",
+          "name": "4K Streaming Webcam",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Cameras",
+          "tags": [
+            "streaming",
+            "webcam",
+            "creator",
+            "4k"
+          ],
+          "hits": [
+            "streaming",
+            "webcam"
+          ],
+          "tokens": [
+            "4k",
+            "cameras",
+            "creator",
+            "electronics",
+            "streaming",
+            "webcam"
+          ],
+          "seed_score": 235.33
+        },
+        {
+          "id": "55ab36aa-382f-4ead-9478-ca26a2d68d02",
+          "name": "USB Condenser Mic",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "microphone",
+            "usb",
+            "streaming",
+            "podcast"
+          ],
+          "hits": [
+            "microphone",
+            "streaming",
+            "usb"
+          ],
+          "tokens": [
+            "audio",
+            "condenser",
+            "creator",
+            "electronics",
+            "mic",
+            "microphone",
+            "podcast",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 232.95
+        },
+        {
+          "id": "d05aa0d3-27a0-47e1-af24-415cfb7a2f60",
+          "name": "USB Audio Interface Mini",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "usb",
+            "audio",
+            "interface",
+            "streaming"
+          ],
+          "hits": [
+            "streaming",
+            "usb"
+          ],
+          "tokens": [
+            "audio",
+            "creator",
+            "electronics",
+            "interface",
+            "mini",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 224.52
+        },
+        {
+          "id": "505678d2-129b-46ab-bdb7-79d3e9bddf50",
+          "name": "RGB Ring Light 12-inch",
+          "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f",
+          "shop_name": "ML Creator Studio",
+          "category": "Electronics",
+          "subcategory": "Creator Lighting",
+          "tags": [
+            "ring",
+            "light",
+            "streaming",
+            "creator"
+          ],
+          "hits": [
+            "ring",
+            "streaming"
+          ],
+          "tokens": [
+            "12",
+            "creator",
+            "electronics",
+            "inch",
+            "light",
+            "lighting",
+            "rgb",
+            "ring",
+            "streaming"
+          ],
+          "seed_score": 216.15
+        },
+        {
+          "id": "f8b7d9df-688c-42e0-ba51-dafa75cfca70",
+          "name": "Streaming Webcam HD",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "webcam",
+            "camera",
+            "streaming"
+          ],
+          "hits": [
+            "streaming",
+            "webcam"
+          ],
+          "tokens": [
+            "accessories",
+            "camera",
+            "electronics",
+            "hd",
+            "streaming",
+            "webcam"
+          ],
+          "seed_score": 123.39
+        },
+        {
+          "id": "60e7002f-68af-4278-ae2f-93448f97ae1f",
+          "name": "USB-C Hub 7-in-1",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Laptop Accessories",
+          "tags": [
+            "usb",
+            "hub",
+            "docking",
+            "productivity"
+          ],
+          "hits": [
+            "usb"
+          ],
+          "tokens": [
+            "1",
+            "7",
+            "accessories",
+            "c",
+            "docking",
+            "electronics",
+            "hub",
+            "in",
+            "laptop",
+            "productivity",
+            "usb"
+          ],
+          "seed_score": 117.46
+        },
+        {
+          "id": "9d8f2b0f-8a9a-4a4b-989d-f381f02a53b1",
+          "name": "LED Ring Light Kit",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "ringlight",
+            "lighting",
+            "streaming"
+          ],
+          "hits": [
+            "ring",
+            "streaming"
+          ],
+          "tokens": [
+            "accessories",
+            "electronics",
+            "kit",
+            "led",
+            "light",
+            "lighting",
+            "ring",
+            "ringlight",
+            "streaming"
+          ],
+          "seed_score": 112.4
+        },
+        {
+          "id": "2f6e4b7b-fbda-41bd-b83a-23872c0f1ef1",
+          "name": "Samsung 55\" Crystal 4K TV",
+          "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "TVs",
+          "tags": [
+            "samsung",
+            "tv",
+            "4k",
+            "smart-tv"
+          ],
+          "hits": [],
+          "tokens": [
+            "4k",
+            "55\"",
+            "crystal",
+            "electronics",
+            "samsung",
+            "smart-tv",
+            "tv",
+            "tvs"
+          ],
+          "seed_score": 42.1
+        },
+        {
+          "id": "a98ae1e0-218f-448f-9e14-930043e7bff4",
+          "name": "Samsung 55\" Crystal 4K TV",
+          "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
+          "shop_name": "Naveen's Electronics Hub",
+          "category": "Electronics",
+          "subcategory": "TVs",
+          "tags": [
+            "samsung",
+            "tv",
+            "4k",
+            "smart-tv"
+          ],
+          "hits": [],
+          "tokens": [
+            "4k",
+            "55\"",
+            "crystal",
+            "electronics",
+            "samsung",
+            "smart-tv",
+            "tv",
+            "tvs"
+          ],
+          "seed_score": 42.1
+        }
+      ],
+      "final_selected": [
+        {
+          "id": "bdfaf7b2-40e7-4972-b80d-c787a824df7a",
+          "name": "Desk Boom Arm",
+          "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f",
+          "shop_name": "ML Creator Studio",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "microphone",
+            "boom",
+            "streaming",
+            "creator"
+          ],
+          "hits": [
+            "microphone",
+            "streaming"
+          ],
+          "tokens": [
+            "arm",
+            "audio",
+            "boom",
+            "creator",
+            "desk",
+            "electronics",
+            "microphone",
+            "streaming"
+          ],
+          "seed_score": 242.06,
+          "ranking_breakdown": {
+            "match": 244.0,
+            "intent": 7.0,
+            "popularity": 7.71,
+            "query": 81.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.083
+          },
+          "ranking_score": 359.793
+        },
+        {
+          "id": "e62c7cb2-c538-4b45-92a5-6aac6755071e",
+          "name": "4K Streaming Webcam",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Cameras",
+          "tags": [
+            "streaming",
+            "webcam",
+            "creator",
+            "4k"
+          ],
+          "hits": [
+            "streaming",
+            "webcam"
+          ],
+          "tokens": [
+            "4k",
+            "cameras",
+            "creator",
+            "electronics",
+            "streaming",
+            "webcam"
+          ],
+          "seed_score": 235.33,
+          "ranking_breakdown": {
+            "match": 220.4,
+            "intent": 5.5,
+            "popularity": 16.88,
+            "query": 81.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.75
+          },
+          "ranking_score": 344.53
+        },
+        {
+          "id": "d05aa0d3-27a0-47e1-af24-415cfb7a2f60",
+          "name": "USB Audio Interface Mini",
+          "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
+          "shop_name": "ML Test Electronics 1774488839",
+          "category": "Electronics",
+          "subcategory": "Creator Audio",
+          "tags": [
+            "usb",
+            "audio",
+            "interface",
+            "streaming"
+          ],
+          "hits": [
+            "streaming",
+            "usb"
+          ],
+          "tokens": [
+            "audio",
+            "creator",
+            "electronics",
+            "interface",
+            "mini",
+            "streaming",
+            "usb"
+          ],
+          "seed_score": 224.52,
+          "ranking_breakdown": {
+            "match": 218.5,
+            "intent": 5.5,
+            "popularity": 9.17,
+            "query": 81.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.25
+          },
+          "ranking_score": 334.42
+        },
+        {
+          "id": "9d8f2b0f-8a9a-4a4b-989d-f381f02a53b1",
+          "name": "LED Ring Light Kit",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "Accessories",
+          "tags": [
+            "ringlight",
+            "lighting",
+            "streaming"
+          ],
+          "hits": [
+            "ring",
+            "streaming"
+          ],
+          "tokens": [
+            "accessories",
+            "electronics",
+            "kit",
+            "led",
+            "light",
+            "lighting",
+            "ring",
+            "ringlight",
+            "streaming"
+          ],
+          "seed_score": 112.4,
+          "ranking_breakdown": {
+            "match": 84.8,
+            "intent": 3.0,
+            "popularity": 1.3,
+            "query": 81.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 3.354
+          },
+          "ranking_score": 189.454
+        },
+        {
+          "id": "a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2",
+          "name": "Wireless Earbuds Neo",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "earbuds",
+            "bluetooth",
+            "wireless",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "neo",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 36.54,
+          "ranking_breakdown": {
+            "match": 29.1,
+            "intent": 3.0,
+            "popularity": 18.49,
+            "query": 57.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.667
+          },
+          "ranking_score": 128.257
+        }
+      ],
+      "selected_misses": [
+        {
+          "id": "a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2",
+          "name": "Wireless Earbuds Neo",
+          "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+          "shop_name": "ML Audio Hub",
+          "category": "Electronics",
+          "subcategory": "True Wireless Earbuds",
+          "tags": [
+            "earbuds",
+            "bluetooth",
+            "wireless",
+            "audio"
+          ],
+          "hits": [],
+          "tokens": [
+            "audio",
+            "bluetooth",
+            "earbuds",
+            "electronics",
+            "neo",
+            "true",
+            "wireless"
+          ],
+          "seed_score": 36.54,
+          "ranking_breakdown": {
+            "match": 29.1,
+            "intent": 3.0,
+            "popularity": 18.49,
+            "query": 57.5,
+            "geo": 8.0,
+            "quality": 7.5,
+            "freshness": 4.667
+          },
+          "ranking_score": 128.257
+        }
+      ]
+    }
+  }
+}

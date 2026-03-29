@@ -1,22 +1,14 @@
 {
-  "evaluated_at": "2026-03-27T17:15:54.340819+00:00",
+  "evaluated_at": "2026-03-29T10:43:18.922773+00:00",
   "profiles": {
     "balanced_v1": {
       "personas": {
         "ml.c1.1774488839@example.com": {
           "content": {
-            "precision_at_5": 0.6,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 1.0,
+            "precision_at_5": 0.2,
+            "shop_diversity_at_5": 4,
+            "term_coverage": 0.4,
             "top_5": [
-              {
-                "name": "Compact Mechanical Keyboard",
-                "hits": [
-                  "gaming",
-                  "keyboard"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
               {
                 "name": "Pro Gaming Headset",
                 "hits": [
@@ -26,58 +18,32 @@
                 "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               },
               {
-                "name": "RGB Mouse Pad XL",
-                "hits": [
-                  "gaming",
-                  "mouse",
-                  "mousepad"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
                 "name": "USB Condenser Mic",
                 "hits": [],
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "AirPods Pro 2",
+                "name": "USB Audio Interface Mini",
                 "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Wireless Earbuds Neo",
+                "hits": [],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 0.8,
-            "shop_diversity_at_5": 3,
+            "precision_at_5": 1.0,
+            "shop_diversity_at_5": 2,
             "term_coverage": 0.8,
             "top_5": [
-              {
-                "name": "USB Condenser Mic",
-                "hits": [],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "Pro Gaming Headset",
-                "hits": [
-                  "gaming",
-                  "headset"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "RGB Mouse Pad XL",
-                "hits": [
-                  "mouse"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "Compact Mechanical Keyboard",
-                "hits": [
-                  "keyboard"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
               {
                 "name": "Gaming Mouse Pro",
                 "hits": [
@@ -85,18 +51,76 @@
                   "mouse"
                 ],
                 "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "Mechanical Keyboard X",
+                "hits": [
+                  "gaming",
+                  "keyboard"
+                ],
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "RGB Mouse Pad XL",
+                "hits": [
+                  "gaming",
+                  "mouse"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+              },
+              {
+                "name": "Compact Mechanical Keyboard",
+                "hits": [
+                  "gaming",
+                  "keyboard"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+              },
+              {
+                "name": "Pro Gaming Headset",
+                "hits": [
+                  "gaming",
+                  "headset"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.71
+          "unified_shops_count": 5,
+          "combined_score": 0.64
         },
         "ml.c4@example.com": {
           "content": {
             "precision_at_5": 1.0,
             "shop_diversity_at_5": 4,
-            "term_coverage": 0.8,
+            "term_coverage": 1.0,
             "top_5": [
+              {
+                "name": "Apple AirPods Pro 2",
+                "hits": [
+                  "bluetooth",
+                  "earbuds"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Studio Bluetooth Speaker",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "headphones"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
               {
                 "name": "Apple AirPods Pro 2",
                 "hits": [
@@ -110,44 +134,14 @@
                   "earbuds"
                 ],
                 "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
-              },
-              {
-                "name": "USB Condenser Mic",
-                "hits": [
-                  "audio"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "Pro Gaming Headset",
-                "hits": [
-                  "audio"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "Sony WH-1000XM5 Headphones",
-                "hits": [
-                  "bluetooth",
-                  "headphones"
-                ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 0.4,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 0.6,
+            "precision_at_5": 1.0,
+            "shop_diversity_at_5": 2,
+            "term_coverage": 1.0,
             "top_5": [
-              {
-                "name": "Bluetooth Speaker Mini",
-                "hits": [
-                  "bluetooth",
-                  "speaker"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
               {
                 "name": "Wireless Earbuds Neo",
                 "hits": [
@@ -156,39 +150,71 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "USB Condenser Mic",
-                "hits": [],
+                "name": "Apple AirPods Pro 2",
+                "hits": [
+                  "earbuds"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Studio Bluetooth Speaker",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "Pro Gaming Headset",
-                "hits": [],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+                "name": "Bluetooth Speaker Mini",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "Apple AirPods Pro 2",
-                "hits": [],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [
+                  "headphones"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.67
+          "unified_shops_count": 4,
+          "combined_score": 1.0
         },
         "ml.c5@example.com": {
           "content": {
-            "precision_at_5": 0.4,
+            "precision_at_5": 0.8,
             "shop_diversity_at_5": 3,
-            "term_coverage": 0.8,
+            "term_coverage": 1.0,
             "top_5": [
               {
-                "name": "USB Condenser Mic",
+                "name": "Desk Boom Arm",
                 "hits": [
                   "microphone",
+                  "streaming"
+                ],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
+              },
+              {
+                "name": "4K Streaming Webcam",
+                "hits": [
+                  "streaming",
+                  "webcam"
+                ],
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "USB Audio Interface Mini",
+                "hits": [
                   "streaming",
                   "usb"
                 ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
                 "name": "LED Ring Light Kit",
@@ -199,24 +225,14 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "AirPods Pro 2",
+                "name": "Wireless Earbuds Neo",
                 "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
-              },
-              {
-                "name": "Apple AirPods Pro 2",
-                "hits": [],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
-              },
-              {
-                "name": "Sony WH-1000XM5",
-                "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 1.0,
+            "precision_at_5": 0.8,
             "shop_diversity_at_5": 3,
             "term_coverage": 0.8,
             "top_5": [
@@ -228,63 +244,53 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "LED Ring Light Kit",
-                "hits": [
-                  "ring"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "name": "Desk Boom Arm",
+                "hits": [],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
               },
               {
-                "name": "Streaming Webcam HD",
+                "name": "4K Streaming Webcam",
                 "hits": [
                   "streaming",
                   "webcam"
                 ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
-                "name": "USB-C Hub 7-in-1",
+                "name": "USB Audio Interface Mini",
                 "hits": [
                   "usb"
                 ],
                 "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
-                "name": "Anker 65W USB-C Charger",
+                "name": "RGB Ring Light 12-inch",
                 "hits": [
-                  "usb"
+                  "ring"
                 ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.73
+          "unified_shops_count": 4,
+          "combined_score": 0.8
         }
       },
       "summary": {
         "content_avg_precision_at_5": 0.667,
-        "unified_avg_precision_at_5": 0.733,
-        "avg_unified_shop_coverage": 8,
-        "combined_score": 0.703
+        "unified_avg_precision_at_5": 0.933,
+        "avg_unified_shop_coverage": 4.33,
+        "combined_score": 0.813
       }
     },
     "query_focus_v1": {
       "personas": {
         "ml.c1.1774488839@example.com": {
           "content": {
-            "precision_at_5": 0.6,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 1.0,
+            "precision_at_5": 0.2,
+            "shop_diversity_at_5": 4,
+            "term_coverage": 0.4,
             "top_5": [
-              {
-                "name": "Compact Mechanical Keyboard",
-                "hits": [
-                  "gaming",
-                  "keyboard"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
               {
                 "name": "Pro Gaming Headset",
                 "hits": [
@@ -294,58 +300,32 @@
                 "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               },
               {
-                "name": "RGB Mouse Pad XL",
-                "hits": [
-                  "gaming",
-                  "mouse",
-                  "mousepad"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
                 "name": "USB Condenser Mic",
                 "hits": [],
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "AirPods Pro 2",
+                "name": "USB Audio Interface Mini",
                 "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Wireless Earbuds Neo",
+                "hits": [],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 0.8,
-            "shop_diversity_at_5": 3,
+            "precision_at_5": 1.0,
+            "shop_diversity_at_5": 2,
             "term_coverage": 0.8,
             "top_5": [
-              {
-                "name": "USB Condenser Mic",
-                "hits": [],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "Pro Gaming Headset",
-                "hits": [
-                  "gaming",
-                  "headset"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "RGB Mouse Pad XL",
-                "hits": [
-                  "mouse"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "Compact Mechanical Keyboard",
-                "hits": [
-                  "keyboard"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
               {
                 "name": "Gaming Mouse Pro",
                 "hits": [
@@ -353,18 +333,76 @@
                   "mouse"
                 ],
                 "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "Mechanical Keyboard X",
+                "hits": [
+                  "gaming",
+                  "keyboard"
+                ],
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "RGB Mouse Pad XL",
+                "hits": [
+                  "gaming",
+                  "mouse"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+              },
+              {
+                "name": "Compact Mechanical Keyboard",
+                "hits": [
+                  "gaming",
+                  "keyboard"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+              },
+              {
+                "name": "Pro Gaming Headset",
+                "hits": [
+                  "gaming",
+                  "headset"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.71
+          "unified_shops_count": 5,
+          "combined_score": 0.64
         },
         "ml.c4@example.com": {
           "content": {
             "precision_at_5": 1.0,
             "shop_diversity_at_5": 4,
-            "term_coverage": 0.8,
+            "term_coverage": 1.0,
             "top_5": [
+              {
+                "name": "Apple AirPods Pro 2",
+                "hits": [
+                  "bluetooth",
+                  "earbuds"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Studio Bluetooth Speaker",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "headphones"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
               {
                 "name": "Apple AirPods Pro 2",
                 "hits": [
@@ -378,44 +416,14 @@
                   "earbuds"
                 ],
                 "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
-              },
-              {
-                "name": "USB Condenser Mic",
-                "hits": [
-                  "audio"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "Pro Gaming Headset",
-                "hits": [
-                  "audio"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "Sony WH-1000XM5 Headphones",
-                "hits": [
-                  "bluetooth",
-                  "headphones"
-                ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 0.6,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 0.8,
+            "precision_at_5": 1.0,
+            "shop_diversity_at_5": 2,
+            "term_coverage": 1.0,
             "top_5": [
-              {
-                "name": "Bluetooth Speaker Mini",
-                "hits": [
-                  "bluetooth",
-                  "speaker"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
               {
                 "name": "Wireless Earbuds Neo",
                 "hits": [
@@ -424,41 +432,71 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "USB Condenser Mic",
-                "hits": [],
+                "name": "Apple AirPods Pro 2",
+                "hits": [
+                  "earbuds"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Bluetooth Speaker Mini",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "Pro Gaming Headset",
-                "hits": [],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+                "name": "Studio Bluetooth Speaker",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
                 "name": "Sony WH-1000XM5 Headphones",
                 "hits": [
                   "headphones"
                 ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.78
+          "unified_shops_count": 4,
+          "combined_score": 1.0
         },
         "ml.c5@example.com": {
           "content": {
-            "precision_at_5": 0.4,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 0.8,
+            "precision_at_5": 0.8,
+            "shop_diversity_at_5": 4,
+            "term_coverage": 1.0,
             "top_5": [
               {
-                "name": "USB Condenser Mic",
+                "name": "Desk Boom Arm",
                 "hits": [
                   "microphone",
+                  "streaming"
+                ],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
+              },
+              {
+                "name": "4K Streaming Webcam",
+                "hits": [
+                  "streaming",
+                  "webcam"
+                ],
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "USB Audio Interface Mini",
+                "hits": [
                   "streaming",
                   "usb"
                 ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
                 "name": "LED Ring Light Kit",
@@ -469,24 +507,14 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "AirPods Pro 2",
+                "name": "Sony WH-1000XM5 Headphones",
                 "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
-              },
-              {
-                "name": "Apple AirPods Pro 2",
-                "hits": [],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
-              },
-              {
-                "name": "Sony WH-1000XM5",
-                "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 1.0,
+            "precision_at_5": 0.8,
             "shop_diversity_at_5": 3,
             "term_coverage": 0.8,
             "top_5": [
@@ -498,63 +526,53 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "LED Ring Light Kit",
-                "hits": [
-                  "ring"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "name": "Desk Boom Arm",
+                "hits": [],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
               },
               {
-                "name": "Streaming Webcam HD",
-                "hits": [
-                  "streaming",
-                  "webcam"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "USB-C Hub 7-in-1",
+                "name": "USB Audio Interface Mini",
                 "hits": [
                   "usb"
                 ],
                 "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
-                "name": "Anker 65W USB-C Charger",
+                "name": "4K Streaming Webcam",
                 "hits": [
-                  "usb"
+                  "streaming",
+                  "webcam"
                 ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "RGB Ring Light 12-inch",
+                "hits": [
+                  "ring"
+                ],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.73
+          "unified_shops_count": 5,
+          "combined_score": 0.8
         }
       },
       "summary": {
         "content_avg_precision_at_5": 0.667,
-        "unified_avg_precision_at_5": 0.8,
-        "avg_unified_shop_coverage": 8,
-        "combined_score": 0.74
+        "unified_avg_precision_at_5": 0.933,
+        "avg_unified_shop_coverage": 4.67,
+        "combined_score": 0.813
       }
     },
     "conversion_focus_v1": {
       "personas": {
         "ml.c1.1774488839@example.com": {
           "content": {
-            "precision_at_5": 0.6,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 1.0,
+            "precision_at_5": 0.2,
+            "shop_diversity_at_5": 4,
+            "term_coverage": 0.4,
             "top_5": [
-              {
-                "name": "Compact Mechanical Keyboard",
-                "hits": [
-                  "gaming",
-                  "keyboard"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
               {
                 "name": "Pro Gaming Headset",
                 "hits": [
@@ -564,58 +582,32 @@
                 "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               },
               {
-                "name": "RGB Mouse Pad XL",
-                "hits": [
-                  "gaming",
-                  "mouse",
-                  "mousepad"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
                 "name": "USB Condenser Mic",
                 "hits": [],
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "AirPods Pro 2",
+                "name": "USB Audio Interface Mini",
                 "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Wireless Earbuds Neo",
+                "hits": [],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 0.8,
-            "shop_diversity_at_5": 3,
+            "precision_at_5": 1.0,
+            "shop_diversity_at_5": 2,
             "term_coverage": 0.8,
             "top_5": [
-              {
-                "name": "Pro Gaming Headset",
-                "hits": [
-                  "gaming",
-                  "headset"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "RGB Mouse Pad XL",
-                "hits": [
-                  "mouse"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
-              {
-                "name": "USB Condenser Mic",
-                "hits": [],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "Compact Mechanical Keyboard",
-                "hits": [
-                  "keyboard"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-              },
               {
                 "name": "Gaming Mouse Pro",
                 "hits": [
@@ -623,18 +615,76 @@
                   "mouse"
                 ],
                 "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "Mechanical Keyboard X",
+                "hits": [
+                  "gaming",
+                  "keyboard"
+                ],
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "RGB Mouse Pad XL",
+                "hits": [
+                  "gaming",
+                  "mouse"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+              },
+              {
+                "name": "Compact Mechanical Keyboard",
+                "hits": [
+                  "gaming",
+                  "keyboard"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+              },
+              {
+                "name": "Pro Gaming Headset",
+                "hits": [
+                  "gaming",
+                  "headset"
+                ],
+                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.71
+          "unified_shops_count": 5,
+          "combined_score": 0.64
         },
         "ml.c4@example.com": {
           "content": {
             "precision_at_5": 1.0,
             "shop_diversity_at_5": 4,
-            "term_coverage": 0.8,
+            "term_coverage": 1.0,
             "top_5": [
+              {
+                "name": "Apple AirPods Pro 2",
+                "hits": [
+                  "bluetooth",
+                  "earbuds"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
+              {
+                "name": "Studio Bluetooth Speaker",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "headphones"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+              },
               {
                 "name": "Apple AirPods Pro 2",
                 "hits": [
@@ -648,44 +698,14 @@
                   "earbuds"
                 ],
                 "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
-              },
-              {
-                "name": "USB Condenser Mic",
-                "hits": [
-                  "audio"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
-              {
-                "name": "Sony WH-1000XM5 Headphones",
-                "hits": [
-                  "bluetooth",
-                  "headphones"
-                ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
-              },
-              {
-                "name": "Pro Gaming Headset",
-                "hits": [
-                  "audio"
-                ],
-                "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 0.4,
-            "shop_diversity_at_5": 3,
-            "term_coverage": 0.6,
+            "precision_at_5": 1.0,
+            "shop_diversity_at_5": 2,
+            "term_coverage": 1.0,
             "top_5": [
-              {
-                "name": "Bluetooth Speaker Mini",
-                "hits": [
-                  "bluetooth",
-                  "speaker"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-              },
               {
                 "name": "Wireless Earbuds Neo",
                 "hits": [
@@ -695,38 +715,70 @@
               },
               {
                 "name": "Apple AirPods Pro 2",
-                "hits": [],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "hits": [
+                  "earbuds"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
               },
               {
-                "name": "USB Condenser Mic",
-                "hits": [],
+                "name": "Studio Bluetooth Speaker",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "Apple AirPods Pro 2",
-                "hits": [],
-                "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
+                "name": "Bluetooth Speaker Mini",
+                "hits": [
+                  "audio",
+                  "bluetooth",
+                  "speaker"
+                ],
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+              },
+              {
+                "name": "Sony WH-1000XM5 Headphones",
+                "hits": [
+                  "headphones"
+                ],
+                "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.67
+          "unified_shops_count": 4,
+          "combined_score": 1.0
         },
         "ml.c5@example.com": {
           "content": {
-            "precision_at_5": 0.4,
+            "precision_at_5": 0.8,
             "shop_diversity_at_5": 3,
-            "term_coverage": 0.8,
+            "term_coverage": 1.0,
             "top_5": [
               {
-                "name": "USB Condenser Mic",
+                "name": "Desk Boom Arm",
                 "hits": [
                   "microphone",
+                  "streaming"
+                ],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
+              },
+              {
+                "name": "4K Streaming Webcam",
+                "hits": [
+                  "streaming",
+                  "webcam"
+                ],
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+              },
+              {
+                "name": "USB Audio Interface Mini",
+                "hits": [
                   "streaming",
                   "usb"
                 ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
                 "name": "LED Ring Light Kit",
@@ -737,24 +789,14 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "AirPods Pro 2",
+                "name": "Wireless Earbuds Neo",
                 "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
-              },
-              {
-                "name": "Sony WH-1000XM5",
-                "hits": [],
-                "shop_id": "a3bb1ae2-84ef-4557-bb92-e168e051eae9"
-              },
-              {
-                "name": "Apple AirPods Pro 2",
-                "hits": [],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               }
             ]
           },
           "unified_products": {
-            "precision_at_5": 1.0,
+            "precision_at_5": 0.8,
             "shop_diversity_at_5": 3,
             "term_coverage": 0.8,
             "top_5": [
@@ -766,50 +808,48 @@
                 "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
               },
               {
-                "name": "LED Ring Light Kit",
-                "hits": [
-                  "ring"
-                ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "name": "Desk Boom Arm",
+                "hits": [],
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
               },
               {
-                "name": "Streaming Webcam HD",
+                "name": "4K Streaming Webcam",
                 "hits": [
                   "streaming",
                   "webcam"
                 ],
-                "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+                "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
-                "name": "USB-C Hub 7-in-1",
+                "name": "USB Audio Interface Mini",
                 "hits": [
                   "usb"
                 ],
                 "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
               },
               {
-                "name": "Anker 65W USB-C Charger",
+                "name": "RGB Ring Light 12-inch",
                 "hits": [
-                  "usb"
+                  "ring"
                 ],
-                "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+                "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
               }
             ]
           },
-          "unified_shops_count": 8,
-          "combined_score": 0.73
+          "unified_shops_count": 4,
+          "combined_score": 0.8
         }
       },
       "summary": {
         "content_avg_precision_at_5": 0.667,
-        "unified_avg_precision_at_5": 0.733,
-        "avg_unified_shop_coverage": 8,
-        "combined_score": 0.703
+        "unified_avg_precision_at_5": 0.933,
+        "avg_unified_shop_coverage": 4.33,
+        "combined_score": 0.813
       }
     }
   },
   "winner": {
-    "profile_id": "query_focus_v1",
-    "combined_score": 0.74
+    "profile_id": "balanced_v1",
+    "combined_score": 0.813
   }
 }

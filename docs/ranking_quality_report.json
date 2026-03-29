@@ -1,6 +1,6 @@
 {
   "base_url": "http://127.0.0.1:8010",
-  "evaluated_at": "2026-03-29T08:40:52.676527+00:00",
+  "evaluated_at": "2026-03-29T10:46:31.006198+00:00",
   "personas": {
     "ml.c1.1774488839@example.com": {
       "content": {
@@ -85,14 +85,41 @@
         ]
       },
       "unified_products": {
-        "precision_at_5": 0.8,
-        "shop_diversity_at_5": 3,
+        "precision_at_5": 1.0,
+        "shop_diversity_at_5": 2,
         "term_coverage": 0.8,
         "top_5": [
           {
-            "name": "USB Condenser Mic",
-            "hits": [],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+            "name": "Gaming Mouse Pro",
+            "hits": [
+              "gaming",
+              "mouse"
+            ],
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+          },
+          {
+            "name": "Mechanical Keyboard X",
+            "hits": [
+              "gaming",
+              "keyboard"
+            ],
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+          },
+          {
+            "name": "RGB Mouse Pad XL",
+            "hits": [
+              "gaming",
+              "mouse"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+          },
+          {
+            "name": "Compact Mechanical Keyboard",
+            "hits": [
+              "gaming",
+              "keyboard"
+            ],
+            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
           },
           {
             "name": "Pro Gaming Headset",
@@ -101,32 +128,10 @@
               "headset"
             ],
             "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-          },
-          {
-            "name": "RGB Mouse Pad XL",
-            "hits": [
-              "mouse"
-            ],
-            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-          },
-          {
-            "name": "Compact Mechanical Keyboard",
-            "hits": [
-              "keyboard"
-            ],
-            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-          },
-          {
-            "name": "Gaming Mouse Pro",
-            "hits": [
-              "gaming",
-              "mouse"
-            ],
-            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
           }
         ]
       },
-      "unified_shops_count": 2
+      "unified_shops_count": 5
     },
     "ml.c4@example.com": {
       "content": {
@@ -140,13 +145,6 @@
               "earbuds"
             ],
             "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
-          },
-          {
-            "name": "Apple AirPods Pro 2",
-            "hits": [
-              "earbuds"
-            ],
-            "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
           },
           {
             "name": "USB Condenser Mic",
@@ -168,7 +166,14 @@
               "bluetooth",
               "headphones"
             ],
-            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+            "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
+          },
+          {
+            "name": "Apple AirPods Pro 2",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850"
           }
         ]
       },
@@ -214,28 +219,10 @@
         ]
       },
       "unified_products": {
-        "precision_at_5": 0.6,
-        "shop_diversity_at_5": 3,
-        "term_coverage": 0.8,
+        "precision_at_5": 1.0,
+        "shop_diversity_at_5": 2,
+        "term_coverage": 1.0,
         "top_5": [
-          {
-            "name": "USB Condenser Mic",
-            "hits": [],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-          },
-          {
-            "name": "Bluetooth Speaker Mini",
-            "hits": [
-              "bluetooth",
-              "speaker"
-            ],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-          },
-          {
-            "name": "Pro Gaming Headset",
-            "hits": [],
-            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
-          },
           {
             "name": "Wireless Earbuds Neo",
             "hits": [
@@ -244,15 +231,40 @@
             "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           },
           {
+            "name": "Apple AirPods Pro 2",
+            "hits": [
+              "earbuds"
+            ],
+            "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
+          },
+          {
+            "name": "Bluetooth Speaker Mini",
+            "hits": [
+              "audio",
+              "bluetooth",
+              "speaker"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
+            "name": "Studio Bluetooth Speaker",
+            "hits": [
+              "audio",
+              "bluetooth",
+              "speaker"
+            ],
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+          },
+          {
             "name": "Sony WH-1000XM5 Headphones",
             "hits": [
               "headphones"
             ],
-            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26"
+            "shop_id": "16977df1-50b3-4af7-a3e1-f209d2f0fac7"
           }
         ]
       },
-      "unified_shops_count": 3
+      "unified_shops_count": 5
     },
     "ml.c5@example.com": {
       "content": {
@@ -336,8 +348,8 @@
         ]
       },
       "unified_products": {
-        "precision_at_5": 0.6,
-        "shop_diversity_at_5": 2,
+        "precision_at_5": 0.8,
+        "shop_diversity_at_5": 3,
         "term_coverage": 0.8,
         "top_5": [
           {
@@ -348,48 +360,50 @@
             "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
           },
           {
-            "name": "LED Ring Light Kit",
-            "hits": [
-              "ring"
-            ],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+            "name": "Desk Boom Arm",
+            "hits": [],
+            "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
           },
           {
-            "name": "Streaming Webcam HD",
+            "name": "USB Audio Interface Mini",
+            "hits": [
+              "usb"
+            ],
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
+          },
+          {
+            "name": "4K Streaming Webcam",
             "hits": [
               "streaming",
               "webcam"
             ],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
+            "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873"
           },
           {
-            "name": "Bluetooth Speaker Mini",
-            "hits": [],
-            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090"
-          },
-          {
-            "name": "Pro Gaming Headset",
-            "hits": [],
-            "shop_id": "6ccede54-eceb-4f23-9fe6-90a16c048b95"
+            "name": "RGB Ring Light 12-inch",
+            "hits": [
+              "ring"
+            ],
+            "shop_id": "7b9644ac-4dd3-49d8-9b60-a47a5ae64c9f"
           }
         ]
       },
-      "unified_shops_count": 3
+      "unified_shops_count": 5
     }
   },
   "merchant_views": {
     "pricing": {
-      "suggested_price": 1623.75,
-      "current_price": 1299.0,
-      "average_price": 2599.0,
-      "min_price": 999.0,
-      "max_price": 3499.0,
-      "median_price": 2849.0,
-      "comparables_count": 12,
+      "suggested_price": 3123.75,
+      "current_price": 2499.0,
+      "average_price": 3126.27,
+      "min_price": 1499.0,
+      "max_price": 5799.0,
+      "median_price": 2999.0,
+      "comparables_count": 11,
       "confidence": "high",
-      "reason": "Based on 12 nearby comparable Accessories products",
-      "demand_signal": "medium",
-      "elasticity_note": "Moderate demand - price looks competitive."
+      "reason": "Based on 11 nearby comparable Gaming Accessories products",
+      "demand_signal": "high",
+      "elasticity_note": "High demand detected - you may be underpricing. Consider a small increase."
     },
     "demand_gaps": {
       "gaps": [
@@ -402,9 +416,9 @@
         },
         {
           "keyword": "gaming headset",
-          "search_volume": 2,
-          "zero_result_searches": 2,
-          "opportunity_score": 6,
+          "search_volume": 1,
+          "zero_result_searches": 1,
+          "opportunity_score": 3,
           "suggested_action": "Some customers searched for 'gaming headset' \u2014 consider stocking it."
         },
         {
@@ -413,27 +427,6 @@
           "zero_result_searches": 1,
           "opportunity_score": 3,
           "suggested_action": "Some customers searched for 'bluetooth speaker' \u2014 consider stocking it."
-        },
-        {
-          "keyword": "gaming mouse",
-          "search_volume": 1,
-          "zero_result_searches": 0,
-          "opportunity_score": 1,
-          "suggested_action": "Some customers searched for 'gaming mouse' \u2014 consider stocking it."
-        },
-        {
-          "keyword": "usb hub",
-          "search_volume": 1,
-          "zero_result_searches": 0,
-          "opportunity_score": 1,
-          "suggested_action": "Some customers searched for 'usb hub' \u2014 consider stocking it."
-        },
-        {
-          "keyword": "webcam streaming",
-          "search_volume": 1,
-          "zero_result_searches": 0,
-          "opportunity_score": 1,
-          "suggested_action": "Some customers searched for 'webcam streaming' \u2014 consider stocking it."
         },
         {
           "keyword": "usb microphone",
@@ -450,12 +443,12 @@
           "suggested_action": "Some customers searched for 'ring light' \u2014 consider stocking it."
         }
       ],
-      "count": 8
+      "count": 5
     },
     "operational_insights": {
       "shop_id": "52dc729a-5934-4507-8bf9-5c3aa8ccf873",
       "meta": {
-        "generated_at": "2026-03-29T08:41:05.698909Z",
+        "generated_at": "2026-03-29T10:46:38.578293Z",
         "analysis_window_days": 30,
         "forecast_horizon_days": 7,
         "location_applied": false,
@@ -466,8 +459,8 @@
           "demand_snapshot": "local_search_aggregation"
         },
         "sample_sizes": {
-          "orders_last_30_days": 5,
-          "revenue_last_30_days": 19690.0,
+          "orders_last_30_days": 6,
+          "revenue_last_30_days": 23688.0,
           "active_stocked_products": 3,
           "customers_segmented": 4,
           "demand_queries": 0
@@ -484,10 +477,10 @@
         ]
       },
       "sales_forecast": {
-        "next_7_days_revenue": 19690.0,
-        "next_7_days_orders": 5,
-        "recent_daily_avg_revenue": 2812.86,
-        "recent_daily_avg_orders": 0.71,
+        "next_7_days_revenue": 23688.0,
+        "next_7_days_orders": 6,
+        "recent_daily_avg_revenue": 3384.0,
+        "recent_daily_avg_orders": 0.86,
         "revenue_trend_pct": null,
         "orders_trend_pct": null,
         "daily_revenue_last_30_days": [
@@ -605,7 +598,7 @@
           },
           {
             "date": "2026-03-28",
-            "value": 0.0
+            "value": 3998.0
           },
           {
             "date": "2026-03-29",
@@ -727,7 +720,7 @@
           },
           {
             "date": "2026-03-28",
-            "value": 0
+            "value": 1
           },
           {
             "date": "2026-03-29",
@@ -747,7 +740,7 @@
           "days_left": 66.7,
           "recommended_reorder_qty": 1,
           "severity": "high",
-          "estimated_revenue_at_risk": 2199.0
+          "estimated_revenue_at_risk": 3499.0
         },
         {
           "product_id": "865bda0b-ad37-437b-9e05-bfecf508a446",
@@ -760,7 +753,7 @@
           "days_left": 71.4,
           "recommended_reorder_qty": 1,
           "severity": "high",
-          "estimated_revenue_at_risk": 3499.0
+          "estimated_revenue_at_risk": 5799.0
         }
       ],
       "customer_segments": {
@@ -792,14 +785,14 @@
           },
           {
             "customer_id": "325d1b1d-0fab-4a0a-905d-7535cb1183fa",
-            "name": "ML Customer One",
+            "name": "ML Persona Gamer",
             "phone": "",
-            "recency_days": 3,
-            "frequency": 2,
-            "monetary": 8296.0,
+            "recency_days": 0,
+            "frequency": 3,
+            "monetary": 12294.0,
             "r_score": 5,
-            "f_score": 2,
-            "m_score": 4,
+            "f_score": 3,
+            "m_score": 5,
             "segment": "Champions",
             "segment_color": "#10B981",
             "win_back_action": "Keep them happy with exclusive previews"
@@ -813,7 +806,7 @@
             "monetary": 9096.0,
             "r_score": 5,
             "f_score": 2,
-            "m_score": 5,
+            "m_score": 4,
             "segment": "Champions",
             "segment_color": "#10B981",
             "win_back_action": "Keep them happy with exclusive previews"
