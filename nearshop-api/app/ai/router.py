@@ -162,6 +162,22 @@ def _dedupe_query_parts(parts: list[str | None]) -> list[str]:
         key = text.lower()
         if key in normalized_seen:
             continue
+        key_tokens = {token for token in key.split() if token}
+        redundant = False
+        for existing in deduped:
+            existing_key = existing.lower()
+            existing_tokens = {token for token in existing_key.split() if token}
+            if key == existing_key:
+                redundant = True
+                break
+            if len(key_tokens) == 1 and key_tokens.issubset(existing_tokens):
+                redundant = True
+                break
+            if len(existing_tokens) == 1 and existing_tokens.issubset(key_tokens):
+                redundant = True
+                break
+        if redundant:
+            continue
         normalized_seen.add(key)
         deduped.append(text)
     return deduped

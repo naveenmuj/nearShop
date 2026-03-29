@@ -1,5 +1,5 @@
 {
-  "executed_at": "2026-03-29T07:11:31.925049+00:00",
+  "executed_at": "2026-03-29T07:17:14.051359+00:00",
   "base_url": "http://165.232.182.130/api/v1",
   "local_mocked_checks": [
     {
@@ -194,7 +194,7 @@
       "status_code": 200,
       "body_preview": {
         "filters": {
-          "keywords": "headphones",
+          "keywords": "black headphones",
           "category": null,
           "min_price": null,
           "max_price": 3000.0,
@@ -213,7 +213,34 @@
       "passed": true,
       "status_code": 200,
       "body_preview": {
-        "products": [],
+        "products": [
+          {
+            "id": "7d87fab4-4e10-417b-b32d-020d71db1596",
+            "name": "Bluetooth Speaker Mini",
+            "price": 1899.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/5fba1f87-5ffa-406b-916a-38179742b090/products/7d87fab4-4e10-417b-b32d-020d71db1596/image/eb7a5081bc22446a99ecc5cc54bc7ae2.jpg",
+            "category": "Electronics",
+            "subcategory": "Accessories",
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+            "reason": "Best semantic match for the current search",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          },
+          {
+            "id": "a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2",
+            "name": "Wireless Earbuds Neo",
+            "price": 2799.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/5fba1f87-5ffa-406b-916a-38179742b090/products/a34c0a05-240c-4ddc-85c2-dd67ab0b2ce2/image/811264c242744a5f8ed65d48084d4c0f.jpg",
+            "category": "Electronics",
+            "subcategory": "Accessories",
+            "shop_id": "5fba1f87-5ffa-406b-916a-38179742b090",
+            "reason": "Best semantic match for the current search",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          }
+        ],
         "shops": [
           {
             "id": "5fba1f87-5ffa-406b-916a-38179742b090",
@@ -375,6 +402,7 @@
             "ranking_variant": null
           }
         ],
+        "filter_relaxed": true,
         "original_query": "cheap black headphones under 3000 near me",
         "executed_query": "black headphones black",
         "parsed_filters": {
@@ -396,8 +424,97 @@
       "passed": true,
       "status_code": 200,
       "body_preview": {
-        "products": [],
-        "shops": [],
+        "products": [
+          {
+            "id": "078eacab-a36d-4977-9988-b0469118c741",
+            "name": "Apple AirPods Pro 2",
+            "price": 20900.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/078eacab-a36d-4977-9988-b0469118c741/image/df0754954bc5462294dbe60f8dc1c0a3.jpg",
+            "category": "Electronics",
+            "subcategory": "Accessories",
+            "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
+            "reason": "High-quality shop with strong ratings",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          },
+          {
+            "id": "1e100b2a-7a3e-4326-837f-9d4679a9ee0d",
+            "name": "Apple AirPods Pro 2",
+            "price": 20900.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/03f7dfed-fa8b-47f0-8a7f-9cb24dac0850/products/1e100b2a-7a3e-4326-837f-9d4679a9ee0d/image/7553d2078af342f7bb1cce58eb7ee2fd.jpg",
+            "category": "Electronics",
+            "subcategory": "Accessories",
+            "shop_id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+            "reason": "High-quality shop with strong ratings",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          }
+        ],
+        "shops": [
+          {
+            "id": "34ad1671-e430-4862-9139-aaa20fd37956",
+            "name": "TechWorld Store",
+            "category": "grocery",
+            "cover_image": null,
+            "logo_url": null,
+            "rating": 4.5,
+            "total_reviews": 2,
+            "distance": 0.0,
+            "delivery_options": [
+              "pickup",
+              "delivery"
+            ],
+            "delivery_fee": 0,
+            "min_order": 200.0,
+            "reason": "Best match for the current search",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          },
+          {
+            "id": "03f7dfed-fa8b-47f0-8a7f-9cb24dac0850",
+            "name": "Naveen's Electronics Hub",
+            "category": "Electronics",
+            "cover_image": null,
+            "logo_url": null,
+            "rating": 4.5,
+            "total_reviews": 2,
+            "distance": 0.0,
+            "delivery_options": [
+              "pickup",
+              "delivery"
+            ],
+            "delivery_fee": 0,
+            "min_order": 200.0,
+            "reason": "Strong ratings and local shop quality",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          },
+          {
+            "id": "8cf85369-23bc-421b-bd63-33af70b98c26",
+            "name": "Naveen's Electronics Hub",
+            "category": "Electronics",
+            "cover_image": null,
+            "logo_url": null,
+            "rating": 4.5,
+            "total_reviews": 2,
+            "distance": 0.0,
+            "delivery_options": [
+              "pickup",
+              "delivery"
+            ],
+            "delivery_fee": 0,
+            "min_order": 200.0,
+            "reason": "Strong ratings and local shop quality",
+            "ranking_profile": "query_focus_v1",
+            "ranking_experiment": null,
+            "ranking_variant": null
+          }
+        ],
+        "filter_relaxed": false,
         "original_query": "rice",
         "executed_query": "rice",
         "parsed_filters": {
@@ -499,12 +616,12 @@
             "ranking_variant": null
           },
           {
-            "id": "e1a86028-37d7-4d51-b4c1-b5cb0f345894",
-            "name": "iPhone 15 Pro Max 256GB",
-            "price": 134900.0,
-            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/e1a86028-37d7-4d51-b4c1-b5cb0f345894/image/46741651f1f742c0b5ff63e94b64f851.jpg",
+            "id": "92044018-01f4-4519-9377-ee40779c49dc",
+            "name": "MacBook Air M3 15-inch",
+            "price": 149900.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/92044018-01f4-4519-9377-ee40779c49dc/image/e29e158813b9419aaced80e640c55063.jpg",
             "category": "Electronics",
-            "subcategory": "Mobiles",
+            "subcategory": "Laptops",
             "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
             "reason": "Best semantic match for the current search",
             "ranking_profile": "query_focus_v1",
@@ -512,12 +629,12 @@
             "ranking_variant": null
           },
           {
-            "id": "92044018-01f4-4519-9377-ee40779c49dc",
-            "name": "MacBook Air M3 15-inch",
-            "price": 149900.0,
-            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/92044018-01f4-4519-9377-ee40779c49dc/image/e29e158813b9419aaced80e640c55063.jpg",
+            "id": "e1a86028-37d7-4d51-b4c1-b5cb0f345894",
+            "name": "iPhone 15 Pro Max 256GB",
+            "price": 134900.0,
+            "image": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/8cf85369-23bc-421b-bd63-33af70b98c26/products/e1a86028-37d7-4d51-b4c1-b5cb0f345894/image/46741651f1f742c0b5ff63e94b64f851.jpg",
             "category": "Electronics",
-            "subcategory": "Laptops",
+            "subcategory": "Mobiles",
             "shop_id": "8cf85369-23bc-421b-bd63-33af70b98c26",
             "reason": "Best semantic match for the current search",
             "ranking_profile": "query_focus_v1",
@@ -713,6 +830,7 @@
             "ranking_variant": null
           }
         ],
+        "filter_relaxed": false,
         "original_query": "electronics",
         "executed_query": "electronics",
         "parsed_filters": {
