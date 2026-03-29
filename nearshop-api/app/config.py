@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     FEATURE_AI_CATALOGING: bool = True
     FEATURE_AI_PRICING: bool = True
     FEATURE_AI_SENTIMENT: bool = True
+    AI_CONVERSATIONAL_SEARCH_MODEL: str = "gpt-4o-mini"
 
     # Redis caching for recommendations
     FEATURE_REDIS_CACHE: bool = True

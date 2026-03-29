@@ -51,6 +51,14 @@ export const searchUnified = (q, lat = null, lng = null) => {
   return client.get('/search/unified', { params });
 };
 
+export const runConversationalSearch = (query, lat = null, lng = null, radiusKm = 5) =>
+  authPost('/ai/search/conversational/run', {
+    query,
+    latitude: lat,
+    longitude: lng,
+    radius_km: radiusKm,
+  });
+
 export const getSearchSuggestions = (q, lat = null, lng = null) => {
   const params = { q };
   if (lat != null) params.lat = lat;

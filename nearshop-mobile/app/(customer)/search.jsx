@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { searchProducts, getSearchSuggestions } from '../../lib/products';
-import { searchShops, searchUnified } from '../../lib/shops';
+import { searchShops, searchUnified, runConversationalSearch } from '../../lib/shops';
 import {
   logSearch,
   getRecentSearches,
@@ -36,6 +36,47 @@ const SORT_OPTIONS = [
 
 const TYPE_ICONS = { product: '🛍️', shop: '🏪' };
 
+const EMPTY_SEARCH_META = {
+  aiUsed: false,
+  fallbackUsed: false,
+  parsedFilters: null,
+  executedQuery: null,
+};
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function applyProductUiFilters(items, category, sort) {
+  let next = Array.isArray(items) ? [...items] : [];
+  if (category && category !== 'All') {
+    next = next.filter((item) => item?.category === category);
+  }
+  if (sort === 'price_asc') {
+    next.sort((a, b) => Number(a?.price || 0) - Number(b?.price || 0));
+  } else if (sort === 'price_desc') {
+    next.sort((a, b) => Number(b?.price || 0) - Number(a?.price || 0));
+  }
+  return next;
+}
+
+function extractActiveAiChips(parsedFilters) {
+  if (!parsedFilters) return [];
+  const chips = [];
+  if (normalizeText(parsedFilters.category)) chips.push(parsedFilters.category);
+  if (normalizeText(parsedFilters.brand)) chips.push(parsedFilters.brand);
+  if (normalizeText(parsedFilters.color)) chips.push(parsedFilters.color);
+  if (normalizeText(parsedFilters.material)) chips.push(parsedFilters.material);
+  if (parsedFilters.min_price != null || parsedFilters.max_price != null) {
+    const min = parsedFilters.min_price != null ? `₹${parsedFilters.min_price}` : 'Any';
+    const max = parsedFilters.max_price != null ? `₹${parsedFilters.max_price}` : 'Any';
+    chips.push(`${min} - ${max}`);
+  }
+  if (parsedFilters.sort_by === 'price_low') chips.push('Price low');
+  if (parsedFilters.sort_by === 'price_high') chips.push('Price high');
+  return chips;
+}
+
 export default function SearchScreen() {
   const router = useRouter();
   const { category: initialCategory } = useLocalSearchParams();
@@ -57,6 +98,7 @@ export default function SearchScreen() {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchMeta, setSearchMeta] = useState(EMPTY_SEARCH_META);
 
   // Suggestions state
   const [suggestions, setSuggestions] = useState([]);
@@ -95,12 +137,33 @@ export default function SearchScreen() {
     setLoading(true);
     try {
       if (q && q.trim()) {
-        const unified = await searchUnified(q.trim(), lat, lng);
-        const unifiedProducts = (unified?.data?.products ?? []).filter((item) => (
-          !category || category === 'All' || item.category === category
-        ));
+        let searchData;
+        try {
+          const conversational = await runConversationalSearch(q.trim(), lat, lng);
+          searchData = conversational?.data ?? {};
+        } catch {
+          const unified = await searchUnified(q.trim(), lat, lng);
+          searchData = {
+            ...(unified?.data ?? {}),
+            ai_used: false,
+            fallback_used: true,
+            parsed_filters: null,
+            executed_query: q.trim(),
+          };
+        }
+        const unifiedProducts = applyProductUiFilters(
+          searchData?.products ?? [],
+          category,
+          sort,
+        );
         setProducts(unifiedProducts);
-        setShops(unified?.data?.shops ?? []);
+        setShops(searchData?.shops ?? []);
+        setSearchMeta({
+          aiUsed: Boolean(searchData?.ai_used),
+          fallbackUsed: Boolean(searchData?.fallback_used),
+          parsedFilters: searchData?.parsed_filters ?? null,
+          executedQuery: searchData?.executed_query ?? q.trim(),
+        });
         return;
       }
       const params = { per_page: 40 };
@@ -111,8 +174,12 @@ export default function SearchScreen() {
       if (category && category !== 'All') params.category = category;
       const res = await searchProducts(params);
       setProducts(res?.data?.items ?? res?.data ?? []);
+      setShops([]);
+      setSearchMeta(EMPTY_SEARCH_META);
     } catch {
       setProducts([]);
+      setShops([]);
+      setSearchMeta(EMPTY_SEARCH_META);
     } finally {
       setLoading(false);
       setHasSearched(true);
@@ -123,9 +190,28 @@ export default function SearchScreen() {
     setLoading(true);
     try {
       if (q && q.trim()) {
-        const unified = await searchUnified(q.trim(), lat, lng);
-        setProducts(unified?.data?.products ?? []);
-        setShops(unified?.data?.shops ?? []);
+        let searchData;
+        try {
+          const conversational = await runConversationalSearch(q.trim(), lat, lng);
+          searchData = conversational?.data ?? {};
+        } catch {
+          const unified = await searchUnified(q.trim(), lat, lng);
+          searchData = {
+            ...(unified?.data ?? {}),
+            ai_used: false,
+            fallback_used: true,
+            parsed_filters: null,
+            executed_query: q.trim(),
+          };
+        }
+        setProducts(searchData?.products ?? []);
+        setShops(searchData?.shops ?? []);
+        setSearchMeta({
+          aiUsed: Boolean(searchData?.ai_used),
+          fallbackUsed: Boolean(searchData?.fallback_used),
+          parsedFilters: searchData?.parsed_filters ?? null,
+          executedQuery: searchData?.executed_query ?? q.trim(),
+        });
         return;
       }
       const params = {};
@@ -134,8 +220,12 @@ export default function SearchScreen() {
       const res = await searchShops(q, params);
       // API returns { items: [...], total, page, per_page }
       setShops(res?.data?.items ?? []);
+      setProducts([]);
+      setSearchMeta(EMPTY_SEARCH_META);
     } catch {
       setShops([]);
+      setProducts([]);
+      setSearchMeta(EMPTY_SEARCH_META);
     } finally {
       setLoading(false);
       setHasSearched(true);
@@ -199,6 +289,7 @@ export default function SearchScreen() {
       setSuggestions([]);
       setShowSuggestions(false);
       setShowRecentPanel(inputFocused);
+      setSearchMeta(EMPTY_SEARCH_META);
     }
   };
 
@@ -261,6 +352,7 @@ export default function SearchScreen() {
     setSuggestions([]);
     setShowSuggestions(false);
     setShowRecentPanel(true);
+    setSearchMeta(EMPTY_SEARCH_META);
     inputRef.current?.focus();
   };
 
@@ -326,6 +418,7 @@ export default function SearchScreen() {
   };
 
   const currentData = activeTab === 'products' ? products : shops;
+  const activeAiChips = extractActiveAiChips(searchMeta.parsedFilters);
 
   useEffect(() => {
     if (!query.trim() || activeTab !== 'products' || !products.length) return;
@@ -461,6 +554,35 @@ export default function SearchScreen() {
       </View>
 
       {/* ── Filter + Sort chips (products only) ─────────────────────────────── */}
+      {query.trim().length > 0 && hasSearched && !loading && (
+        <View style={styles.aiMetaWrap}>
+          <Text style={styles.aiMetaTitle}>
+            {searchMeta.aiUsed ? 'AI search active' : 'Standard search active'}
+          </Text>
+          <Text style={styles.aiMetaSubtitle}>
+            {searchMeta.fallbackUsed
+              ? 'OpenAI was unavailable, so results came from normal search.'
+              : searchMeta.aiUsed && searchMeta.executedQuery && searchMeta.executedQuery !== query.trim()
+                ? `Expanded query: ${searchMeta.executedQuery}`
+                : 'Showing results for your current query.'}
+          </Text>
+          {activeAiChips.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.aiChipRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {activeAiChips.map((chip) => (
+                <View key={chip} style={styles.aiChip}>
+                  <Text style={styles.aiChipText}>{chip}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      )}
+
       {activeTab === 'products' && (
         <View style={styles.chipsSection}>
           <ScrollView
@@ -694,6 +816,42 @@ const styles = StyleSheet.create({
   tabPillActive: { backgroundColor: COLORS.primary },
   tabLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
   tabLabelActive: { color: COLORS.white },
+
+  aiMetaWrap: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  aiMetaTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  aiMetaSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: COLORS.gray500,
+    lineHeight: 18,
+  },
+  aiChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 8,
+  },
+  aiChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: COLORS.primaryLight,
+  },
+  aiChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primaryDark,
+  },
 
   // Chips
   chipsSection: {

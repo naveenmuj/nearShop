@@ -21,7 +21,7 @@ from app.ai.cataloging import (
     analyze_shelf_image_bytes,
 )
 from app.ai.visual_search import generate_image_embedding, search_similar_products
-from app.ai.smart_search import parse_search_query
+from app.ai.smart_search import build_search_fallback, parse_search_query
 from app.ai.pricing import suggest_price
 from app.ai.recommendations import get_recommendation_payloads, get_recommendations
 from app.ai.demand_gaps import get_demand_gaps
@@ -54,8 +54,8 @@ class VisualSearchRequest(BaseModel):
 
 class ConversationalSearchRequest(BaseModel):
     query: str
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
     radius_km: float = Field(5.0, gt=0, le=50)
 
 
@@ -125,11 +125,123 @@ async def visual_search(
 @router.post("/search/conversational")
 async def conversational_search(
     body: ConversationalSearchRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """Parse a natural language search query into structured filters."""
-    filters = await parse_search_query(body.query, user_id=current_user.id)
-    return {"filters": filters, "original_query": body.query}
+    try:
+        filters = await parse_search_query(body.query, user_id=current_user.id if current_user else None)
+        return {
+            "filters": filters,
+            "original_query": body.query,
+            "ai_used": True,
+            "fallback_used": False,
+        }
+    except Exception as exc:
+        logger.warning("Conversational search parse failed: %s", exc)
+        return {
+            "filters": build_search_fallback(body.query),
+            "original_query": body.query,
+            "ai_used": False,
+            "fallback_used": True,
+        }
+
+
+def _contains_term(value: str | None, term: str | None) -> bool:
+    return bool(value and term and term.lower() in value.lower())
+
+
+def _apply_conversational_filters(results: dict, filters: dict) -> dict:
+    products = list(results.get("products", []))
+    shops = list(results.get("shops", []))
+
+    category = filters.get("category")
+    brand = filters.get("brand")
+    color = filters.get("color")
+    material = filters.get("material")
+    min_price = filters.get("min_price")
+    max_price = filters.get("max_price")
+    sort_by = filters.get("sort_by")
+
+    if category:
+        products = [item for item in products if _contains_term(item.get("category"), category)]
+        shops = [item for item in shops if _contains_term(item.get("category"), category)]
+
+    if min_price is not None:
+        products = [item for item in products if float(item.get("price") or 0) >= float(min_price)]
+    if max_price is not None:
+        products = [item for item in products if float(item.get("price") or 0) <= float(max_price)]
+
+    for term in (brand, color, material):
+        if not term:
+            continue
+        products = [
+            item for item in products
+            if _contains_term(item.get("name"), term)
+            or _contains_term(item.get("category"), term)
+            or _contains_term(item.get("subcategory"), term)
+        ]
+
+    if sort_by == "price_low":
+        products.sort(key=lambda item: float(item.get("price") or 0))
+    elif sort_by == "price_high":
+        products.sort(key=lambda item: float(item.get("price") or 0), reverse=True)
+
+    return {"products": products, "shops": shops}
+
+
+@router.post("/search/conversational/run")
+async def conversational_search_run(
+    body: ConversationalSearchRequest,
+    current_user: User | None = Depends(get_current_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """Run conversational search with OpenAI parsing and safe fallback to unified search."""
+    from app.search.service import search_unified
+
+    original_query = body.query.strip()
+    filters = build_search_fallback(original_query)
+    ai_used = False
+    fallback_used = False
+
+    try:
+        filters = await parse_search_query(original_query, user_id=current_user.id if current_user else None)
+        ai_used = True
+    except Exception as exc:
+        logger.warning("Conversational search execution fallback: %s", exc)
+        fallback_used = True
+
+    query_parts: list[str] = []
+    for part in (
+        filters.get("keywords"),
+        filters.get("category"),
+        filters.get("brand"),
+        filters.get("color"),
+        filters.get("material"),
+    ):
+        if not part:
+            continue
+        if part not in query_parts:
+            query_parts.append(part)
+    executed_query = " ".join(query_parts).strip() or original_query
+
+    results = await search_unified(
+        db,
+        executed_query,
+        lat=body.latitude,
+        lng=body.longitude,
+        user_id=current_user.id if current_user else None,
+    )
+    filtered_results = _apply_conversational_filters(results, filters)
+    filtered_results.update(
+        {
+            "original_query": original_query,
+            "executed_query": executed_query,
+            "parsed_filters": filters,
+            "ai_used": ai_used,
+            "fallback_used": fallback_used,
+        }
+    )
+    return filtered_results
 
 
 # ── Pricing endpoints ───────────────────────────────────────────────────────

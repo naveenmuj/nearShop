@@ -1,5 +1,5 @@
 {
-  "executed_at": "2026-03-27T19:22:50.560054+00:00",
+  "executed_at": "2026-03-29T06:03:35.523098+00:00",
   "base_url": "http://165.232.182.130/api/v1",
   "entities": {
     "user_id": "a6cad759-947a-4e41-ba33-a990df89432f",
@@ -39,42 +39,54 @@
     },
     {
       "name": "auth_me_customer",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "id",
+        "phone",
+        "name",
+        "email",
+        "avatar_url",
+        "firebase_uid",
+        "roles",
+        "active_role",
+        "interests",
+        "referral_code",
+        "created_at"
       ]
     },
     {
       "name": "search_history",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "history"
       ]
     },
     {
       "name": "recently_viewed",
-      "passed": false,
-      "status_code": 401,
-      "body_keys": [
-        "detail"
-      ]
+      "passed": true,
+      "status_code": 200,
+      "body_preview": "[]"
     },
     {
       "name": "feed_home",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "items",
+        "page",
+        "per_page"
       ]
     },
     {
       "name": "feed_hook",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "title",
+        "subtitle",
+        "type"
       ]
     },
     {
@@ -129,55 +141,65 @@
     },
     {
       "name": "ai_trending",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "products",
+        "count"
       ]
     },
     {
       "name": "ai_recommendations",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "products",
+        "count",
+        "cached"
       ]
     },
     {
       "name": "analytics_stats",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "shop_id",
+        "period",
+        "total_views",
+        "unique_visitors",
+        "total_orders",
+        "total_revenue"
       ]
     },
     {
       "name": "analytics_products",
-      "passed": false,
-      "status_code": 401,
-      "body_keys": [
-        "detail"
-      ]
+      "passed": true,
+      "status_code": 200,
+      "body_preview": "[{'id': '608b0a9e-09b4-4015-ae92-08d1d3d19165', 'name': 'iPad Air M2 11-inch', 'price': 59900.0, 'images': ['https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/03f7dfed-fa8b-47f0-8a7f-9cb24dac0850/products/608b0a9e-09b4-4015-ae92-08d1d3d19165/image/91528a4619854259892364aa382864ce.jpg'], "
     },
     {
       "name": "analytics_demand",
-      "passed": false,
-      "status_code": 401,
-      "body_keys": [
-        "detail"
-      ]
+      "passed": true,
+      "status_code": 200,
+      "body_preview": "[{'query': 'nearby shop', 'count': 16}, {'query': 'local offers', 'count': 16}, {'query': 'best deals', 'count': 16}, {'query': 'wireless earbuds', 'count': 2}, {'query': 'gaming headset', 'count': 2}, {'query': 'usb microphone', 'count': 1}, {'query': 'webcam for streaming', 'count': 1}, {'query': "
     },
     {
       "name": "analytics_operational_insights",
-      "passed": false,
-      "status_code": 401,
+      "passed": true,
+      "status_code": 200,
       "body_keys": [
-        "detail"
+        "shop_id",
+        "meta",
+        "sales_forecast",
+        "reorder_alerts",
+        "customer_segments",
+        "demand_snapshot",
+        "recommended_actions"
       ]
     }
   ],
   "summary": {
-    "passed": 7,
-    "failed": 11
+    "passed": 18,
+    "failed": 0
   }
 }
