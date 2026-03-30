@@ -22,6 +22,7 @@ export default function CustomerTabs() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
+      {/* Main 5 tabs */}
       <Tabs.Screen
         name="home"
         options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} /> }}
@@ -42,6 +43,8 @@ export default function CustomerTabs() {
         name="profile"
         options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} /> }}
       />
+
+      {/* Hidden screens - accessible via navigation but not in tab bar */}
       <Tabs.Screen name="shop/[id]" options={{ href: null }} />
       <Tabs.Screen name="product/[id]" options={{ href: null }} />
       <Tabs.Screen name="orders" options={{ href: null }} />
@@ -53,6 +56,9 @@ export default function CustomerTabs() {
       <Tabs.Screen name="spin" options={{ href: null }} />
       <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="checkout" options={{ href: null }} />
+      <Tabs.Screen name="returns" options={{ href: null }} />
+      <Tabs.Screen name="messages" options={{ href: null }} />
+      <Tabs.Screen name="chat/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

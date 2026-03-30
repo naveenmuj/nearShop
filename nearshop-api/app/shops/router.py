@@ -336,9 +336,16 @@ async def get_shop_products_endpoint(
 @router.post("/{shop_id}/follow")
 async def follow_shop_endpoint(
     shop_id: UUID,
-    current_user: User = Depends(require_customer),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Only customers can follow shops
+    if current_user.role != 'customer':
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403, 
+            detail="Only customers can follow shops. Switch to customer mode to follow."
+        )
     await follow_shop(db, current_user.id, shop_id)
     return {"detail": "Shop followed successfully"}
 
@@ -346,9 +353,16 @@ async def follow_shop_endpoint(
 @router.delete("/{shop_id}/follow")
 async def unfollow_shop_endpoint(
     shop_id: UUID,
-    current_user: User = Depends(require_customer),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Only customers can unfollow shops
+    if current_user.role != 'customer':
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=403, 
+            detail="Only customers can unfollow shops. Switch to customer mode to unfollow."
+        )
     await unfollow_shop(db, current_user.id, shop_id)
     return {"detail": "Shop unfollowed successfully"}
 
@@ -362,8 +376,7 @@ async def get_shop_followers(
     db: AsyncSession = Depends(get_db),
 ):
     """Get the list of followers for a shop (only visible to shop owner)."""
-    from app.shops.models import Follow
-    from app.auth.models import User as UserModel
+    from app.auth.models import Follow, User as UserModel
     from datetime import datetime, timedelta
     
     # Verify this shop belongs to the current user

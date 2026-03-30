@@ -22,13 +22,14 @@ export default function BusinessTabs() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
+      {/* Main 5 tabs - clean navigation */}
       <Tabs.Screen name="dashboard" options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} /> }} />
       <Tabs.Screen name="catalog" options={{ title: 'Products', tabBarIcon: ({ color, size }) => <Ionicons name="cube" size={size} color={color} /> }} />
       <Tabs.Screen name="orders" options={{ title: 'Orders', tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} /> }} />
       <Tabs.Screen name="analytics" options={{ title: 'Insights', tabBarIcon: ({ color, size }) => <Ionicons name="stats-chart" size={size} color={color} /> }} />
       <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: ({ color, size }) => <Ionicons name="menu" size={size} color={color} /> }} />
 
-      {/* Hidden screens — accessible from More menu */}
+      {/* Hidden screens — accessible from More menu or navigation */}
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="snap-list" options={{ href: null }} />
       <Tabs.Screen name="billing" options={{ href: null }} />
@@ -44,6 +45,13 @@ export default function BusinessTabs() {
       <Tabs.Screen name="deals" options={{ href: null }} />
       <Tabs.Screen name="shop-profile" options={{ href: null }} />
       <Tabs.Screen name="bulk-upload" options={{ href: null }} />
+      <Tabs.Screen name="branding" options={{ href: null }} />
+      <Tabs.Screen name="followers" options={{ href: null }} />
+      <Tabs.Screen name="stories" options={{ href: null }} />
+      <Tabs.Screen name="staff" options={{ href: null }} />
+      <Tabs.Screen name="returns" options={{ href: null }} />
+      <Tabs.Screen name="subscription" options={{ href: null }} />
+      <Tabs.Screen name="product-details" options={{ href: null }} />
     </Tabs>
   );
 }

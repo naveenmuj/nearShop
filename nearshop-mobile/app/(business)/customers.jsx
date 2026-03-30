@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking } from 'react-native';
+import { View, Text, TextInput, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, StatusBar, BackHandler, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { authGet } from '../../lib/api';
 import { getCustomerSegments } from '../../lib/api/ai';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -25,43 +24,27 @@ export default function CustomersScreen() {
     if (!shopId) { setLoading(false); return; }
     setLoading(true); setError(null);
     try {
-      const [oRes, segRes] = await Promise.allSettled([
-        authGet(`/orders/shop/${shopId}`, { params: { per_page: 500 } }),
-        getCustomerSegments(shopId),
-      ]);
-
-      // Process orders → customer map
-      if (oRes.status === 'fulfilled') {
-        const d = oRes.value.data;
-        const orders = Array.isArray(d?.items) ? d.items : Array.isArray(d?.orders) ? d.orders : Array.isArray(d) ? d : [];
-        const map = {};
-        orders.forEach(o => {
-          if (!o || typeof o !== 'object') return;
-          const key = o?.customer_phone || String(o?.customer_id || 'unknown');
-          if (!map[key]) map[key] = { id: String(o?.customer_id || key), name: o?.customer_name || 'Customer', phone: o?.customer_phone || '', orders: 0, total: 0, lastOrder: o?.created_at || '' };
-          map[key].orders += 1;
-          map[key].total += Number(o?.total) || 0;
-          if (o?.created_at && o.created_at > (map[key].lastOrder || '')) map[key].lastOrder = o.created_at;
-        });
-        setCustomers(Object.values(map).sort((a, b) => b.total - a.total));
+      // Get customer segments which includes all customer data
+      const segRes = await getCustomerSegments(shopId);
+      const data = segRes.data;
+      
+      if (data) {
+        setSegments(data);
+        // The customers array from segments already has all the data we need
+        setCustomers(data.customers || []);
       }
-
-      if (segRes.status === 'fulfilled') setSegments(segRes.value.data);
     } catch (err) {
+      console.error('Failed to load customers:', err);
       setError(err?.response?.data?.detail || 'Failed to load customer data');
     } finally { setLoading(false); }
   }, [shopId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Merge segment data
-  const merged = customers.map(c => {
-    const seg = segments?.customers?.find(s => s.customer_id === c.id);
-    return { ...c, segment: seg?.segment, segColor: seg?.segment_color, winBack: seg?.win_back_action };
-  });
-
-  const filtered = merged.filter(c => {
-    const matchSearch = !search || c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone?.includes(search);
+  const filtered = customers.filter(c => {
+    const matchSearch = !search || 
+      c.name?.toLowerCase().includes(search.toLowerCase()) || 
+      c.phone?.includes(search);
     const matchSeg = segFilter === 'all' || c.segment === segFilter;
     return matchSearch && matchSeg;
   });
@@ -124,23 +107,23 @@ export default function CustomersScreen() {
 
             {filtered.length === 0 && <Text style={s.empty}>No customers found</Text>}
             {Array.isArray(filtered) && filtered.map((c, i) => (
-              <View key={i} style={s.card}>
+              <View key={c.customer_id || i} style={s.card}>
                 <View style={s.cardRow}>
-                  <View style={[s.avatar, { backgroundColor: (c.segColor || COLORS.primaryLight) + '30' }]}>
-                    <Text style={[s.avatarText, { color: c.segColor || COLORS.primary }]}>{(c.name || '?').charAt(0).toUpperCase()}</Text>
+                  <View style={[s.avatar, { backgroundColor: (SEGMENT_COLORS[c.segment] || COLORS.primaryLight) + '30' }]}>
+                    <Text style={[s.avatarText, { color: SEGMENT_COLORS[c.segment] || COLORS.primary }]}>{(c.name || '?').charAt(0).toUpperCase()}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={s.custName}>{c.name}</Text>
                       {c.segment && (
-                        <View style={[s.segBadge, { backgroundColor: (c.segColor || '#9CA3AF') + '20' }]}>
-                          <Text style={[s.segBadgeText, { color: c.segColor || '#9CA3AF' }]}>{SEGMENT_ICONS[c.segment]} {c.segment}</Text>
+                        <View style={[s.segBadge, { backgroundColor: (SEGMENT_COLORS[c.segment] || '#9CA3AF') + '20' }]}>
+                          <Text style={[s.segBadgeText, { color: SEGMENT_COLORS[c.segment] || '#9CA3AF' }]}>{SEGMENT_ICONS[c.segment]} {c.segment}</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={s.custSub}>{c.orders} order{c.orders !== 1 ? 's' : ''} | {formatPrice(c.total)} spent</Text>
-                    {c.winBack && (c.segment === 'At Risk' || c.segment === "Can't Lose" || c.segment === 'Lost') && (
-                      <Text style={s.winBack}>💡 {c.winBack}</Text>
+                    <Text style={s.custSub}>{c.frequency} order{c.frequency !== 1 ? 's' : ''} | {formatPrice(c.monetary)} spent</Text>
+                    {c.win_back_action && (c.segment === 'At Risk' || c.segment === "Can't Lose" || c.segment === 'Lost') && (
+                      <Text style={s.winBack}>💡 {c.win_back_action}</Text>
                     )}
                   </View>
                   {c.phone ? (

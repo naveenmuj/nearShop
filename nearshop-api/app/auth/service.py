@@ -183,6 +183,13 @@ class AuthService:
         if user is None:
             raise NotFoundError("User not found")
 
+        # Auto-add customer role if not present (business users can also be customers)
+        if role == 'customer' and role not in (user.roles or []):
+            current_roles = list(user.roles or [])
+            current_roles.append('customer')
+            user.roles = current_roles
+            await db.flush()
+
         if role not in (user.roles or []):
             raise BadRequestError(
                 f"Role '{role}' is not available. Your roles: {user.roles}"
