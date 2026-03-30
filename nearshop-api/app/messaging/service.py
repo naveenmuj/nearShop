@@ -195,10 +195,10 @@ async def get_user_conversations(
         filter_clause = Conversation.customer_id == user_id
     else:
         shop_result = await db.execute(select(Shop.id).where(Shop.owner_id == user_id))
-        shop_id = shop_result.scalar_one_or_none()
-        if not shop_id:
+        shop_ids = list(shop_result.scalars().all())
+        if not shop_ids:
             return [], 0
-        filter_clause = Conversation.shop_id == shop_id
+        filter_clause = Conversation.shop_id.in_(shop_ids)
     
     count_query = select(func.count()).select_from(Conversation).where(filter_clause)
     total = (await db.execute(count_query)).scalar() or 0
