@@ -6,10 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NETWORK_LOGGER_ENABLED } from '../constants/debugConfig';
 import useAuthStore from '../store/authStore';
 import useLocationStore from '../store/locationStore';
-import { ToastProvider } from '../components/ui/Toast';
+import { ToastProvider, useToast } from '../components/ui/Toast';
 import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogProvider';
 import { PremiumAlertProvider, PremiumAlertContext, setAlertRef } from '../components/ui/PremiumAlert';
 import { useContext } from 'react';
+import pushService from '../lib/pushNotifications';
 
 // Lazy-load network logger to prevent crash if module has issues
 let NetworkLogger = null;
@@ -209,6 +210,7 @@ function AlertRefSync() {
 
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const initLocation = useLocationStore((s) => s.initialize);
   const requestLocation = useLocationStore((s) => s.requestLocation);
 
@@ -230,6 +232,25 @@ export default function RootLayout() {
     };
     init();
   }, []);
+
+  // Initialize push notifications when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const initPush = async () => {
+        try {
+          await pushService.initialize();
+        } catch (err) {
+          console.error('Push notification init error:', err);
+        }
+      };
+      initPush();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      pushService.cleanup();
+    };
+  }, [isAuthenticated]);
 
   return (
     <ToastProvider>

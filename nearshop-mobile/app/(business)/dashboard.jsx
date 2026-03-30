@@ -191,8 +191,8 @@ export default function BizDashboardScreen() {
           {[
             { icon: '📸', label: 'Add Product', onPress: () => router.push('/(business)/snap-list') },
             { icon: '📦', label: 'Catalog', onPress: () => router.push('/(business)/catalog') },
+            { icon: '✨', label: 'Stories', onPress: () => router.push('/(business)/stories') },
             { icon: '👥', label: 'Followers', onPress: () => router.push('/(business)/followers') },
-            { icon: '👤', label: 'Customer', onPress: handleSwitchToCustomer, disabled: switching },
           ].map((a) => (
             <Pressable key={a.label} style={[styles.quickBtn, a.disabled && styles.quickBtnDisabled]} onPress={a.onPress} disabled={a.disabled}>
               <Text style={styles.quickIcon}>{a.icon}</Text>

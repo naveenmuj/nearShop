@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
-  StyleSheet, Switch, ActivityIndicator, StatusBar,
+  StyleSheet, Switch, ActivityIndicator, StatusBar, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { switchRole as apiSwitchRole } from '../../lib/auth';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { toast } from '../../components/ui/Toast/toastRef';
 import { alert } from '../../components/ui/PremiumAlert';
+import DeliveryTimeSlotsModal from '../../components/DeliveryTimeSlotsModal';
 
 const DELIVERY_OPTIONS = [
   { key: 'pickup', label: 'Pickup', icon: '🏪', desc: 'Customer picks up from your shop' },
@@ -51,6 +52,11 @@ export default function SettingsScreen() {
   const [freeDeliveryAbove, setFreeDeliveryAbove] = useState('');
   const [minOrder, setMinOrder] = useState('');
 
+  // Delivery hours state
+  const [deliveryAvailability, setDeliveryAvailability] = useState('all_day');
+  const [deliveryHours, setDeliveryHours] = useState([]);
+  const [showDeliveryHoursModal, setShowDeliveryHoursModal] = useState(false);
+
   const [saving, setSaving] = useState(false);
   
   // Verification state
@@ -73,6 +79,8 @@ export default function SettingsScreen() {
       setDeliveryFee(shop.delivery_fee ? String(shop.delivery_fee) : '');
       setFreeDeliveryAbove(shop.free_delivery_above ? String(shop.free_delivery_above) : '');
       setMinOrder(shop.min_order ? String(shop.min_order) : '');
+      setDeliveryAvailability(shop.delivery_available || 'all_day');
+      setDeliveryHours(shop.delivery_hours || []);
     }
   }, [shop]);
 
@@ -136,6 +144,28 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeliveryHoursSave = (availability, slots) => {
+    setDeliveryAvailability(availability);
+    setDeliveryHours(slots);
+  };
+
+  const formatDeliveryHoursDisplay = () => {
+    if (deliveryAvailability === 'all_day') return 'All Day';
+    if (deliveryAvailability === 'peak') return 'Peak Hours Only';
+    if (deliveryHours.length === 0) return 'Not Set';
+    
+    const formatTime = (time24) => {
+      if (!time24) return '';
+      const [hours, minutes] = time24.split(':');
+      const h = parseInt(hours, 10);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${minutes} ${ampm}`;
+    };
+    
+    return deliveryHours.map(s => `${formatTime(s.from)} - ${formatTime(s.to)}`).join(', ');
+  };
+
   const hasDelivery = deliveryOptions.includes('delivery');
 
   const handleSave = async () => {
@@ -159,6 +189,8 @@ export default function SettingsScreen() {
         delivery_fee: deliveryFee ? Number(deliveryFee) : 0,
         free_delivery_above: freeDeliveryAbove ? Number(freeDeliveryAbove) : undefined,
         min_order: minOrder ? Number(minOrder) : undefined,
+        delivery_available: deliveryAvailability,
+        delivery_hours: deliveryHours,
       };
       await updateShop(shopId, payload);
       alert.success({ title: 'Saved', message: 'Shop settings updated successfully!' });
@@ -339,6 +371,23 @@ export default function SettingsScreen() {
                 </View>
               </View>
 
+              {/* Delivery Hours Button */}
+              <TouchableOpacity
+                style={styles.deliveryHoursBtn}
+                onPress={() => setShowDeliveryHoursModal(true)}
+              >
+                <View style={styles.deliveryHoursBtnIcon}>
+                  <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+                </View>
+                <View style={styles.deliveryHoursBtnContent}>
+                  <Text style={styles.deliveryHoursBtnTitle}>Delivery Hours</Text>
+                  <Text style={styles.deliveryHoursBtnValue}>
+                    {formatDeliveryHoursDisplay()}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.gray400} />
+              </TouchableOpacity>
+
               {/* Summary */}
               <View style={styles.summaryBox}>
                 <Text style={styles.summaryTitle}>Delivery Summary</Text>
@@ -367,6 +416,51 @@ export default function SettingsScreen() {
             <Text style={styles.saveBtnText}>Save Settings</Text>
           )}
         </TouchableOpacity>
+
+        {/* Delivery Hours Modal */}
+        <DeliveryTimeSlotsModal
+          visible={showDeliveryHoursModal}
+          onClose={() => setShowDeliveryHoursModal(false)}
+          initialAvailability={deliveryAvailability}
+          initialSlots={deliveryHours}
+          onSave={handleDeliveryHoursSave}
+        />
+
+        {/* ── Shop Branding Section ──────────────────────────────── */}
+        <Text style={styles.sectionLabel}>SHOP BRANDING</Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.brandingCTA}
+            onPress={() => router.push('/(business)/branding')}
+          >
+            <View style={styles.brandingCTAIcon}>
+              <Text style={{ fontSize: 24 }}>🎨</Text>
+            </View>
+            <View style={styles.brandingCTAContent}>
+              <Text style={styles.brandingCTATitle}>Logo & Images</Text>
+              <Text style={styles.brandingCTADesc}>
+                {shop?.logo_url ? 'Customize your shop appearance' : 'Add logo, banner & gallery images'}
+              </Text>
+            </View>
+            <Text style={styles.menuChevron}>›</Text>
+          </TouchableOpacity>
+          
+          {/* Quick preview */}
+          {(shop?.logo_url || shop?.cover_image) && (
+            <View style={styles.brandingPreview}>
+              {shop?.cover_image && (
+                <View style={styles.brandingPreviewBanner}>
+                  <Image source={{ uri: shop.cover_image }} style={styles.brandingPreviewBannerImg} />
+                </View>
+              )}
+              {shop?.logo_url && (
+                <View style={styles.brandingPreviewLogo}>
+                  <Image source={{ uri: shop.logo_url }} style={styles.brandingPreviewLogoImg} />
+                </View>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* ── Shop Verification Section ──────────────────────────────── */}
         <Text style={styles.sectionLabel}>SHOP VERIFICATION</Text>
@@ -579,6 +673,41 @@ const styles = StyleSheet.create({
   summaryTitle: { fontSize: 13, fontWeight: '700', color: COLORS.green, marginBottom: 4 },
   summaryText: { fontSize: 13, color: COLORS.green, lineHeight: 18 },
 
+  // Delivery Hours Button
+  deliveryHoursBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primaryLight + '30',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '40',
+    gap: 12,
+  },
+  deliveryHoursBtnIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: COLORS.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deliveryHoursBtnContent: {
+    flex: 1,
+  },
+  deliveryHoursBtnTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray800,
+  },
+  deliveryHoursBtnValue: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+
   saveBtn: {
     backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 16,
     alignItems: 'center', marginHorizontal: 16, marginTop: 24,
@@ -594,6 +723,68 @@ const styles = StyleSheet.create({
   menuIcon: { fontSize: 20, width: 28, textAlign: 'center' },
   menuLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: COLORS.gray800 },
   menuChevron: { fontSize: 22, color: COLORS.gray300 },
+
+  // Branding Section
+  brandingCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 2,
+    gap: 12,
+  },
+  brandingCTAIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight + '30',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  brandingCTAContent: {
+    flex: 1,
+  },
+  brandingCTATitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.gray800,
+  },
+  brandingCTADesc: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    marginTop: 2,
+  },
+  brandingPreview: {
+    marginTop: 14,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.gray100,
+    height: 80,
+  },
+  brandingPreviewBanner: {
+    width: '100%',
+    height: '100%',
+  },
+  brandingPreviewBannerImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  brandingPreviewLogo: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    backgroundColor: COLORS.white,
+  },
+  brandingPreviewLogoImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
 
   // Verification Section
   verificationBanner: {

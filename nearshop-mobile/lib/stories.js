@@ -1,7 +1,7 @@
-import client, { authGet, authPost } from './api';
+import client, { authGet, authPost, authDelete } from './api';
 
 // Stories feed - public (for discovery)
-export const getStoriesFeed = () => client.get('/stories/feed');
+export const getStoriesFeed = () => authGet('/stories/feed');
 export const getDiscoverStories = (lat, lng) =>
   client.get('/stories/discover', { params: { lat, lng } });
 
@@ -9,3 +9,9 @@ export const getDiscoverStories = (lat, lng) =>
 export const viewStory = (id) => authPost(`/stories/${id}/view`);
 export const createStory = (data, shopId) =>
   authPost(`/stories?shop_id=${shopId}`, data);
+
+// Shop owner functions
+export const getShopStories = (shopId) =>
+  authGet(`/stories/shop/${shopId}`);
+export const deleteStory = (id) =>
+  authDelete(`/stories/${id}`);
