@@ -188,6 +188,14 @@ def main() -> int:
     if cust_me.status_code == 200:
         ok("customer active role is customer", cust_me.json().get("active_role") == "customer", str(cust_me.json().get("active_role")))
 
+    pre_list_c = requests.get(f"{API}/messaging/conversations?limit=5&offset=0", headers=auth_headers(ct), timeout=30)
+    pre_list_b = requests.get(f"{API}/messaging/conversations?limit=5&offset=0", headers=auth_headers(bt), timeout=30)
+    ok("customer list conversations preflight", pre_list_c.status_code == 200, pre_list_c.text[:120])
+    ok("business list conversations preflight", pre_list_b.status_code == 200, pre_list_b.text[:120])
+
+    pre_upload_url = upload_test_image(ct)
+    ok("upload endpoint preflight", bool(pre_upload_url), "upload did not return URL")
+
     shop_id = ensure_shop_for_business(bt)
     ok("business has shop", bool(shop_id), "shop missing")
 

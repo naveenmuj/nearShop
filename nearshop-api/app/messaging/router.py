@@ -40,6 +40,15 @@ async def _resolve_sender_role(db: AsyncSession, conversation, user_id: UUID) ->
     return None
 
 
+def _user_display_name(user) -> str:
+    return (
+        getattr(user, "full_name", None)
+        or getattr(user, "name", None)
+        or getattr(user, "phone", None)
+        or "User"
+    )
+
+
 class MessagingConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, Set[WebSocket]] = {}
@@ -126,7 +135,7 @@ async def get_conversation(
     messages = paged_messages[1:] if messages_has_more else paged_messages
     messages_next_before_id = messages[0].id if messages_has_more and messages else None
     unread_count = conversation.customer_unread_count if sender_role == "customer" else conversation.shop_unread_count
-    other_party_name = conversation.shop.name if sender_role == "customer" else (conversation.customer.full_name or conversation.customer.phone)
+    other_party_name = conversation.shop.name if sender_role == "customer" else _user_display_name(conversation.customer)
     other_party_avatar = conversation.shop.logo_url if sender_role == "customer" else conversation.customer.avatar_url
     return ConversationDetail(
         id=conversation.id, customer_id=conversation.customer_id, shop_id=conversation.shop_id,

@@ -20,6 +20,17 @@ from app.core.firebase import send_push_notification
 logger = logging.getLogger(__name__)
 
 
+def _display_name(user: User | None) -> str:
+    if not user:
+        return "User"
+    return (
+        getattr(user, "full_name", None)
+        or getattr(user, "name", None)
+        or getattr(user, "phone", None)
+        or "User"
+    )
+
+
 async def _notify_message_recipient(
     db: AsyncSession,
     conversation: Conversation,
@@ -213,7 +224,7 @@ async def get_user_conversations(
             "product_id": conv.product_id, "order_id": conv.order_id, "status": conv.status,
             "last_message_at": conv.last_message_at, "created_at": conv.created_at,
             "unread_count": conv.customer_unread_count if role == "customer" else conv.shop_unread_count,
-            "other_party_name": conv.shop.name if role == "customer" else (conv.customer.full_name or conv.customer.phone),
+            "other_party_name": conv.shop.name if role == "customer" else _display_name(conv.customer),
             "other_party_avatar": conv.shop.logo_url if role == "customer" else conv.customer.avatar_url,
             "last_message_preview": last_msg.content[:100] if last_msg and last_msg.content else None,
             "shop_name": conv.shop.name,
