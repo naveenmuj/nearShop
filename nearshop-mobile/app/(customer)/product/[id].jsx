@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator,
   StatusBar, FlatList, TextInput, KeyboardAvoidingView, Platform,
-  Modal, Dimensions, Image,
+  Modal, Dimensions, Image, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -13,9 +13,9 @@ import { addToWishlist, removeFromWishlist } from '../../../lib/wishlists';
 import { trackView } from '../../../lib/engagement';
 import { trackEvent } from '../../../lib/analytics';
 import { startHaggle } from '../../../lib/haggle';
+import { startConversation } from '../../../lib/messaging';
 import { createOrder } from '../../../lib/orders';
 import { toast } from '../../../components/ui/Toast';
-import * as Sharing from 'expo-sharing';
 import * as Linking from 'expo-linking';
 import useAuthStore from '../../../store/authStore';
 import useCartStore from '../../../store/cartStore';
@@ -253,6 +253,7 @@ export default function ProductDetailScreen() {
   const params = useLocalSearchParams();
   const { id } = params;
   const { user } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { lat, lng } = useLocationStore();
   const [product, setProduct] = useState(null);
   const [similar, setSimilar] = useState([]);
@@ -260,6 +261,7 @@ export default function ProductDetailScreen() {
   const [inWishlist, setInWishlist] = useState(false);
   const [showHaggle, setShowHaggle] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
   const rankingContext = useMemo(
     () => extractRankingContextFromParams(params),
     [params.surface, params.reason, params.query, params.source_screen, params.position],
@@ -307,18 +309,44 @@ export default function ProductDetailScreen() {
 
   const handleShare = async () => {
     const shareUrl = `https://nearshop.in/app/product/${id}`;
-    const message = `Check out ${product?.name || 'this product'} on NearShop!\n${shareUrl}`;
+    const message = `Check out ${product?.name || 'this product'} on NearShop!\n\n${shareUrl}`;
     
     try {
-      // Try native sharing API (works on iOS and modern Android)
-      await Sharing.shareAsync(shareUrl, { 
-        dialogTitle: 'Share Product',
-        message: message
+      // Use native Share API - shows native share sheet with all apps
+      await Share.share({
+        message: message,
+        title: product?.name || 'Product',
+        url: shareUrl, // iOS uses this
       });
     } catch (error) {
-      // If sharing fails, show a simple alert
+      // User cancelled or error occurred
       console.error('Share failed:', error);
-      toast.info('Share this link: ' + shareUrl);
+      if (error?.message !== 'User did not share') {
+        toast.info('Share this link: ' + shareUrl);
+      }
+    }
+  };
+
+  const handleMessageShop = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please sign in to message this shop.');
+      router.push('/(auth)/email');
+      return;
+    }
+    if (!product?.shop_id || startingChat) return;
+
+    setStartingChat(true);
+    try {
+      const conversation = await startConversation(product.shop_id, product.id);
+      if (conversation?.id) {
+        router.push(`/(customer)/chat/${conversation.id}`);
+      } else {
+        router.push('/(customer)/messages');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not start chat. Please try again.');
+    } finally {
+      setStartingChat(false);
     }
   };
 
@@ -383,6 +411,13 @@ export default function ProductDetailScreen() {
           <Text style={styles.floatBtnText}>←</Text>
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Pressable
+            style={styles.floatBtn}
+            onPress={handleMessageShop}
+            disabled={startingChat}
+          >
+            {startingChat ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.floatBtnText}>💬</Text>}
+          </Pressable>
           <Pressable style={styles.floatBtn} onPress={handleShare}>
             <Text style={styles.floatBtnText}>🔗</Text>
           </Pressable>
@@ -527,7 +562,7 @@ export default function ProductDetailScreen() {
       <SafeAreaView edges={['bottom']} style={styles.stickyBar}>
         <View style={styles.stickyInner}>
           {/* WhatsApp + Share row */}
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: hagglingEnabled || isAvailable ? 8 : 0 }}>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: isAvailable ? 8 : 0 }}>
             <Pressable
               style={[styles.haggleBtn, { flex: 1, backgroundColor: '#25D366' }]}
               onPress={handleWhatsApp}
@@ -541,15 +576,20 @@ export default function ProductDetailScreen() {
               <Text style={[styles.haggleBtnText, { color: COLORS.primary }]}>🔗 Share</Text>
             </Pressable>
           </View>
-          {hagglingEnabled && isAvailable ? (
-            <Pressable
-              style={styles.haggleBtn}
-              onPress={() => setShowHaggle(true)}
-            >
-              <Text style={styles.haggleBtnText}>🤝 Haggle</Text>
-            </Pressable>
-          ) : null}
-          <CartButton product={product} isAvailable={isAvailable} hagglingEnabled={hagglingEnabled} />
+          {/* Haggle and Cart row */}
+          {isAvailable ? (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable
+                style={[styles.haggleBtn, { flex: 1 }]}
+                onPress={() => setShowHaggle(true)}
+              >
+                <Text style={styles.haggleBtnText}>🤝 Haggle</Text>
+              </Pressable>
+              <CartButton product={product} isAvailable={isAvailable} hagglingEnabled={hagglingEnabled} />
+            </View>
+          ) : (
+            <CartButton product={product} isAvailable={isAvailable} hagglingEnabled={hagglingEnabled} />
+          )}
         </View>
       </SafeAreaView>
 

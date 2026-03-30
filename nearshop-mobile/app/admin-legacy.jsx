@@ -83,10 +83,18 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(business)/more');
+  }, [router]);
+
   useEffect(() => {
-    const h = BackHandler.addEventListener('hardwareBackPress', () => { router.back(); return true; });
+    const h = BackHandler.addEventListener('hardwareBackPress', () => { goBack(); return true; });
     return () => h.remove();
-  }, []);
+  }, [goBack]);
 
   const load = useCallback(async () => {
     try {
@@ -130,7 +138,7 @@ export default function AdminDashboard() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
         <View>

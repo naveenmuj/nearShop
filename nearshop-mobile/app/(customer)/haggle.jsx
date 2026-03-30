@@ -74,13 +74,21 @@ const timeAgo = (dateStr) => {
 };
 
 export default function HaggleScreen() {
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(customer)/profile');
+  }, []);
+
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.navigate('/(customer)/profile');
+      goBack();
       return true;
     });
     return () => handler.remove();
-  }, []);
+  }, [goBack]);
 
   const [haggles, setHaggles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -223,7 +231,7 @@ export default function HaggleScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => router.navigate('/(customer)/profile')}
+          onPress={goBack}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons name="arrow-back" size={24} color={COLORS.gray800} />

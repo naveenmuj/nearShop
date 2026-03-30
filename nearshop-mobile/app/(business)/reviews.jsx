@@ -18,7 +18,21 @@ export default function ReviewsScreen() {
   const [replyText, setReplyText] = useState({});
   const [replyingId, setReplyingId] = useState(null);
 
-  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(business)/more');
+  }, []);
+
+  useEffect(() => {
+    const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => h.remove();
+  }, [goBack]);
 
   const loadData = useCallback(async (silent = false) => {
     if (!shopId) { setLoading(false); return; }
@@ -70,7 +84,7 @@ export default function ReviewsScreen() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(business)/more')}><Text style={s.back}>← Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={goBack}><Text style={s.back}>← Back</Text></TouchableOpacity>
         <Text style={s.title}>Reviews</Text>
         <View style={{ width: 50 }} />
       </View>

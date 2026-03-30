@@ -56,6 +56,8 @@ class ConversationSummary(BaseModel):
 
 class ConversationDetail(ConversationSummary):
     messages: List[MessageResponse] = []
+    messages_has_more: bool = False
+    messages_next_before_id: Optional[UUID] = None
 
 
 class ConversationListResponse(BaseModel):

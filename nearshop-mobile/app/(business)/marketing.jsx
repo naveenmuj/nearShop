@@ -26,8 +26,24 @@ export default function MarketingScreen() {
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const scrollRef = React.useRef(null);
+  const previewRef = React.useRef(null);
 
-  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(business)/more');
+  }, []);
+
+  useEffect(() => {
+    const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => h.remove();
+  }, [goBack]);
 
   const loadProducts = useCallback(async () => {
     if (!shopId) return;
@@ -66,6 +82,10 @@ export default function MarketingScreen() {
       }
       const res = await authPost('/marketing/whatsapp-text', payload);
       setGeneratedText(res.data?.text ?? '');
+      // Auto-scroll to preview after generation
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 300);
     } catch (err) {
       toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to generate' });
     } finally {
@@ -85,7 +105,7 @@ export default function MarketingScreen() {
     try {
       await authPost('/broadcast/send', {
         title: TEMPLATES.find(t => t.key === template)?.label || 'New Update',
-        message: generatedText.substring(0, 200),
+        body: generatedText.substring(0, 200),
         segment: 'all',
       });
       toast.show({ type: 'success', text1: 'Notification sent to all followers!' });
@@ -101,17 +121,21 @@ export default function MarketingScreen() {
     : products;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(business)/more')}>
+        <TouchableOpacity onPress={goBack}>
           <Text style={s.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.title}>📱 WhatsApp Studio</Text>
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+      <ScrollView 
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={s.content}
+      >
         {/* Step 1: Template Selection */}
         <Text style={s.stepLabel}>STEP 1: Choose Template</Text>
         <View style={s.templateGrid}>
@@ -180,8 +204,30 @@ export default function MarketingScreen() {
           </View>
         )}
 
-        {/* Step 3: Generate & Share */}
-        <Text style={s.stepLabel}>STEP 3: Generate & Share</Text>
+        {/* Generated Message Preview */}
+        {generatedText !== '' && (
+          <>
+            <Text style={[s.stepLabel, { marginTop: 24 }]}>MESSAGE PREVIEW</Text>
+            <View style={s.previewCard} ref={previewRef}>
+              <Text style={s.previewText}>{generatedText}</Text>
+
+              <View style={s.shareRow}>
+                <TouchableOpacity onPress={shareWhatsApp} style={[s.shareBtn, { backgroundColor: '#25D366' }]}>
+                  <Text style={s.shareBtnText}>📱 Share on WhatsApp</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={notifyFollowers} style={[s.shareBtn, { backgroundColor: COLORS.primary }]}>
+                  <Text style={s.shareBtnText}>🔔 Notify Followers</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
+        )}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* Sticky Generate Button */}
+      <View style={s.stickyFooter}>
         <TouchableOpacity
           onPress={handleGenerate}
           disabled={generating}
@@ -193,25 +239,7 @@ export default function MarketingScreen() {
             <Text style={s.generateBtnText}>✨ Generate WhatsApp Message</Text>
           )}
         </TouchableOpacity>
-
-        {generatedText !== '' && (
-          <View style={s.previewCard}>
-            <Text style={s.previewLabel}>MESSAGE PREVIEW</Text>
-            <Text style={s.previewText}>{generatedText}</Text>
-
-            <View style={s.shareRow}>
-              <TouchableOpacity onPress={shareWhatsApp} style={[s.shareBtn, { backgroundColor: '#25D366' }]}>
-                <Text style={s.shareBtnText}>📱 Share on WhatsApp</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={notifyFollowers} style={[s.shareBtn, { backgroundColor: COLORS.primary }]}>
-                <Text style={s.shareBtnText}>🔔 Notify Followers</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -253,12 +281,19 @@ const s = StyleSheet.create({
   prodPrice: { fontSize: 14, fontWeight: '700', color: COLORS.green },
 
   // Generate
-  generateBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 8 },
+  stickyFooter: { 
+    backgroundColor: COLORS.white, 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
+    borderTopWidth: 1, 
+    borderTopColor: COLORS.gray100,
+    ...SHADOWS.card 
+  },
+  generateBtn: { backgroundColor: COLORS.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   generateBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   // Preview
-  previewCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginTop: 16, ...SHADOWS.card },
-  previewLabel: { fontSize: 11, fontWeight: '700', color: COLORS.gray400, letterSpacing: 0.8, marginBottom: 10 },
+  previewCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, marginTop: 8, ...SHADOWS.card },
   previewText: { fontSize: 14, color: COLORS.gray800, lineHeight: 22, backgroundColor: COLORS.gray50, borderRadius: 10, padding: 14 },
   shareRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
   shareBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },

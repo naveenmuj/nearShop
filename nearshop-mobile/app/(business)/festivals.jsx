@@ -17,7 +17,21 @@ export default function FestivalsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(business)/more');
+  }, []);
+
+  useEffect(() => {
+    const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => h.remove();
+  }, [goBack]);
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -57,7 +71,7 @@ export default function FestivalsScreen() {
     try {
       await authPost('/broadcast/send', {
         title: `${f.name} Special!`,
-        message: `Get ready for ${f.name}! We have special deals and offers waiting for you. Visit now!`,
+        body: `Get ready for ${f.name}! We have special deals and offers waiting for you. Visit now!`,
         segment: 'all',
       });
       toast.show({ type: 'success', text1: 'Notification sent to followers!' });
@@ -72,7 +86,7 @@ export default function FestivalsScreen() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(business)/more')}>
+        <TouchableOpacity onPress={goBack}>
           <Text style={s.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.title}>🎪 Festival Calendar</Text>

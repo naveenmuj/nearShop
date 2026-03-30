@@ -47,7 +47,7 @@ export default function AdvisorScreen() {
   const [activeTab, setActiveTab] = useState('suggestions');
   const scrollRef = useRef(null);
 
-  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
+  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.back(); return true; }); return () => h.remove(); }, []);
 
   const loadSuggestions = useCallback(async () => {
     setLoading(true); setError(null);
@@ -102,7 +102,7 @@ export default function AdvisorScreen() {
 
       {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(business)/more')}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Text style={s.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={s.title}>🤖 AI Advisor</Text>

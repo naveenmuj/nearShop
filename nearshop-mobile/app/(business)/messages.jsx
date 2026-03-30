@@ -1,6 +1,3 @@
-/**
- * Messages Screen - List of conversations
- */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
@@ -11,14 +8,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { getConversations } from '../../lib/messaging';
-import useAuthStore from '../../store/authStore';
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now - date;
-  
+
   if (diff < 60000) return 'Now';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
@@ -26,7 +22,7 @@ function formatTime(dateStr) {
   return date.toLocaleDateString();
 }
 
-export default function MessagesScreen() {
+export default function BusinessMessagesScreen() {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -41,7 +37,7 @@ export default function MessagesScreen() {
       setConversations(prev => (append ? [...prev, ...items] : items));
       setHasMore(items.length >= PAGE_SIZE);
     } catch (error) {
-      console.error('Error loading conversations:', error);
+      console.error('Error loading business conversations:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,7 +63,7 @@ export default function MessagesScreen() {
   const renderConversation = ({ item }) => (
     <TouchableOpacity
       style={styles.conversationCard}
-      onPress={() => router.push(`/(customer)/chat/${item.id}`)}
+      onPress={() => router.push(`/(business)/chat/${item.id}`)}
       activeOpacity={0.7}
     >
       <View style={styles.avatarContainer}>
@@ -75,7 +71,7 @@ export default function MessagesScreen() {
           <Image source={{ uri: item.other_party_avatar }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarPlaceholder]}>
-            <Ionicons name="storefront" size={24} color={COLORS.primary} />
+            <Ionicons name="person" size={22} color={COLORS.primary} />
           </View>
         )}
         {item.unread_count > 0 && (
@@ -84,15 +80,15 @@ export default function MessagesScreen() {
           </View>
         )}
       </View>
-      
+
       <View style={styles.conversationInfo}>
         <View style={styles.headerRow}>
-          <Text style={styles.shopName} numberOfLines={1}>{item.shop_name || item.other_party_name}</Text>
+          <Text style={styles.partyName} numberOfLines={1}>{item.other_party_name || 'Customer'}</Text>
           <Text style={styles.time}>{formatTime(item.last_message_at)}</Text>
         </View>
-        {item.product_name && (
+        {item.product_name ? (
           <Text style={styles.productTag}>Re: {item.product_name}</Text>
-        )}
+        ) : null}
         <Text style={[styles.preview, item.unread_count > 0 && styles.previewUnread]} numberOfLines={1}>
           {item.last_message_preview || 'No messages yet'}
         </Text>
@@ -112,12 +108,11 @@ export default function MessagesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Messages</Text>
+        <Text style={styles.title}>Customer Chats</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -125,10 +120,7 @@ export default function MessagesScreen() {
         <View style={styles.centered}>
           <Ionicons name="chatbubbles-outline" size={64} color={COLORS.gray} />
           <Text style={styles.emptyTitle}>No conversations yet</Text>
-          <Text style={styles.emptySubtitle}>Start chatting with shops about products</Text>
-          <TouchableOpacity style={styles.emptyCtaBtn} onPress={() => router.push('/(customer)/search')} activeOpacity={0.8}>
-            <Text style={styles.emptyCtaText}>Browse Shops</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptySubtitle}>Chats started by customers will appear here</Text>
         </View>
       ) : (
         <FlatList
@@ -173,23 +165,11 @@ const styles = StyleSheet.create({
   unreadText: { color: COLORS.white, fontSize: 11, fontWeight: '700' },
   conversationInfo: { flex: 1, marginLeft: 12 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  shopName: { fontSize: 16, fontWeight: '600', color: COLORS.text, flex: 1 },
+  partyName: { fontSize: 16, fontWeight: '600', color: COLORS.text, flex: 1 },
   time: { fontSize: 12, color: COLORS.gray, marginLeft: 8 },
   productTag: { fontSize: 12, color: COLORS.primary, marginTop: 2 },
   preview: { fontSize: 14, color: COLORS.gray, marginTop: 4 },
   previewUnread: { fontWeight: '600', color: COLORS.text },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text, marginTop: 16 },
   emptySubtitle: { fontSize: 14, color: COLORS.gray, marginTop: 4, textAlign: 'center' },
-  emptyCtaBtn: {
-    marginTop: 16,
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  emptyCtaText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '700',
-  },
 });

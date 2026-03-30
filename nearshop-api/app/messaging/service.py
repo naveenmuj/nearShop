@@ -7,10 +7,75 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, desc, update
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
+import logging
 
 from app.messaging.models import Conversation, Message, MessageTemplate
 from app.messaging.schemas import MessageCreate
 from app.shops.models import Shop
+from app.auth.models import User
+from app.notifications.service import create_notification
+from app.core.firebase import send_push_notification
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _notify_message_recipient(
+    db: AsyncSession,
+    conversation: Conversation,
+    sender_role: str,
+    message: Message,
+) -> None:
+    preview = (message.content or "Sent an attachment").strip()[:120]
+
+    try:
+        if sender_role == "customer":
+            owner_result = await db.execute(select(Shop.owner_id).where(Shop.id == conversation.shop_id))
+            recipient_user_id = owner_result.scalar_one_or_none()
+            if not recipient_user_id:
+                return
+
+            customer_result = await db.execute(select(User).where(User.id == conversation.customer_id))
+            customer = customer_result.scalar_one_or_none()
+            party_name = (customer.full_name if customer and hasattr(customer, "full_name") else None) or (customer.name if customer else None) or (customer.phone if customer else "Customer")
+            target_role = "business"
+        else:
+            recipient_user_id = conversation.customer_id
+            shop_result = await db.execute(select(Shop.name).where(Shop.id == conversation.shop_id))
+            shop_name = shop_result.scalar_one_or_none() or "Shop"
+            party_name = shop_name
+            target_role = "customer"
+
+        recipient_result = await db.execute(select(User).where(User.id == recipient_user_id))
+        recipient = recipient_result.scalar_one_or_none()
+        if not recipient:
+            return
+
+        await create_notification(
+            db=db,
+            user_id=recipient.id,
+            notification_type="new_message",
+            reference_type="conversation",
+            reference_id=conversation.id,
+            party_name=party_name,
+            message_preview=preview,
+        )
+
+        if recipient.fcm_token:
+            send_push_notification(
+                token=recipient.fcm_token,
+                title=f"New message from {party_name}",
+                body=preview,
+                data={
+                    "type": "new_message",
+                    "reference_type": "conversation",
+                    "reference_id": str(conversation.id),
+                    "target_role": target_role,
+                    "sender_role": sender_role,
+                },
+            )
+    except Exception as exc:
+        logger.warning("Failed to send chat notification: %s", exc)
 
 
 async def get_or_create_conversation(
@@ -64,6 +129,8 @@ async def send_message(
         conversation.shop_unread_count += 1
     else:
         conversation.customer_unread_count += 1
+
+    await _notify_message_recipient(db, conversation, sender_role, message)
     
     await db.commit()
     await db.refresh(message)

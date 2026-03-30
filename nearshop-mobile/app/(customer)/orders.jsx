@@ -129,14 +129,22 @@ function OrderCard({ order, onCancel, onDownloadInvoice, onPress, downloadingInv
 export default function OrdersScreen() {
   const router = useRouter();
 
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(customer)/profile');
+  }, [router]);
+
   // Handle Android hardware back → go back to profile, not home
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.navigate('/(customer)/profile');
+      goBack();
       return true;
     });
     return () => handler.remove();
-  }, [router]);
+  }, [goBack]);
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [orders, setOrders] = useState([]);
@@ -299,7 +307,7 @@ export default function OrdersScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => router.navigate('/(customer)/profile')}
+          onPress={goBack}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >

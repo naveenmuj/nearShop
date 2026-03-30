@@ -26,7 +26,21 @@ export default function BillingScreen() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(business)/more');
+  }, []);
+
+  useEffect(() => {
+    const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => h.remove();
+  }, [goBack]);
 
   useEffect(() => {
     if (shopId) getShopProducts(shopId, { per_page: 100 }).then(res => {
@@ -83,7 +97,7 @@ export default function BillingScreen() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(business)/more')}><Text style={s.back}>← Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={goBack}><Text style={s.back}>← Back</Text></TouchableOpacity>
         <Text style={s.title}>Billing</Text>
         <View style={{ width: 50 }} />
       </View>

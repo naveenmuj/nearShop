@@ -43,11 +43,13 @@ export default function StoriesScreen() {
   const { shop, shopId, loading: shopLoading, refresh: refreshShop } = useMyShop();
   
   const [stories, setStories] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [caption, setCaption] = useState('');
+  const [selectedProducts, setSelectedProducts] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -66,9 +68,21 @@ export default function StoriesScreen() {
     }
   }, [shopId]);
 
+  const fetchProducts = useCallback(async () => {
+    if (!shopId) return;
+    try {
+      const { authGet } = require('../../lib/api');
+      const res = await authGet(`/shops/${shopId}/products`, { params: { per_page: 50 } });
+      setProducts(res.data?.items || res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    }
+  }, [shopId]);
+
   useEffect(() => {
     if (shopId) {
       fetchStories();
+      fetchProducts();
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
@@ -145,8 +159,10 @@ export default function StoriesScreen() {
 
       // Create story
       const storyData = {
-        image_url: uploadResponse.url,
+        media_url: uploadResponse.url,  // Changed from image_url to media_url
+        media_type: 'image',
         caption: caption.trim() || null,
+        product_tags: selectedProducts.length > 0 ? selectedProducts : null,
       };
 
       await createStory(storyData, shopId);
@@ -155,12 +171,14 @@ export default function StoriesScreen() {
       setShowCreateModal(false);
       setSelectedImage(null);
       setCaption('');
+      setSelectedProducts([]);
       await fetchStories();
     } catch (err) {
       console.error('Failed to create story:', err);
+      const errorMsg = err?.response?.data?.detail || err?.message || 'Could not create story';
       alert.error({
         title: 'Failed',
-        message: 'Could not create story. Please try again.',
+        message: typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
       });
     } finally {
       setCreating(false);
@@ -396,6 +414,34 @@ export default function StoriesScreen() {
                 maxLength={200}
               />
               <Text style={styles.captionCharCount}>{caption.length}/200</Text>
+            </View>
+
+            {/* Product Selection */}
+            <View style={styles.productSelectionContainer}>
+              <Text style={styles.productSelectionLabel}>Tag Products (Optional)</Text>
+              <Text style={styles.productSelectionDesc}>Products will show when customers view this story</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.productScroll}>
+                {products.map((product) => {
+                  const isSelected = selectedProducts.includes(product.id);
+                  return (
+                    <TouchableOpacity
+                      key={product.id}
+                      style={[styles.productChip, isSelected && styles.productChipSelected]}
+                      onPress={() => {
+                        if (isSelected) {
+                          setSelectedProducts(prev => prev.filter(id => id !== product.id));
+                        } else {
+                          setSelectedProducts(prev => [...prev, product.id]);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.productChipText, isSelected && styles.productChipTextSelected]}>
+                        {isSelected && '✓ '}{product.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
 
             {/* Publish Button */}
@@ -703,6 +749,44 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     textAlign: 'right',
     marginTop: 4,
+  },
+  productSelectionContainer: {
+    marginBottom: 16,
+  },
+  productSelectionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.gray800,
+    marginBottom: 4,
+  },
+  productSelectionDesc: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    marginBottom: 10,
+  },
+  productScroll: {
+    marginTop: 8,
+  },
+  productChip: {
+    backgroundColor: COLORS.gray100,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  productChipSelected: {
+    backgroundColor: COLORS.primaryLight,
+    borderColor: COLORS.primary,
+  },
+  productChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  productChipTextSelected: {
+    color: COLORS.primary,
   },
   publishBtn: {
     backgroundColor: COLORS.primary,

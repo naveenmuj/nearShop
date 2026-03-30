@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import client, { buildAuthConfig } from './api';
+import useAuthStore from '../store/authStore';
 
 // Dynamic imports with fallbacks
 let Notifications = null;
@@ -264,7 +265,13 @@ class PushNotificationService {
       case 'new_message':
       case 'chat':
         if (reference_id) {
-          router.push(`/(customer)/chat/${reference_id}`);
+          const activeRole = useAuthStore.getState()?.user?.active_role;
+          const targetRole = data.target_role || activeRole || 'customer';
+          if (targetRole === 'business') {
+            router.push(`/(business)/chat/${reference_id}`);
+          } else {
+            router.push(`/(customer)/chat/${reference_id}`);
+          }
         }
         break;
 

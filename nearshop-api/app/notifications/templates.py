@@ -67,4 +67,8 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "title": "New Follower",
         "body": "{user_name} started following your shop",
     },
+    "new_message": {
+        "title": "New Message",
+        "body": "{party_name}: {message_preview}",
+    },
 }

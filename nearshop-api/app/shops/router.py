@@ -340,7 +340,7 @@ async def follow_shop_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     # Only customers can follow shops
-    if current_user.role != 'customer':
+    if 'customer' not in current_user.roles:
         from fastapi import HTTPException
         raise HTTPException(
             status_code=403, 
@@ -357,7 +357,7 @@ async def unfollow_shop_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     # Only customers can unfollow shops
-    if current_user.role != 'customer':
+    if 'customer' not in current_user.roles:
         from fastapi import HTTPException
         raise HTTPException(
             status_code=403, 

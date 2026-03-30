@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { getShop, getShopProducts, getShopReviews, followShop, unfollowShop } from '../../../lib/shops';
+import { startConversation } from '../../../lib/messaging';
 import { trackEvent } from '../../../lib/analytics';
 import ProductCard from '../../../components/ProductCard';
 import { ShopDetailSkeleton } from '../../../components/ui/ScreenSkeletons';
@@ -96,6 +97,7 @@ export default function ShopDetailScreen() {
   const [isFollowed, setIsFollowed] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -225,6 +227,35 @@ export default function ShopDetailScreen() {
     }
   };
 
+  const handleMessageShop = async () => {
+    if (!isAuthenticated) {
+      toast.info('Please sign in to message this shop.');
+      router.push('/(auth)/email');
+      return;
+    }
+    if (startingChat) return;
+
+    const targetShopId = shop?.id || id;
+    if (!targetShopId) {
+      toast.error('Shop details are unavailable right now.');
+      return;
+    }
+
+    setStartingChat(true);
+    try {
+      const conversation = await startConversation(targetShopId);
+      if (conversation?.id) {
+        router.push(`/(customer)/chat/${conversation.id}`);
+      } else {
+        router.push('/(customer)/messages');
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Could not start chat. Please try again.');
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
   if (loading) {
     return <ShopDetailSkeleton />;
   }
@@ -256,9 +287,19 @@ export default function ShopDetailScreen() {
         <Text style={styles.floatingHeaderTitle} numberOfLines={1}>
           {shop.name}
         </Text>
-        <TouchableOpacity style={styles.floatingShareBtn} onPress={handleShare} activeOpacity={0.8}>
-          <Text style={styles.floatingIcon}>⎙</Text>
-        </TouchableOpacity>
+        <View style={styles.floatingActions}>
+          <TouchableOpacity
+            style={styles.floatingShareBtn}
+            onPress={handleMessageShop}
+            activeOpacity={0.8}
+            disabled={startingChat}
+          >
+            {startingChat ? <ActivityIndicator size="small" color={COLORS.gray700} /> : <Text style={styles.floatingIcon}>💬</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.floatingShareBtn} onPress={handleShare} activeOpacity={0.8}>
+            <Text style={styles.floatingIcon}>⎙</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       <Animated.ScrollView
@@ -290,6 +331,14 @@ export default function ShopDetailScreen() {
               <Text style={styles.heroIconText}>‹</Text>
             </TouchableOpacity>
             <View style={styles.heroRightBtns}>
+              <TouchableOpacity
+                style={styles.heroIconBtn}
+                onPress={handleMessageShop}
+                activeOpacity={0.85}
+                disabled={startingChat}
+              >
+                {startingChat ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={styles.heroIconTextSmall}>💬</Text>}
+              </TouchableOpacity>
               <TouchableOpacity style={styles.heroIconBtn} onPress={handleShare} activeOpacity={0.85}>
                 <Text style={styles.heroIconText}>⎙</Text>
               </TouchableOpacity>
@@ -361,25 +410,27 @@ export default function ShopDetailScreen() {
               <Text style={styles.followCount}>{followerCount}</Text>
               <Text style={styles.followLabel}>Followers</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.followBtn, isFollowed && styles.followBtnActive]}
-              onPress={handleFollowToggle}
-              activeOpacity={0.8}
-              disabled={followLoading}
-            >
-              {followLoading ? (
-                <ActivityIndicator size="small" color={isFollowed ? COLORS.primary : COLORS.white} />
-              ) : (
-                <>
-                  <Text style={[styles.followBtnIcon, isFollowed && styles.followBtnIconActive]}>
-                    {isFollowed ? '♥' : '♡'}
-                  </Text>
-                  <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>
-                    {isFollowed ? 'Following' : 'Follow'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                style={[styles.followBtn, isFollowed && styles.followBtnActive]}
+                onPress={handleFollowToggle}
+                activeOpacity={0.8}
+                disabled={followLoading}
+              >
+                {followLoading ? (
+                  <ActivityIndicator size="small" color={isFollowed ? COLORS.primary : COLORS.white} />
+                ) : (
+                  <>
+                    <Text style={[styles.followBtnIcon, isFollowed && styles.followBtnIconActive]}>
+                      {isFollowed ? '♥' : '♡'}
+                    </Text>
+                    <Text style={[styles.followBtnText, isFollowed && styles.followBtnTextActive]}>
+                      {isFollowed ? 'Following' : 'Follow'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -642,6 +693,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  floatingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   floatingIcon: {
     fontSize: 20,
     color: COLORS.gray700,
@@ -703,6 +759,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: COLORS.white,
     lineHeight: 28,
+  },
+  heroIconTextSmall: {
+    fontSize: 20,
+    color: COLORS.white,
+    lineHeight: 24,
   },
   heroRightBtns: {
     flexDirection: 'row',

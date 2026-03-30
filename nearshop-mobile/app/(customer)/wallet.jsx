@@ -184,13 +184,21 @@ export default function WalletScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
 
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(customer)/profile');
+  }, [router]);
+
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      router.navigate('/(customer)/profile');
+      goBack();
       return true;
     });
     return () => handler.remove();
-  }, [router]);
+  }, [goBack]);
 
   // Data state
   const [balance, setBalance] = useState(null);

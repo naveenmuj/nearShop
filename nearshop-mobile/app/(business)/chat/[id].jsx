@@ -1,6 +1,3 @@
-/**
- * Chat Screen - Real-time messaging with a shop
- */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet,
@@ -49,7 +46,7 @@ function buildLocalMessage({ localId, senderRole, content, attachments, messageT
   };
 }
 
-export default function ChatScreen() {
+export default function BusinessChatScreen() {
   const { id: conversationId } = useLocalSearchParams();
   const { user } = useAuthStore();
 
@@ -380,7 +377,7 @@ export default function ChatScreen() {
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{conversation?.shop_name}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{conversation?.other_party_name || 'Customer'}</Text>
           <Text style={styles.headerSubtitle}>
             {connected ? (isTyping ? 'typing...' : 'online') : 'connecting...'}
           </Text>
@@ -424,7 +421,7 @@ export default function ChatScreen() {
           <Animated.View style={[styles.typingDot, { opacity: typingAnim }]} />
           <Animated.View style={[styles.typingDot, { opacity: typingAnim, marginLeft: 4 }]} />
           <Animated.View style={[styles.typingDot, { opacity: typingAnim, marginLeft: 4 }]} />
-          <Text style={styles.typingText}>Shop is typing...</Text>
+          <Text style={styles.typingText}>Customer is typing...</Text>
         </View>
       )}
 

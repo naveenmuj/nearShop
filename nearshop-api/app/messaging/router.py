@@ -7,6 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db, get_async_session
 from app.auth.models import User
@@ -25,6 +26,18 @@ from app.shops.models import Shop
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/messaging", tags=["messaging"])
+
+
+async def _resolve_sender_role(db: AsyncSession, conversation, user_id: UUID) -> str | None:
+    if conversation.customer_id == user_id:
+        return "customer"
+
+    shop_owner_result = await db.execute(select(Shop.owner_id).where(Shop.id == conversation.shop_id))
+    shop_owner_id = shop_owner_result.scalar_one_or_none()
+    if shop_owner_id == user_id:
+        return "business"
+
+    return None
 
 
 class MessagingConnectionManager:
@@ -85,21 +98,45 @@ async def list_conversations(
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(
     conversation_id: UUID,
+    limit: int = Query(default=30, ge=1, le=100),
+    before_id: UUID | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     from app.messaging.models import Conversation
-    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    result = await db.execute(
+        select(Conversation)
+        .where(Conversation.id == conversation_id)
+        .options(
+            selectinload(Conversation.customer),
+            selectinload(Conversation.shop),
+            selectinload(Conversation.product),
+        )
+    )
     conversation = result.scalar_one_or_none()
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    sender_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not sender_role:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
     
-    messages = await get_conversation_messages(db, conversation_id, current_user.id)
+    paged_messages = await get_conversation_messages(db, conversation_id, current_user.id, limit=limit + 1, before_id=before_id)
+    messages_has_more = len(paged_messages) > limit
+    messages = paged_messages[1:] if messages_has_more else paged_messages
+    messages_next_before_id = messages[0].id if messages_has_more and messages else None
+    unread_count = conversation.customer_unread_count if sender_role == "customer" else conversation.shop_unread_count
+    other_party_name = conversation.shop.name if sender_role == "customer" else (conversation.customer.full_name or conversation.customer.phone)
+    other_party_avatar = conversation.shop.logo_url if sender_role == "customer" else conversation.customer.avatar_url
     return ConversationDetail(
         id=conversation.id, customer_id=conversation.customer_id, shop_id=conversation.shop_id,
         product_id=conversation.product_id, order_id=conversation.order_id, status=conversation.status,
-        last_message_at=conversation.last_message_at, unread_count=0, created_at=conversation.created_at,
+        last_message_at=conversation.last_message_at, unread_count=unread_count, created_at=conversation.created_at,
+        other_party_name=other_party_name, other_party_avatar=other_party_avatar,
+        shop_name=conversation.shop.name, product_name=conversation.product.name if conversation.product else None,
         messages=[MessageResponse.model_validate(m) for m in messages],
+        messages_has_more=messages_has_more,
+        messages_next_before_id=messages_next_before_id,
     )
 
 
@@ -109,11 +146,22 @@ async def post_message(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    message = await send_message(db, conversation_id, current_user.id, current_user.active_role, body)
+    from app.messaging.models import Conversation
+    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    sender_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not sender_role:
+        raise HTTPException(status_code=403, detail="Not authorized to post in this conversation")
+
+    message = await send_message(db, conversation_id, current_user.id, sender_role, body)
     await messaging_manager.broadcast(str(conversation_id), {
         "type": "new_message",
         "message": {"id": str(message.id), "sender_id": str(message.sender_id), "sender_role": message.sender_role,
-                    "content": message.content, "message_type": message.message_type, "created_at": message.created_at.isoformat()}
+                    "content": message.content, "message_type": message.message_type,
+                    "attachments": message.attachments, "created_at": message.created_at.isoformat()}
     })
     return MessageResponse.model_validate(message)
 
@@ -124,7 +172,17 @@ async def mark_read(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    count = await mark_messages_read(db, conversation_id, current_user.id, current_user.active_role)
+    from app.messaging.models import Conversation
+    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    reader_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not reader_role:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+    count = await mark_messages_read(db, conversation_id, current_user.id, reader_role)
     return {"marked_read": count}
 
 
@@ -164,6 +222,7 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
         if not user_id:
             await websocket.close(code=4001)
             return
+        user_uuid = UUID(user_id)
     except:
         await websocket.close(code=4001)
         return
@@ -178,7 +237,16 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
             if not conversation:
                 await websocket.close(code=4004)
                 return
-            role = "customer" if str(conversation.customer_id) == user_id else "shop"
+
+            if conversation.customer_id == user_uuid:
+                role = "customer"
+            else:
+                shop_owner_result = await db.execute(select(Shop.owner_id).where(Shop.id == conversation.shop_id))
+                shop_owner_id = shop_owner_result.scalar_one_or_none()
+                if shop_owner_id != user_uuid:
+                    await websocket.close(code=4003)
+                    return
+                role = "business"
         
         await websocket.send_json({"type": "connected", "conversation_id": conversation_id, "role": role})
         
@@ -189,19 +257,20 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
             if msg_type == "message":
                 async with get_async_session() as db:
                     message = await send_message(
-                        db, UUID(conversation_id), UUID(user_id), role,
+                        db, UUID(conversation_id), user_uuid, role,
                         MessageCreate(content=data.get("content"), message_type=data.get("message_type", "text"))
                     )
                     await messaging_manager.broadcast(conversation_id, {
                         "type": "new_message",
                         "message": {"id": str(message.id), "sender_role": message.sender_role,
-                                    "content": message.content, "created_at": message.created_at.isoformat()}
+                                    "content": message.content, "message_type": message.message_type,
+                                    "attachments": message.attachments, "created_at": message.created_at.isoformat()}
                     })
             elif msg_type == "typing":
                 await messaging_manager.broadcast(conversation_id, {"type": "typing", "sender_role": role}, exclude=websocket)
             elif msg_type == "read":
                 async with get_async_session() as db:
-                    await mark_messages_read(db, UUID(conversation_id), UUID(user_id), role)
+                    await mark_messages_read(db, UUID(conversation_id), user_uuid, role)
                     await messaging_manager.broadcast(conversation_id, {"type": "read", "by": role}, exclude=websocket)
     except WebSocketDisconnect:
         pass

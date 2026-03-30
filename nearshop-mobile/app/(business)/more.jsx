@@ -33,6 +33,7 @@ const SECTIONS = [
     items: [
       { icon: 'people-outline', label: 'Customers', desc: 'Order history & contacts', screen: 'customers', color: '#3B8BD4' },
       { icon: 'star-outline', label: 'Reviews', desc: 'Customer feedback', screen: 'reviews', color: '#EF9F27' },
+      { icon: 'chatbubbles-outline', label: 'Messages', desc: 'Customer conversations', screen: 'messages', color: '#7F77DD' },
     ],
   },
   {

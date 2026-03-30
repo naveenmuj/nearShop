@@ -1,7 +1,20 @@
 /**
  * Messaging API - Direct chat with shops
  */
-import { authGet, authPost } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE, authGet, authPost } from './api';
+
+const MESSAGE_QUEUE_KEY = '@nearshop:message_queue:v1';
+
+function buildMessagingWsBase() {
+  try {
+    const parsed = new URL(API_BASE);
+    const wsProtocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${parsed.host}`;
+  } catch {
+    return 'ws://165.232.182.130';
+  }
+}
 
 // Get all conversations
 export async function getConversations(limit = 20, offset = 0) {
@@ -21,8 +34,12 @@ export async function startConversation(shopId, productId = null, orderId = null
 }
 
 // Get conversation with messages
-export async function getConversation(conversationId) {
-  const response = await authGet(`/messaging/conversations/${conversationId}`);
+export async function getConversation(conversationId, options = {}) {
+  const params = new URLSearchParams();
+  if (options.limit) params.set('limit', String(options.limit));
+  if (options.beforeId) params.set('before_id', String(options.beforeId));
+  const qs = params.toString();
+  const response = await authGet(`/messaging/conversations/${conversationId}${qs ? `?${qs}` : ''}`);
   return response.data;
 }
 
@@ -54,9 +71,63 @@ export async function createTemplate(title, content, category = 'general') {
   return response.data;
 }
 
+async function readQueue() {
+  try {
+    const raw = await AsyncStorage.getItem(MESSAGE_QUEUE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeQueue(items) {
+  await AsyncStorage.setItem(MESSAGE_QUEUE_KEY, JSON.stringify(items));
+}
+
+export async function queueMessage(conversationId, payload) {
+  const queue = await readQueue();
+  const item = {
+    local_id: payload.local_id,
+    conversation_id: String(conversationId),
+    content: payload.content || '',
+    message_type: payload.message_type || 'text',
+    attachments: payload.attachments || null,
+    created_at: payload.created_at || new Date().toISOString(),
+    sender_role: payload.sender_role,
+  };
+  await writeQueue([...queue, item]);
+  return item;
+}
+
+export async function getQueuedConversationMessages(conversationId) {
+  const queue = await readQueue();
+  return queue.filter((item) => String(item.conversation_id) === String(conversationId));
+}
+
+export async function removeQueuedMessage(localId) {
+  const queue = await readQueue();
+  await writeQueue(queue.filter((item) => item.local_id !== localId));
+}
+
+export async function flushQueuedMessages(conversationId, onSent) {
+  const queued = await getQueuedConversationMessages(conversationId);
+  for (const item of queued) {
+    try {
+      const sent = await sendMessage(item.conversation_id, item.content, item.message_type, item.attachments);
+      await removeQueuedMessage(item.local_id);
+      onSent?.(item.local_id, sent);
+    } catch {
+      // Keep unsent messages in queue and stop on first failure.
+      break;
+    }
+  }
+}
+
 // WebSocket connection for real-time messaging
 export function createMessagingConnection(conversationId, token, handlers) {
-  const wsUrl = `ws://165.232.182.130/api/v1/messaging/ws/${conversationId}?token=${token}`;
+  const wsBase = buildMessagingWsBase();
+  const wsUrl = `${wsBase}/api/v1/messaging/ws/${conversationId}?token=${encodeURIComponent(token)}`;
   const ws = new WebSocket(wsUrl);
   
   ws.onopen = () => {
@@ -101,13 +172,19 @@ export function createMessagingConnection(conversationId, token, handlers) {
   
   return {
     send: (content, messageType = 'text') => {
-      ws.send(JSON.stringify({ type: 'message', content, message_type: messageType }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'message', content, message_type: messageType }));
+      }
     },
     sendTyping: () => {
-      ws.send(JSON.stringify({ type: 'typing' }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'typing' }));
+      }
     },
     markRead: () => {
-      ws.send(JSON.stringify({ type: 'read' }));
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'read' }));
+      }
     },
     close: () => ws.close(),
   };

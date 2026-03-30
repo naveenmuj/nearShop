@@ -52,6 +52,8 @@ export default function BusinessTabs() {
       <Tabs.Screen name="returns" options={{ href: null }} />
       <Tabs.Screen name="subscription" options={{ href: null }} />
       <Tabs.Screen name="product-details" options={{ href: null }} />
+      <Tabs.Screen name="messages" options={{ href: null }} />
+      <Tabs.Screen name="chat/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

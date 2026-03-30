@@ -22,10 +22,25 @@ export default function BroadcastScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedSegment, setSelectedSegment] = useState('all');
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
-  useEffect(() => { const h = BackHandler.addEventListener('hardwareBackPress', () => { router.navigate('/(business)/more'); return true; }); return () => h.remove(); }, []);
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/(business)/more');
+  }, []);
+
+  useEffect(() => {
+    const h = BackHandler.addEventListener('hardwareBackPress', () => {
+      goBack();
+      return true;
+    });
+    return () => h.remove();
+  }, [goBack]);
 
   const loadData = useCallback(async () => {
     setLoading(true); setError(null);
@@ -34,7 +49,14 @@ export default function BroadcastScreen() {
         authGet('/broadcast/segments'),
         authGet('/broadcast/history'),
       ]);
-      if (sRes.status === 'fulfilled') setSegments(sRes.value.data?.segments ?? sRes.value.data ?? []);
+      if (sRes.status === 'fulfilled') {
+        const segData = sRes.value.data;
+        // Convert object {all: 10, recent_30d: 5} to array [{key: 'all', count: 10}]
+        const segArray = typeof segData === 'object' && !Array.isArray(segData)
+          ? Object.entries(segData).map(([key, count]) => ({ key, count }))
+          : (segData?.segments ?? segData ?? []);
+        setSegments(segArray);
+      }
       if (hRes.status === 'fulfilled') setHistory(hRes.value.data?.broadcasts ?? hRes.value.data ?? []);
       if (sRes.status === 'rejected' && hRes.status === 'rejected') setError('Failed to load data');
     } catch { setError('Failed to load data'); }
@@ -44,12 +66,19 @@ export default function BroadcastScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleSend = async () => {
+    if (!title.trim()) { alert.error({ title: 'Error', message: 'Enter a title' }); return; }
     if (!message.trim()) { alert.error({ title: 'Error', message: 'Enter a message' }); return; }
     setSending(true);
     try {
-      await authPost('/broadcast/send', { segment: selectedSegment, message: message.trim() });
+      await authPost('/broadcast/send', { 
+        title: title.trim(), 
+        body: message.trim(), 
+        segment: selectedSegment 
+      });
       alert.success({ title: 'Success', message: 'Broadcast sent!' });
-      setMessage(''); loadData();
+      setTitle('');
+      setMessage(''); 
+      loadData();
     } catch (e) { 
       const detail = e.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : (typeof detail === 'object' ? JSON.stringify(detail) : 'Failed to send broadcast');
@@ -62,7 +91,7 @@ export default function BroadcastScreen() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.white} />
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.navigate('/(business)/more')}><Text style={s.back}>← Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={goBack}><Text style={s.back}>← Back</Text></TouchableOpacity>
         <Text style={s.title}>Broadcast</Text>
         <View style={{ width: 50 }} />
       </View>
@@ -84,21 +113,21 @@ export default function BroadcastScreen() {
             <View style={s.segRow}>
               <TouchableOpacity onPress={() => setSelectedSegment('all')} style={[s.segCard, selectedSegment === 'all' && s.segCardActive]}>
                 <Text style={[s.segTitle, selectedSegment === 'all' && s.segTitleActive]}>All Customers</Text>
-                <Text style={[s.segCount, selectedSegment === 'all' && s.segCountActive]}>{segments.find(sg => sg.key === 'all')?.count ?? '--'}</Text>
+                <Text style={[s.segCount, selectedSegment === 'all' && s.segCountActive]}>{segments.find(sg => sg.key === 'all')?.count ?? 0}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSelectedSegment('repeat')} style={[s.segCard, selectedSegment === 'repeat' && s.segCardActive]}>
-                <Text style={[s.segTitle, selectedSegment === 'repeat' && s.segTitleActive]}>Repeat Buyers</Text>
-                <Text style={[s.segCount, selectedSegment === 'repeat' && s.segCountActive]}>{segments.find(sg => sg.key === 'repeat')?.count ?? '--'}</Text>
+              <TouchableOpacity onPress={() => setSelectedSegment('recent')} style={[s.segCard, selectedSegment === 'recent' && s.segCardActive]}>
+                <Text style={[s.segTitle, selectedSegment === 'recent' && s.segTitleActive]}>Recent (30d)</Text>
+                <Text style={[s.segCount, selectedSegment === 'recent' && s.segCountActive]}>{segments.find(sg => sg.key === 'recent_30d')?.count ?? 0}</Text>
               </TouchableOpacity>
             </View>
             <View style={s.segRow}>
               <TouchableOpacity onPress={() => setSelectedSegment('inactive')} style={[s.segCard, selectedSegment === 'inactive' && s.segCardActive]}>
-                <Text style={[s.segTitle, selectedSegment === 'inactive' && s.segTitleActive]}>Inactive</Text>
-                <Text style={[s.segCount, selectedSegment === 'inactive' && s.segCountActive]}>{segments.find(sg => sg.key === 'inactive')?.count ?? '--'}</Text>
+                <Text style={[s.segTitle, selectedSegment === 'inactive' && s.segTitleActive]}>Inactive (30d)</Text>
+                <Text style={[s.segCount, selectedSegment === 'inactive' && s.segCountActive]}>{segments.find(sg => sg.key === 'inactive_30d')?.count ?? 0}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSelectedSegment('high_value')} style={[s.segCard, selectedSegment === 'high_value' && s.segCardActive]}>
-                <Text style={[s.segTitle, selectedSegment === 'high_value' && s.segTitleActive]}>High Value</Text>
-                <Text style={[s.segCount, selectedSegment === 'high_value' && s.segCountActive]}>{segments.find(sg => sg.key === 'high_value')?.count ?? '--'}</Text>
+              <TouchableOpacity onPress={() => setSelectedSegment('followers')} style={[s.segCard, selectedSegment === 'followers' && s.segCardActive]}>
+                <Text style={[s.segTitle, selectedSegment === 'followers' && s.segTitleActive]}>Followers</Text>
+                <Text style={[s.segCount, selectedSegment === 'followers' && s.segCountActive]}>{segments.find(sg => sg.key === 'followers')?.count ?? 0}</Text>
               </TouchableOpacity>
             </View>
 
@@ -111,10 +140,13 @@ export default function BroadcastScreen() {
               ))}
             </ScrollView>
 
+            <Text style={s.sectionLabel}>Title</Text>
+            <TextInput style={s.input} value={title} onChangeText={setTitle} placeholder="Broadcast title..." placeholderTextColor={COLORS.gray400} />
+
             <Text style={s.sectionLabel}>Message</Text>
             <TextInput style={[s.input, { height: 120, textAlignVertical: 'top' }]} value={message} onChangeText={setMessage} placeholder="Type your broadcast message..." placeholderTextColor={COLORS.gray400} multiline />
 
-            <TouchableOpacity onPress={handleSend} disabled={sending || !message.trim()} style={[s.btn, (sending || !message.trim()) && { opacity: 0.5 }]}>
+            <TouchableOpacity onPress={handleSend} disabled={sending || !title.trim() || !message.trim()} style={[s.btn, (sending || !title.trim() || !message.trim()) && { opacity: 0.5 }]}>
               {sending ? <ActivityIndicator color={COLORS.white} /> : <Text style={s.btnText}>Send Broadcast</Text>}
             </TouchableOpacity>
           </>
