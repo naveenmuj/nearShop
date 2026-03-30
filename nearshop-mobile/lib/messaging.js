@@ -33,6 +33,18 @@ export async function startConversation(shopId, productId = null, orderId = null
   return response.data;
 }
 
+// Get or create conversation as business with a customer
+export async function startConversationAsBusiness(customerId, options = {}) {
+  const response = await authPost('/messaging/conversations/business', {
+    customer_id: customerId,
+    shop_id: options.shopId || null,
+    product_id: options.productId || null,
+    order_id: options.orderId || null,
+    initial_message: options.initialMessage || null,
+  });
+  return response.data;
+}
+
 // Get conversation with messages
 export async function getConversation(conversationId, options = {}) {
   const params = new URLSearchParams();

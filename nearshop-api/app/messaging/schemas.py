@@ -35,6 +35,14 @@ class ConversationCreate(BaseModel):
     initial_message: Optional[str] = None
 
 
+class BusinessConversationCreate(BaseModel):
+    customer_id: UUID
+    shop_id: Optional[UUID] = None
+    product_id: Optional[UUID] = None
+    order_id: Optional[UUID] = None
+    initial_message: Optional[str] = None
+
+
 class ConversationSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     

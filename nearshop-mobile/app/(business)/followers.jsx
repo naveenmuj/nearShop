@@ -16,6 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { alert } from '../../components/ui/PremiumAlert';
 import useMyShop from '../../hooks/useMyShop';
 import { getShopFollowers } from '../../lib/shops';
+import { startConversationAsBusiness } from '../../lib/messaging';
 
 const COLORS = {
   primary: '#7F77DD',
@@ -57,6 +58,25 @@ export default function FollowersScreen() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
+  const [startingConversationWith, setStartingConversationWith] = useState(null);
+
+  const openFollowerChat = useCallback(async (follower) => {
+    if (!follower?.id || !shopId || startingConversationWith) return;
+    setStartingConversationWith(follower.id);
+    try {
+      const convo = await startConversationAsBusiness(follower.id, { shopId });
+      if (convo?.id) {
+        router.push(`/(business)/chat/${convo.id}`);
+      } else {
+        throw new Error('Conversation could not be started');
+      }
+    } catch (err) {
+      console.error('Failed to start follower chat:', err);
+      alert.error({ title: 'Unable to open chat', message: 'Please try again in a moment.' });
+    } finally {
+      setStartingConversationWith(null);
+    }
+  }, [shopId, startingConversationWith]);
 
   const loadFollowers = useCallback(async (reset = false) => {
     if (!shopId) return;
@@ -142,12 +162,14 @@ export default function FollowersScreen() {
       </View>
       <TouchableOpacity 
         style={styles.messageBtn}
-        onPress={() => {
-          // Future: Navigate to chat with customer
-          alert.info({ title: 'Coming Soon', message: 'Direct messaging will be available soon!' });
-        }}
+        onPress={() => openFollowerChat(item)}
+        disabled={startingConversationWith === item.id}
       >
-        <Ionicons name="chatbubble-outline" size={18} color={COLORS.primary} />
+        {startingConversationWith === item.id ? (
+          <ActivityIndicator size="small" color={COLORS.primary} />
+        ) : (
+          <Ionicons name="chatbubble-outline" size={18} color={COLORS.primary} />
+        )}
       </TouchableOpacity>
     </View>
   );

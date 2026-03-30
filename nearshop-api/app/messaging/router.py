@@ -14,7 +14,7 @@ from app.auth.models import User
 from app.auth.permissions import get_current_user, require_business, require_customer
 from app.core.security import decode_token
 from app.messaging.schemas import (
-    MessageCreate, MessageResponse, ConversationCreate,
+    MessageCreate, MessageResponse, ConversationCreate, BusinessConversationCreate,
     ConversationSummary, ConversationDetail, ConversationListResponse,
     TemplateCreate, TemplateResponse,
 )
@@ -87,6 +87,43 @@ async def create_conversation(
     )
     if body.initial_message:
         await send_message(db, conversation.id, current_user.id, "customer", MessageCreate(content=body.initial_message))
+    return ConversationSummary(
+        id=conversation.id, customer_id=conversation.customer_id, shop_id=conversation.shop_id,
+        product_id=conversation.product_id, order_id=conversation.order_id, status=conversation.status,
+        last_message_at=conversation.last_message_at, unread_count=0, created_at=conversation.created_at,
+    )
+
+
+@router.post("/conversations/business", response_model=ConversationSummary)
+async def create_conversation_as_business(
+    body: BusinessConversationCreate,
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.auth.models import User as UserModel
+
+    customer_result = await db.execute(select(UserModel).where(UserModel.id == body.customer_id))
+    customer = customer_result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    if body.shop_id:
+        shop_result = await db.execute(select(Shop).where(Shop.id == body.shop_id, Shop.owner_id == current_user.id))
+        shop = shop_result.scalar_one_or_none()
+    else:
+        owned_shops = await db.execute(select(Shop).where(Shop.owner_id == current_user.id).order_by(Shop.created_at.asc()))
+        shop = owned_shops.scalars().first()
+
+    if not shop:
+        raise HTTPException(status_code=404, detail="Shop not found for current business user")
+
+    conversation = await get_or_create_conversation(
+        db, body.customer_id, shop.id, body.product_id, body.order_id,
+    )
+
+    if body.initial_message:
+        await send_message(db, conversation.id, current_user.id, "business", MessageCreate(content=body.initial_message))
+
     return ConversationSummary(
         id=conversation.id, customer_id=conversation.customer_id, shop_id=conversation.shop_id,
         product_id=conversation.product_id, order_id=conversation.order_id, status=conversation.status,
