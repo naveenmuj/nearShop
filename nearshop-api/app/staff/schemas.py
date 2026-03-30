@@ -2,7 +2,7 @@
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StaffInvite(BaseModel):
@@ -44,7 +44,7 @@ class StaffListResponse(BaseModel):
 
 
 class ActivityLogResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     
     id: UUID
     staff_id: UUID
@@ -52,7 +52,7 @@ class ActivityLogResponse(BaseModel):
     entity_type: Optional[str]
     entity_id: Optional[UUID]
     description: Optional[str]
-    metadata: Optional[dict]
+    metadata: Optional[dict] = Field(default=None, alias="activity_metadata")
     created_at: datetime
     staff_name: Optional[str] = None
 

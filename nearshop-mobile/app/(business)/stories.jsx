@@ -17,8 +17,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import useMyShop from '../../hooks/useMyShop';
+
+// Dynamic import with fallback for LinearGradient
+let LinearGradient;
+try {
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch (e) {
+  LinearGradient = ({ colors, style, children, ...props }) => (
+    <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
+      {children}
+    </View>
+  );
+}
 import { createStory, getShopStories, deleteStory } from '../../lib/stories';
 import { uploadImage } from '../../lib/api';
 import { COLORS, SHADOWS } from '../../constants/theme';

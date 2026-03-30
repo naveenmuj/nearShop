@@ -14,8 +14,19 @@ import {
   PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+
+// Dynamic import with fallback for LinearGradient
+let LinearGradient;
+try {
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch (e) {
+  LinearGradient = ({ colors, style, children, ...props }) => (
+    <View style={[style, { backgroundColor: colors?.[0] || '#000' }]} {...props}>
+      {children}
+    </View>
+  );
+}
 import { COLORS, SHADOWS } from '../constants/theme';
 import { viewStory } from '../lib/stories';
 import * as Haptics from 'expo-haptics';

@@ -59,7 +59,7 @@ class StaffActivityLog(Base):
     entity_type = Column(String(30), nullable=True)  # order, product, customer
     entity_id = Column(UUID(as_uuid=True), nullable=True)
     description = Column(Text, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    activity_metadata = Column("metadata", JSONB, nullable=True)
     ip_address = Column(String(45), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -67,7 +67,7 @@ class ReturnTimeline(Base):
     message = Column(Text, nullable=True)
     actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     actor_role = Column(String(20), nullable=True)  # customer, shop, system
-    metadata = Column(JSONB, nullable=True)
+    event_metadata = Column("metadata", JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     return_request = relationship("ReturnRequest", back_populates="timeline")

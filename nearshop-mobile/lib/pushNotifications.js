@@ -3,21 +3,32 @@
  * Handles FCM registration, notification listeners, and deep linking
  */
 
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import client, { buildAuthConfig } from './api';
 
-// Configure notification behavior when app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Dynamic imports with fallbacks
+let Notifications = null;
+let Device = null;
+let notificationsAvailable = false;
+
+try {
+  Notifications = require('expo-notifications');
+  Device = require('expo-device');
+  notificationsAvailable = true;
+  
+  // Configure notification behavior when app is foregrounded
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch (e) {
+  console.log('Push notifications not available:', e.message);
+}
 
 class PushNotificationService {
   constructor() {
@@ -30,6 +41,11 @@ class PushNotificationService {
    * Initialize push notifications - call this on app startup
    */
   async initialize() {
+    if (!notificationsAvailable) {
+      console.log('Push notifications not available - skipping initialization');
+      return null;
+    }
+    
     try {
       // Get push token
       const token = await this.registerForPushNotifications();
@@ -54,6 +70,10 @@ class PushNotificationService {
    * Register for push notifications and get token
    */
   async registerForPushNotifications() {
+    if (!notificationsAvailable || !Notifications || !Device) {
+      return null;
+    }
+    
     let token;
 
     // Check if physical device (notifications don't work on simulator)
@@ -139,7 +159,7 @@ class PushNotificationService {
       await client.post('/notifications/register-token', {
         fcm_token: token,
         device_type: Platform.OS,
-        device_name: Device.modelName,
+        device_name: Device?.modelName || 'Unknown',
       }, config);
       console.log('Push token registered with backend');
     } catch (error) {
@@ -151,6 +171,8 @@ class PushNotificationService {
    * Set up notification listeners
    */
   setupListeners() {
+    if (!notificationsAvailable || !Notifications) return;
+    
     // Listener for when a notification is received while app is foregrounded
     this.notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
@@ -268,6 +290,7 @@ class PushNotificationService {
    * Get the current badge count
    */
   async getBadgeCount() {
+    if (!notificationsAvailable || !Notifications) return 0;
     return await Notifications.getBadgeCountAsync();
   }
 
@@ -275,6 +298,7 @@ class PushNotificationService {
    * Set badge count
    */
   async setBadgeCount(count) {
+    if (!notificationsAvailable || !Notifications) return;
     await Notifications.setBadgeCountAsync(count);
   }
 
@@ -282,6 +306,7 @@ class PushNotificationService {
    * Clear all notifications
    */
   async clearAllNotifications() {
+    if (!notificationsAvailable || !Notifications) return;
     await Notifications.dismissAllNotificationsAsync();
     await this.setBadgeCount(0);
   }
@@ -290,6 +315,8 @@ class PushNotificationService {
    * Cleanup listeners - call on logout or app unmount
    */
   cleanup() {
+    if (!notificationsAvailable || !Notifications) return;
+    
     if (this.notificationListener) {
       Notifications.removeNotificationSubscription(this.notificationListener);
     }
@@ -317,6 +344,8 @@ class PushNotificationService {
    * Schedule a local notification (for testing or reminders)
    */
   async scheduleLocalNotification(title, body, data = {}, seconds = 1) {
+    if (!notificationsAvailable || !Notifications) return;
+    
     await Notifications.scheduleNotificationAsync({
       content: {
         title,

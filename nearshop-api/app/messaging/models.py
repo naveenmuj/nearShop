@@ -80,7 +80,7 @@ class Message(Base):
     content = Column(Text, nullable=True)
     message_type = Column(String(20), server_default=text("'text'"), nullable=False)
     attachments = Column(JSONB, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    message_metadata = Column("metadata", JSONB, nullable=True)
     is_read = Column(Boolean, server_default=text("false"), nullable=False)
     read_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

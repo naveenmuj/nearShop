@@ -9,8 +9,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../constants/theme';
+
+// Dynamic import with fallback for LinearGradient
+let LinearGradient;
+try {
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch (e) {
+  LinearGradient = ({ colors, style, children, ...props }) => (
+    <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
+      {children}
+    </View>
+  );
+}
 import { getMySubscription, getSubscriptionTiers, getSubscriptionUsage, upgradeSubscription } from '../../lib/subscriptions';
 import { toast } from '../../components/ui/Toast/toastRef';
 

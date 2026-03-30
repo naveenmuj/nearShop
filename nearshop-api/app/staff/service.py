@@ -116,7 +116,7 @@ async def log_activity(
 ) -> StaffActivityLog:
     log = StaffActivityLog(
         staff_id=staff_id, shop_id=shop_id, action=action, entity_type=entity_type,
-        entity_id=entity_id, description=description, metadata=metadata,
+        entity_id=entity_id, description=description, activity_metadata=metadata,
     )
     db.add(log)
     await db.commit()

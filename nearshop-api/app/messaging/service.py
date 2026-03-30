@@ -55,7 +55,7 @@ async def send_message(
     message = Message(
         conversation_id=conversation_id, sender_id=sender_id, sender_role=sender_role,
         content=message_data.content, message_type=message_data.message_type,
-        attachments=message_data.attachments, metadata=message_data.metadata,
+        attachments=message_data.attachments, message_metadata=message_data.metadata,
     )
     db.add(message)
     

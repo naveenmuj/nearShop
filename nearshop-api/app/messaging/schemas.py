@@ -2,7 +2,7 @@
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MessageCreate(BaseModel):
@@ -13,7 +13,7 @@ class MessageCreate(BaseModel):
 
 
 class MessageResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     
     id: UUID
     conversation_id: UUID
@@ -22,7 +22,7 @@ class MessageResponse(BaseModel):
     content: Optional[str]
     message_type: str
     attachments: Optional[List[str]]
-    metadata: Optional[dict]
+    metadata: Optional[dict] = Field(default=None, alias="message_metadata")
     is_read: bool
     read_at: Optional[datetime]
     created_at: datetime
