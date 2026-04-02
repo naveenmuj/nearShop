@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
-  StatusBar,
+  StatusBar, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -49,6 +49,14 @@ export default function CartScreen() {
   const { items, updateQuantity, removeItem, clearCart, getItemCount, getSubtotal, getShopGroups, initialize } = useCartStore();
 
   useEffect(() => { initialize(); }, []);
+
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
+  }, []);
 
   const shopGroups = getShopGroups();
   const itemCount = getItemCount();
@@ -116,7 +124,7 @@ export default function CartScreen() {
           <Text style={styles.emptyIcon}>🛒</Text>
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptyMsg}>Browse products and add them to your cart</Text>
-          <TouchableOpacity style={styles.shopBtn} onPress={() => router.navigate('/(customer)/home')}>
+          <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}>
             <Text style={styles.shopBtnText}>Start Shopping</Text>
           </TouchableOpacity>
         </View>

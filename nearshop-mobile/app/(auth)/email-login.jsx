@@ -53,9 +53,19 @@ export default function EmailLoginScreen() {
     }
   };
 
+  // Enhanced email validation regex
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  };
+
   const handleSubmit = async () => {
     if (!email || !password) {
       toast.show({ type: 'error', text1: 'Fill in all fields' });
+      return;
+    }
+    if (!validateEmail(email)) {
+      toast.show({ type: 'error', text1: 'Please enter a valid email address' });
       return;
     }
     if (isRegister && password !== confirm) {
@@ -105,7 +115,7 @@ export default function EmailLoginScreen() {
     }
   };
 
-  const isValid = email.includes('@') && password.length >= 6 &&
+  const isValid = validateEmail(email) && password.length >= 6 &&
     (!isRegister || confirm === password);
   const anyLoading = loading || googleLoading;
 
@@ -115,7 +125,11 @@ export default function EmailLoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.kav}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          contentContainerStyle={styles.scroll} 
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>

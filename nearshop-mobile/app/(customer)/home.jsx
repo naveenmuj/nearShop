@@ -49,16 +49,34 @@ const CATEGORIES = [
 ];
 
 function normalizeRecentSearches(items = []) {
+  if (!Array.isArray(items)) return [];
+  
   return items
     .map((item) => {
+      // Already a string
       if (typeof item === 'string') return item.trim();
+      
+      // Object with query property
       if (item && typeof item === 'object') {
-        const value = item.query ?? item.term ?? item.text ?? '';
-        return String(value).trim();
+        const value = item.query ?? item.term ?? item.text ?? item.search ?? '';
+        const normalized = String(value).trim();
+        return normalized;
       }
+      
+      // Fallback - try to convert to string
+      if (item != null) {
+        try {
+          return String(item).trim();
+        } catch (e) {
+          console.error('Failed to normalize search item:', item);
+          return '';
+        }
+      }
+      
       return '';
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter(str => typeof str === 'string' && str.length > 0); // Extra safety check
 }
 
 function getReasonBadgeStyle(reason) {
@@ -691,17 +709,23 @@ export default function HomeScreen() {
               </View>
             </View>
             <View style={styles.recentSearchList}>
-              {recentSearches.map((query, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.recentSearchPill}
-                  activeOpacity={0.7}
-                  onPress={() => router.push(`/(customer)/search?q=${encodeURIComponent(query)}`)}
-                >
-                  <Text style={styles.recentSearchPillIcon}>🔍</Text>
-                  <Text style={styles.recentSearchPillText}>{query}</Text>
-                </TouchableOpacity>
-              ))}
+              {recentSearches.map((query, idx) => {
+                // Safety check - ensure query is a string
+                const searchText = typeof query === 'string' ? query : String(query || '');
+                if (!searchText) return null;
+                
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.recentSearchPill}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/(customer)/search?q=${encodeURIComponent(searchText)}`)}
+                  >
+                    <Text style={styles.recentSearchPillIcon}>🔍</Text>
+                    <Text style={styles.recentSearchPillText}>{searchText}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}

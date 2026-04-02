@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { createDeal, getShopDeals } from '../../lib/deals';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
+import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 
 const DURATIONS = [
   { label: '1 Day', value: 1 },
@@ -109,8 +110,12 @@ export default function DealsScreen() {
         ))}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} /> :
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={s.content}
+        keyboardDismissMode="on-drag"
+      >
+        {loading ? <GenericListSkeleton /> :
          error ? <Text style={s.empty}>{error}</Text> : null}
 
         {tab === 'create' && !loading && (

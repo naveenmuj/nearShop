@@ -142,12 +142,66 @@ client.interceptors.response.use(
       }
     }
 
+    // Enhance error with type information
+    const enhancedError = {
+      ...error,
+      errorType: getErrorType(error),
+      userMessage: getUserFriendlyMessage(error),
+    };
+
     if (__DEV__) {
       const ms = Date.now() - (error.config?._startTime || 0);
       console.log(`[API ❌] ${error.response?.status ?? 'ERR'} ${error.config?.method?.toUpperCase()} ${error.config?.url} (${ms}ms)`, error.response?.data || error.message);
     }
-    return Promise.reject(error);
+    return Promise.reject(enhancedError);
   }
 );
+
+// Helper functions for error categorization
+function getErrorType(error) {
+  if (!error.response) {
+    // Network error (no response received)
+    return 'network';
+  }
+  
+  const status = error.response.status;
+  if (status >= 400 && status < 500) {
+    if (status === 400 || status === 422) {
+      return 'validation';
+    }
+    if (status === 404) {
+      return 'not_found';
+    }
+    return 'client';
+  }
+  
+  if (status >= 500) {
+    return 'server';
+  }
+  
+  return 'unknown';
+}
+
+function getUserFriendlyMessage(error) {
+  const errorType = getErrorType(error);
+  
+  // Try to extract backend message first
+  const backendMessage = error.response?.data?.detail || error.response?.data?.message;
+  
+  switch (errorType) {
+    case 'network':
+      return 'No internet connection. Please check your network and try again.';
+    case 'validation':
+      return backendMessage || 'Please check your input and try again.';
+    case 'not_found':
+      return backendMessage || 'The requested item was not found.';
+    case 'server':
+      return 'Server error. Please try again later.';
+    case 'client':
+      return backendMessage || 'Request failed. Please try again.';
+    default:
+      return backendMessage || 'Something went wrong. Please try again.';
+  }
+}
 
 export default client;

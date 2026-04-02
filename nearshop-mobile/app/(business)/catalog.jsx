@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 
 import useMyShop from '../../hooks/useMyShop';
 import { getShopProducts } from '../../lib/shops';
@@ -58,16 +59,19 @@ export default function CatalogScreen() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [error, setError] = useState(null);
 
   const loadProducts = useCallback(async () => {
     if (!shopId) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await getShopProducts(shopId, { per_page: 100, include_hidden: true });
       const items = res?.data?.items ?? res?.data ?? [];
       setProducts(Array.isArray(items) ? items : []);
-    } catch {
-      alert.error({ title: 'Error', message: 'Failed to load products' });
+    } catch (err) {
+      setError('Failed to load products. Please try again.');
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -177,6 +181,20 @@ export default function CatalogScreen() {
     </View>
   );
 
+  const ErrorState = () => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyEmoji}>⚠️</Text>
+      <Text style={styles.emptyTitle}>{error || 'Something went wrong'}</Text>
+      <Text style={styles.emptySub}>Check your internet connection and try again</Text>
+      <TouchableOpacity
+        style={styles.emptyBtn}
+        onPress={loadProducts}
+      >
+        <Text style={styles.emptyBtnText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <SafeAreaView edges={['top']} style={styles.container}>
       {/* Header */}
@@ -232,7 +250,9 @@ export default function CatalogScreen() {
 
       {/* List */}
       {loading && products.length === 0 ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
+        <GenericListSkeleton />
+      ) : error ? (
+        <ErrorState />
       ) : (
         <FlatList
           data={filtered}

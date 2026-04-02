@@ -8,6 +8,7 @@ import {
   ScrollView,
   Keyboard,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
@@ -117,6 +118,14 @@ export default function SearchScreen() {
     getRecentSearches()
       .then((res) => setRecentSearches(res?.data?.items ?? res?.data ?? []))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
   }, []);
 
   // ─── Fetch suggestions ────────────────────────────────────────────────────────

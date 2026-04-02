@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, StatusBar, Image,
+  ActivityIndicator, StatusBar, Image, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice, formatDate } from '../../../constants/theme';
 import { cancelOrder, getMyOrders, getOrderById } from '../../../lib/orders';
 import { alert } from '../../../components/ui/PremiumAlert';
+import { toast } from '../../../components/ui/Toast';
 import { GenericDetailSkeleton } from '../../../components/ui/ScreenSkeletons';
+import { startConversation } from '../../../lib/messaging';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'completed'];
 const STATUS_LABELS = {
@@ -105,6 +107,7 @@ export default function OrderDetailScreen() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
 
   const loadOrder = useCallback(async () => {
     try {
@@ -125,6 +128,14 @@ export default function OrderDetailScreen() {
 
   useEffect(() => { loadOrder(); }, [loadOrder]);
 
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
+  }, []);
+
   const handleCancel = async () => {
     const confirmed = await alert.confirm({
       title: 'Cancel Order',
@@ -144,6 +155,25 @@ export default function OrderDetailScreen() {
       } finally {
         setCancelling(false);
       }
+    }
+  };
+
+  const handleMessageShop = async () => {
+    if (!order?.shop_id || startingChat) return;
+    
+    setStartingChat(true);
+    try {
+      const conversation = await startConversation(order.shop_id, null, order.id);
+      if (conversation?.id) {
+        router.push(`/(customer)/chat/${conversation.id}`);
+      } else {
+        router.push('/(customer)/messages');
+      }
+    } catch (err) {
+      const message = err?.userMessage || 'Could not start chat. Please try again.';
+      toast.show({ type: 'error', text1: message });
+    } finally {
+      setStartingChat(false);
     }
   };
 
@@ -319,6 +349,82 @@ export default function OrderDetailScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Review Products */}
+        {order.status === 'completed' && items.length > 0 && (
+          <View style={styles.reviewSection}>
+            <Text style={styles.reviewPrompt}>How was your order?</Text>
+            {items.map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.reviewBtn}
+                onPress={() => router.push({
+                  pathname: '/(customer)/order-detail/review',
+                  params: {
+                    orderId: order.id,
+                    productId: item.product_id || item.id,
+                    shopId: order.shop_id,
+                    productName: item.name || item.product_name || 'Product'
+                  }
+                })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.reviewBtnContent}>
+                  {item.image_url || item.images?.[0] ? (
+                    <Image 
+                      source={{ uri: item.image_url || item.images[0] }} 
+                      style={styles.reviewThumb} 
+                    />
+                  ) : (
+                    <View style={[styles.reviewThumb, { backgroundColor: COLORS.gray100, justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ fontSize: 18 }}>📦</Text>
+                    </View>
+                  )}
+                  <Text style={styles.reviewBtnText} numberOfLines={1}>
+                    {item.name || item.product_name || 'Product'}
+                  </Text>
+                </View>
+                <Text style={styles.reviewBtnArrow}>⭐ Review</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Message Shop */}
+        {order.shop_id && (
+          <TouchableOpacity
+            style={styles.messageShopBtn}
+            onPress={handleMessageShop}
+            disabled={startingChat}
+            activeOpacity={0.7}
+          >
+            {startingChat ? (
+              <ActivityIndicator color={COLORS.primary} />
+            ) : (
+              <View style={styles.messageShopBtnContent}>
+                <Text style={styles.messageShopBtnIcon}>💬</Text>
+                <Text style={styles.messageShopBtnText}>Message Shop</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* Request Return */}
+        {order.status === 'completed' && (
+          <TouchableOpacity
+            style={styles.returnBtn}
+            onPress={() => router.push({
+              pathname: '/(customer)/return-request',
+              params: { orderId: order.id, shopId: order.shop_id }
+            })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.returnBtnContent}>
+              <Text style={styles.returnBtnIcon}>📦</Text>
+              <Text style={styles.returnBtnText}>Request Return</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -414,4 +520,75 @@ const styles = StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   trackBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
+
+  reviewSection: {
+    backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
+    marginBottom: 12, ...SHADOWS.card,
+  },
+  reviewPrompt: {
+    fontSize: 16, fontWeight: '700', color: COLORS.gray900, marginBottom: 12,
+  },
+  reviewBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 12, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: COLORS.gray50, marginBottom: 8,
+  },
+  reviewBtnContent: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1,
+  },
+  reviewThumb: {
+    width: 40, height: 40, borderRadius: 8, overflow: 'hidden',
+  },
+  reviewBtnText: {
+    fontSize: 14, fontWeight: '600', color: COLORS.gray800, flex: 1,
+  },
+  reviewBtnArrow: {
+    fontSize: 13, fontWeight: '600', color: COLORS.primary,
+  },
+
+  messageShopBtn: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  messageShopBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  messageShopBtnIcon: {
+    fontSize: 18,
+  },
+  messageShopBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+
+  returnBtn: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1.5,
+    borderColor: COLORS.orange || '#F59E0B',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  returnBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  returnBtnIcon: {
+    fontSize: 18,
+  },
+  returnBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.orange || '#F59E0B',
+  },
 });

@@ -323,7 +323,11 @@ export default function OnboardScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <ScrollView 
+            contentContainerStyle={styles.scroll} 
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
             <Text style={styles.title}>Tell us about yourself</Text>
             <Text style={styles.subtitle}>Personalize your experience by sharing your interests</Text>
 
@@ -418,7 +422,11 @@ export default function OnboardScreen() {
         <TouchableOpacity onPress={() => setStep(1)} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView 
+          contentContainerStyle={styles.scroll} 
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <Text style={styles.title}>Almost done!</Text>
           <Text style={styles.subtitle}>Add more details to help customers find you</Text>
 

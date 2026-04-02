@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { getCustomerSegments } from '../../lib/api/ai';
 import useMyShop from '../../hooks/useMyShop';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
+import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 
 const SEGMENT_ICONS = { 'Champions': '🏆', 'Loyal': '💎', 'Potential Loyalist': '🌟', 'At Risk': '⚠️', "Can't Lose": '🚨', 'Lost': '👻', 'New Customers': '🆕', 'Others': '👤' };
 const SEGMENT_COLORS = { 'Champions': '#10B981', 'Loyal': '#3B82F6', 'At Risk': '#F59E0B', "Can't Lose": '#EF4444', 'Lost': '#6B7280', 'New Customers': '#06B6D4', 'Potential Loyalist': '#8B5CF6' };
@@ -79,7 +80,7 @@ export default function CustomersScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} /> :
+        {loading ? <GenericListSkeleton /> :
          error ? <Text style={s.empty}>{error}</Text> : null}
 
         {!loading && !error && (

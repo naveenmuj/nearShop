@@ -387,59 +387,63 @@ export default function BusinessChatScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item, index) => String(item.id || item.local_id || `msg-${index}`)}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
-        ListHeaderComponent={(
-          hasMoreMessages ? (
-            <TouchableOpacity style={styles.loadOlderBtn} onPress={loadOlderMessages} disabled={loadingOlder}>
-              {loadingOlder ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
-              ) : (
-                <Text style={styles.loadOlderText}>Load older messages</Text>
-              )}
-            </TouchableOpacity>
-          ) : null
-        )}
-        refreshControl={(
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              loadConversation(true);
-            }}
-            tintColor={COLORS.primary}
-          />
-        )}
-      />
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item, index) => String(item.id || item.local_id || `msg-${index}`)}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.messagesList}
+          ListHeaderComponent={(
+            hasMoreMessages ? (
+              <TouchableOpacity style={styles.loadOlderBtn} onPress={loadOlderMessages} disabled={loadingOlder}>
+                {loadingOlder ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.loadOlderText}>Load older messages</Text>
+                )}
+              </TouchableOpacity>
+            ) : null
+          )}
+          refreshControl={(
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                loadConversation(true);
+              }}
+              tintColor={COLORS.primary}
+            />
+          )}
+        />
 
-      {isTyping && (
-        <View style={styles.typingContainer}>
-          <Animated.View style={[styles.typingDot, { opacity: typingAnim }]} />
-          <Animated.View style={[styles.typingDot, { opacity: typingAnim, marginLeft: 4 }]} />
-          <Animated.View style={[styles.typingDot, { opacity: typingAnim, marginLeft: 4 }]} />
-          <Text style={styles.typingText}>Customer is typing...</Text>
-        </View>
-      )}
-
-      {pendingAttachment && (
-        <View style={styles.pendingAttachmentRow}>
-          <Image source={{ uri: pendingAttachment.localUri }} style={styles.pendingAttachmentPreview} />
-          <View style={styles.pendingAttachmentTextWrap}>
-            <Text style={styles.pendingAttachmentText}>
-              {uploadingAttachment ? 'Uploading image...' : 'Image ready to send'}
-            </Text>
+        {isTyping && (
+          <View style={styles.typingContainer}>
+            <Animated.View style={[styles.typingDot, { opacity: typingAnim }]} />
+            <Animated.View style={[styles.typingDot, { opacity: typingAnim, marginLeft: 4 }]} />
+            <Animated.View style={[styles.typingDot, { opacity: typingAnim, marginLeft: 4 }]} />
+            <Text style={styles.typingText}>Customer is typing...</Text>
           </View>
-          <TouchableOpacity onPress={() => setPendingAttachment(null)}>
-            <Ionicons name="close-circle" size={22} color={COLORS.gray} />
-          </TouchableOpacity>
-        </View>
-      )}
+        )}
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
+        {pendingAttachment && (
+          <View style={styles.pendingAttachmentRow}>
+            <Image source={{ uri: pendingAttachment.localUri }} style={styles.pendingAttachmentPreview} />
+            <View style={styles.pendingAttachmentTextWrap}>
+              <Text style={styles.pendingAttachmentText}>
+                {uploadingAttachment ? 'Uploading image...' : 'Image ready to send'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setPendingAttachment(null)}>
+              <Ionicons name="close-circle" size={22} color={COLORS.gray} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.inputContainer}>
           <TouchableOpacity style={styles.attachBtn} onPress={handlePickAttachment} disabled={uploadingAttachment || sending}>
             {uploadingAttachment ? (

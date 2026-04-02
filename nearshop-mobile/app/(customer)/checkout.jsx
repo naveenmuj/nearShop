@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, StatusBar, Modal, Linking,
+  TextInput, ActivityIndicator, StatusBar, Modal, Linking, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import useLocationStore from '../../store/locationStore';
 import { createOrder, createPaymentOrder, confirmPayment } from '../../lib/orders';
 import { validateCoupon, useCoupon } from '../../lib/deals';
 import { listAddresses, createAddress } from '../../lib/auth';
+import { getBalance } from '../../lib/loyalty';
 import { toast } from '../../components/ui/Toast';
 import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, SHADOWS } from '../../constants/theme';
@@ -39,15 +40,22 @@ export default function CheckoutScreen() {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   
+  // Wallet state
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [coinsToUse, setCoinsToUse] = useState(0);
+  const [usingWallet, setUsingWallet] = useState(false);
+  
   // Address state
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [newAddress, setNewAddress] = useState({ label: 'home', address_line1: '', city: '', pincode: '' });
 
-  const grandTotal = grandSubtotal - couponDiscount;
+  // Calculate total with coupon and wallet
+  const coinDiscount = coinsToUse / 10; // 10 coins = ₹1
+  const grandTotal = Math.max(0, grandSubtotal - couponDiscount - coinDiscount);
 
-  // Load saved addresses
+  // Load saved addresses and wallet balance
   useEffect(() => {
     const loadAddresses = async () => {
       try {
@@ -62,7 +70,26 @@ export default function CheckoutScreen() {
         console.error('Failed to load addresses:', err);
       }
     };
+    
+    const loadWalletBalance = async () => {
+      try {
+        const res = await getBalance();
+        setWalletBalance(res.data?.balance || 0);
+      } catch (err) {
+        console.error('Failed to load wallet balance:', err);
+      }
+    };
+    
     loadAddresses();
+    loadWalletBalance();
+  }, []);
+
+  useEffect(() => {
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+    return () => handler.remove();
   }, []);
 
   // Handle coupon validation
@@ -130,8 +157,13 @@ export default function CheckoutScreen() {
       return;
     }
     setLoading(true);
+    
+    const createdOrderIds = []; // Track successfully created orders
+    
     try {
       let successCount = 0;
+      
+      // Create all orders first
       for (const group of shopGroups) {
         const payload = {
           shop_id: group.shop_id,
@@ -145,40 +177,35 @@ export default function CheckoutScreen() {
           payment_method: paymentMethod === 'online' ? 'razorpay' : 'cod',
           ...(deliveryType === 'delivery' ? { delivery_address: address.trim() } : {}),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
+          // Wallet coins redemption
+          ...(coinsToUse > 0 ? { coins_used: coinsToUse, coin_discount: coinDiscount } : {}),
         };
         
         const { data: orderData } = await createOrder(payload);
+        createdOrderIds.push(orderData.id); // Track successful order
         
-        // Handle online payment
-        if (paymentMethod === 'online') {
-          try {
-            const { data: paymentData } = await createPaymentOrder(orderData.id);
-            // Open Razorpay in browser (React Native requires Razorpay SDK for native checkout)
-            const razorpayUrl = `https://api.razorpay.com/v1/checkout/embedded?key_id=${paymentData.razorpay_key_id}&order_id=${paymentData.razorpay_order_id}&amount=${paymentData.amount}&currency=${paymentData.currency}&name=NearShop&description=Order%20${paymentData.order_number}`;
-            
-            // For production, you'd use the Razorpay React Native SDK
-            // For now, we'll mark as COD and show a message
-            alert.info({
-              title: 'Payment',
-              message: 'Online payment requires the Razorpay mobile SDK. Order placed as Cash on Delivery.',
-            });
-          } catch (payErr) {
-            console.error('Payment error:', payErr);
-          }
-        }
-        
-        // Record coupon usage
-        if (appliedCoupon) {
-          try {
-            await useCoupon(appliedCoupon.id, orderData.id, couponDiscount / shopGroups.length);
-          } catch (e) {
-            console.error('Failed to record coupon usage:', e);
-          }
-        }
+        // Online payment is disabled - only COD available
+        // TODO: Implement Razorpay SDK for online payments
         
         clearShopItems(group.shop_id);
         successCount++;
       }
+      
+      // Only record coupon usage AFTER all orders succeed
+      if (appliedCoupon && createdOrderIds.length > 0) {
+        try {
+          // Record coupon usage with first order ID
+          await useCoupon(appliedCoupon.id, createdOrderIds[0], couponDiscount);
+        } catch (e) {
+          // Log but don't fail the order - backend should handle duplicate usage
+          console.error('Failed to record coupon usage:', e);
+          alert.warning({
+            title: 'Note',
+            message: 'Order placed successfully, but coupon tracking may have failed. Contact support if needed.'
+          });
+        }
+      }
+      
       setOrderCount(successCount);
       setShowSuccess(true);
       toast.show({ type: 'order', text1: `${successCount} order${successCount > 1 ? 's' : ''} placed!` });
@@ -186,6 +213,9 @@ export default function CheckoutScreen() {
       const detail = err.response?.data?.detail;
       const msg = typeof detail === 'string' ? detail : 'Failed to place order. Please try again.';
       alert.error({ title: 'Error', message: msg });
+      
+      // Don't record coupon usage if order failed
+      // Coupon remains available for next attempt
     } finally {
       setLoading(false);
     }
@@ -197,7 +227,7 @@ export default function CheckoutScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🛒</Text>
           <Text style={styles.emptyTitle}>No items to checkout</Text>
-          <TouchableOpacity style={styles.shopBtn} onPress={() => router.navigate('/(customer)/home')}>
+          <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}>
             <Text style={styles.shopBtnText}>Browse Products</Text>
           </TouchableOpacity>
         </View>
@@ -216,7 +246,11 @@ export default function CheckoutScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.content} 
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+      >
         {/* Saved Addresses */}
         {deliveryType === 'delivery' && addresses.length > 0 && (
           <View style={[styles.card, SHADOWS.card]}>
@@ -301,6 +335,61 @@ export default function CheckoutScreen() {
           )}
         </View>
 
+        {/* Wallet Coins Section */}
+        {walletBalance > 0 && (
+          <View style={[styles.card, SHADOWS.card]}>
+            <View style={styles.walletHeader}>
+              <Text style={styles.sectionTitle}>🪙 Use Wallet Coins</Text>
+              <TouchableOpacity
+                onPress={() => setUsingWallet(!usingWallet)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.walletToggle, usingWallet && styles.walletToggleActive]}>
+                  <View style={[styles.walletToggleCircle, usingWallet && styles.walletToggleCircleActive]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.walletBalance}>Available: {walletBalance} coins</Text>
+            
+            {usingWallet && (
+              <View style={styles.walletInputSection}>
+                <View style={styles.coinsRow}>
+                  <TextInput
+                    style={styles.coinsInput}
+                    value={String(coinsToUse)}
+                    onChangeText={(text) => {
+                      const value = parseInt(text) || 0;
+                      const maxCoins = Math.min(walletBalance, Math.floor(grandSubtotal * 10)); // Can't use more than order value
+                      setCoinsToUse(Math.min(value, maxCoins));
+                    }}
+                    placeholder="0"
+                    placeholderTextColor={COLORS.gray400}
+                    keyboardType="numeric"
+                    maxLength={6}
+                  />
+                  <TouchableOpacity
+                    style={styles.maxBtn}
+                    onPress={() => {
+                      const maxCoins = Math.min(walletBalance, Math.floor(grandSubtotal * 10));
+                      setCoinsToUse(maxCoins);
+                    }}
+                  >
+                    <Text style={styles.maxBtnText}>MAX</Text>
+                  </TouchableOpacity>
+                </View>
+                {coinsToUse > 0 && (
+                  <View style={styles.coinsValueRow}>
+                    <Text style={styles.coinsValueText}>
+                      Using {coinsToUse} coins = {formatPrice(coinDiscount)} discount
+                    </Text>
+                    <Text style={styles.coinsNote}>10 coins = ₹1</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Delivery Type */}
         <View style={[styles.card, SHADOWS.card]}>
           <Text style={styles.sectionTitle}>Delivery Method</Text>
@@ -354,26 +443,50 @@ export default function CheckoutScreen() {
                 💵 Cash on Delivery
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, paymentMethod === 'online' && styles.toggleBtnActive]}
-              onPress={() => setPaymentMethod('online')}
-            >
-              <Text style={[styles.toggleText, paymentMethod === 'online' && styles.toggleTextActive]}>
-                💳 Pay Online
-              </Text>
-            </TouchableOpacity>
+            {/* Online payment temporarily disabled - Razorpay SDK implementation pending */}
+            {false && (
+              <TouchableOpacity
+                style={[styles.toggleBtn, paymentMethod === 'online' && styles.toggleBtnActive, styles.toggleBtnDisabled]}
+                onPress={() => setPaymentMethod('online')}
+                disabled={true}
+              >
+                <Text style={[styles.toggleText, paymentMethod === 'online' && styles.toggleTextActive, styles.toggleTextDisabled]}>
+                  💳 Pay Online
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
+          <Text style={styles.paymentNote}>
+            💡 Online payment coming soon! Pay securely with Cash on Delivery for now.
+          </Text>
         </View>
 
         {/* Grand Total */}
         <View style={[styles.totalCard, SHADOWS.card]}>
           <View>
-            <Text style={styles.grandTotalLabel}>Grand Total</Text>
+            <Text style={styles.grandTotalLabel}>Subtotal</Text>
+            <Text style={styles.subtotalAmount}>{formatPrice(grandSubtotal)}</Text>
+            
             {couponDiscount > 0 && (
-              <Text style={styles.savingsText}>You save {formatPrice(couponDiscount)}</Text>
+              <View style={styles.discountRow}>
+                <Text style={styles.discountLabel}>Coupon Discount</Text>
+                <Text style={styles.discountValue}>-{formatPrice(couponDiscount)}</Text>
+              </View>
             )}
+            
+            {coinsToUse > 0 && (
+              <View style={styles.discountRow}>
+                <Text style={styles.discountLabel}>Wallet Coins ({coinsToUse} coins)</Text>
+                <Text style={styles.discountValue}>-{formatPrice(coinDiscount)}</Text>
+              </View>
+            )}
+            
+            <View style={styles.totalDivider} />
+            <View style={styles.finalTotalRow}>
+              <Text style={styles.grandTotalLabel}>Total Amount</Text>
+              <Text style={styles.grandTotalValue}>{formatPrice(grandTotal)}</Text>
+            </View>
           </View>
-          <Text style={styles.grandTotalValue}>{formatPrice(grandTotal)}</Text>
         </View>
 
         <View style={{ height: 100 }} />
@@ -495,6 +608,14 @@ const styles = StyleSheet.create({
   toggleBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight || '#F0E6FF' },
   toggleText: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
   toggleTextActive: { color: COLORS.primary },
+  toggleTextDisabled: { color: COLORS.gray300 },
+  toggleBtnDisabled: { opacity: 0.5 },
+  paymentNote: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    marginTop: 12,
+    lineHeight: 16,
+  },
   textInput: { borderWidth: 1, borderColor: COLORS.gray200 || '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 14, color: COLORS.gray900, marginTop: 10, minHeight: 60, textAlignVertical: 'top' },
   // Coupon styles
   couponRow: { flexDirection: 'row', gap: 8 },
@@ -505,6 +626,38 @@ const styles = StyleSheet.create({
   couponCodeText: { fontSize: 14, fontWeight: '700', color: '#047857' },
   couponSaving: { fontSize: 12, color: '#059669', marginTop: 2 },
   removeText: { color: '#DC2626', fontWeight: '600', fontSize: 13 },
+  // Wallet styles
+  walletHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  walletBalance: { fontSize: 13, color: COLORS.gray600, marginBottom: 12 },
+  walletToggle: { 
+    width: 50, height: 28, borderRadius: 14, backgroundColor: COLORS.gray200, 
+    padding: 2, flexDirection: 'row', alignItems: 'center',
+  },
+  walletToggleActive: { backgroundColor: COLORS.primary },
+  walletToggleCircle: { 
+    width: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2, shadowRadius: 1, elevation: 2,
+  },
+  walletToggleCircleActive: { marginLeft: 22 },
+  walletInputSection: { marginTop: 8 },
+  coinsRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  coinsInput: { 
+    flex: 1, borderWidth: 1, borderColor: COLORS.gray200, 
+    borderRadius: 12, padding: 12, fontSize: 16, fontWeight: '600',
+    textAlign: 'center',
+  },
+  maxBtn: { 
+    backgroundColor: COLORS.primaryLight, borderRadius: 12, 
+    paddingHorizontal: 20, justifyContent: 'center',
+  },
+  maxBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: 13 },
+  coinsValueRow: { 
+    backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  coinsValueText: { fontSize: 13, fontWeight: '600', color: '#92400E', flex: 1 },
+  coinsNote: { fontSize: 11, color: '#B45309', fontStyle: 'italic' },
   // Address styles
   addressItem: { flexDirection: 'row', alignItems: 'flex-start', padding: 12, borderRadius: 12, borderWidth: 2, borderColor: COLORS.gray200, marginBottom: 8 },
   addressItemActive: { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight },
@@ -513,7 +666,20 @@ const styles = StyleSheet.create({
   addressLabel: { fontSize: 11, fontWeight: '700', color: COLORS.gray500, marginBottom: 4 },
   addressText: { fontSize: 13, color: COLORS.gray700, lineHeight: 18 },
   // Total card
-  totalCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalCard: { backgroundColor: COLORS.white, borderRadius: 16, padding: 20, marginBottom: 12 },
+  subtotalAmount: { fontSize: 16, fontWeight: '600', color: COLORS.gray900, marginBottom: 12 },
+  discountRow: { 
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 6,
+  },
+  discountLabel: { fontSize: 13, color: COLORS.gray600 },
+  discountValue: { fontSize: 14, fontWeight: '600', color: '#059669' },
+  totalDivider: { 
+    height: 1, backgroundColor: COLORS.gray200, marginVertical: 12,
+  },
+  finalTotalRow: { 
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
   grandTotalLabel: { fontSize: 16, fontWeight: '600', color: COLORS.gray700 },
   grandTotalValue: { fontSize: 24, fontWeight: '800', color: COLORS.gray900 },
   savingsText: { fontSize: 12, color: '#059669', marginTop: 2 },

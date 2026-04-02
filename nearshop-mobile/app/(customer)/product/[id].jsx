@@ -390,9 +390,19 @@ export default function ProductDetailScreen() {
   if (!product) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>Product not found</Text>
+        <Text style={styles.errorEmoji}>🔍</Text>
+        <Text style={styles.errorText}>Product Not Found</Text>
+        <Text style={styles.errorSubtext}>
+          This product may have been removed or is no longer available
+        </Text>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>Go back</Text>
+          <Text style={styles.backBtnText}>← Go Back</Text>
+        </Pressable>
+        <Pressable 
+          style={[styles.backBtn, { backgroundColor: COLORS.primary, marginTop: 8 }]} 
+          onPress={() => router.push('/(customer)/search')}
+        >
+          <Text style={[styles.backBtnText, { color: COLORS.white }]}>Browse Products</Text>
         </Pressable>
       </View>
     );
@@ -608,10 +618,12 @@ export default function ProductDetailScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, backgroundColor: COLORS.bg },
-  errorText: { fontSize: 16, color: COLORS.gray600 },
-  backBtn: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: COLORS.primary, borderRadius: 10 },
-  backBtnText: { color: COLORS.white, fontWeight: '600' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, backgroundColor: COLORS.bg, paddingHorizontal: 24 },
+  errorEmoji: { fontSize: 64, marginBottom: 8 },
+  errorText: { fontSize: 20, fontWeight: '700', color: COLORS.gray900, textAlign: 'center' },
+  errorSubtext: { fontSize: 14, color: COLORS.gray600, textAlign: 'center', marginBottom: 12 },
+  backBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: COLORS.gray200, borderRadius: 12, minWidth: 180 },
+  backBtnText: { color: COLORS.gray900, fontWeight: '600', textAlign: 'center' },
   scroll: { flex: 1 },
   floatingHeader: {
     position: 'absolute', top: 48, left: 0, right: 0, zIndex: 10,
