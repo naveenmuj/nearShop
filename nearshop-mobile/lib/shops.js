@@ -79,6 +79,15 @@ export const getNearbyDeliverableShops = (lat, lng, radiusKm = 5, limit = 10) =>
     params: { lat, lng, radius_km: radiusKm, limit },
   });
 
+export const checkShopDelivery = (shopId, customerLat, customerLng) =>
+  client.post(`/delivery/check/${shopId}`, {
+    customer_lat: customerLat,
+    customer_lng: customerLng,
+  });
+
+export const getShopPickupInfo = (shopId) =>
+  client.post(`/delivery/pickup/${shopId}`);
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PERSONALIZATION APIs (auth required for user-specific data)
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -77,7 +77,7 @@ export default function RecentlyViewed() {
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Text style={styles.title}>Recently Viewed</Text>
+        <Text style={styles.title}>Continue shopping</Text>
         <TouchableOpacity onPress={handleClear} activeOpacity={0.7}>
           <Text style={styles.clearBtn}>Clear</Text>
         </TouchableOpacity>
@@ -97,7 +97,7 @@ export default function RecentlyViewed() {
 
 const styles = StyleSheet.create({
   section: {
-    marginTop: 20,
+    marginTop: 14,
   },
   header: {
     flexDirection: 'row',
@@ -124,15 +124,15 @@ const styles = StyleSheet.create({
     width: 12,
   },
   item: {
-    width: 100,
+    width: 112,
     backgroundColor: COLORS.white,
     borderRadius: 12,
     overflow: 'hidden',
     ...SHADOWS.card,
   },
   itemImage: {
-    width: 100,
-    height: 80,
+    width: 112,
+    height: 88,
     backgroundColor: COLORS.gray100,
   },
   itemName: {

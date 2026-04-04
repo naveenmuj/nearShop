@@ -86,6 +86,7 @@ def create_app() -> FastAPI:
     from app.staff.router import router as staff_router
     from app.giftcards.router import router as giftcards_router
     from app.subscriptions.router import router as subscriptions_router
+    from app.delivery.router import router as delivery_router
 
     app.include_router(auth_router)
     app.include_router(search_router)
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(staff_router)
     app.include_router(giftcards_router)
     app.include_router(subscriptions_router)
+    app.include_router(delivery_router)
 
     # Serve locally uploaded files (dev fallback when R2 is not configured)
     static_dir = Path(__file__).resolve().parents[1] / "static"

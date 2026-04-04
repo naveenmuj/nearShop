@@ -346,168 +346,92 @@ export default function HomeScreen() {
           <Text style={styles.searchPlaceholder}>Search products, shops…</Text>
         </Pressable>
 
-        {/* ── Hot Deals ──────────────────────────────────────────── */}
-        {deals.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Hot Deals 🔥</Text>
-              <TouchableOpacity onPress={() => router.push('/(customer)/deals')} activeOpacity={0.7}>
-                <Text style={styles.seeAll}>See all</Text>
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={deals}
-              keyExtractor={(item) => String(item.id)}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.dealsList}
-              ItemSeparatorComponent={() => <View style={styles.dealSeparator} />}
-              renderItem={({ item }) => (
-                <View style={styles.dealCardWrap}>
-                  <DealCard deal={item} />
-                </View>
-              )}
-            />
-          </View>
-        )}
-
-        {/* ── Categories ─────────────────────────────────────────── */}
-        <View style={styles.section}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
-          >
-            {CATEGORIES.map((cat) => {
-              const isActive = selectedCategory === cat.value;
-              return (
-                <TouchableOpacity
-                  key={cat.value}
-                  style={[styles.categoryPill, isActive && styles.categoryPillActive]}
-                  onPress={() => handleCategoryPress(cat.value)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
-                    {cat.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* ── Nearby Shops ───────────────────────────────────────── */}
-        {shops.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Shops Near You</Text>
-            </View>
-            <FlatList
-              data={shops}
-              keyExtractor={(item) => String(item.id)}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.shopsList}
-              ItemSeparatorComponent={() => <View style={styles.shopSeparator} />}
-              renderItem={({ item }) => <ShopCard shop={item} />}
-            />
-          </View>
-        )}
-
-        {/* ── Shops Delivering to You ───────────────────────────── */}
-        {deliveryShops.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.aiTitleRow}>
-                <Text style={styles.aiTitleIcon}>🚚</Text>
-                <Text style={styles.sectionTitle}>Delivering to You</Text>
-              </View>
-            </View>
-            <FlatList
-              data={deliveryShops}
-              keyExtractor={(item) => String(item.id)}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.shopsList}
-              ItemSeparatorComponent={() => <View style={styles.shopSeparator} />}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.deliveryShopCard}
-                  activeOpacity={0.85}
-                  onPress={() => router.push(`/(customer)/shop/${item.id}`)}
-                >
-                  <View style={styles.deliveryShopImageWrap}>
-                    {item.cover_image ? (
-                      <Image source={{ uri: item.cover_image }} style={styles.deliveryShopImage} />
-                    ) : item.logo_url ? (
-                      <Image source={{ uri: item.logo_url }} style={styles.deliveryShopImage} />
-                    ) : (
-                      <View style={styles.deliveryShopPlaceholder}>
-                        <Text style={{ fontSize: 28 }}>🏪</Text>
-                      </View>
-                    )}
-                    {item.is_open && (
-                      <View style={styles.openBadge}>
-                        <Text style={styles.openBadgeText}>Open</Text>
-                      </View>
-                    )}
+        {/* ── Top Personalization (Amazon-style priority) ───────── */}
+        {user && forYouRecs.length > 0 && (
+          <View style={styles.forYouSection}>
+            <View style={styles.forYouGradient}>
+              <View style={styles.forYouHeader}>
+                <View style={styles.forYouTitleRow}>
+                  <View style={styles.forYouIconBox}>
+                    <Text style={styles.forYouIcon}>✨</Text>
                   </View>
-                  <View style={styles.deliveryShopContent}>
-                    <Text style={styles.deliveryShopName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.deliveryShopCategory} numberOfLines={1}>{item.category}</Text>
-                    <View style={styles.deliveryShopMeta}>
-                      <Text style={styles.deliveryShopDist}>
-                        {item.distance ? `${item.distance.toFixed(1)} km` : ''}
-                      </Text>
-                      {item.delivery_fee != null && (
-                        <Text style={styles.deliveryShopFee}>
-                          {item.delivery_fee === 0 ? 'Free delivery' : `₹${item.delivery_fee} delivery`}
-                        </Text>
+                  <View>
+                    <Text style={styles.forYouTitle}>Recommended for you</Text>
+                    <Text style={styles.forYouSubtitle}>Picked from your activity</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/(customer)/search')} activeOpacity={0.7}>
+                  <Text style={styles.seeAll}>See all</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={forYouRecs}
+                keyExtractor={(item, idx) => `${item.type}-${item.id}-${idx}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.forYouList}
+                ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity
+                    style={styles.forYouCard}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (item.type === 'shop') {
+                        router.push(`/(customer)/shop/${item.id}`);
+                      } else {
+                        trackRankingClick(item, {
+                          ranking_surface: 'content_recommendations',
+                          source_screen: 'home_for_you',
+                          position: index + 1,
+                        });
+                        router.push({
+                          pathname: `/(customer)/product/${item.id}`,
+                          params: rankingRouteParams({
+                            ranking_surface: 'content_recommendations',
+                            source_screen: 'home_for_you',
+                            ranking_reason: item.reason,
+                            position: index + 1,
+                          }),
+                        });
+                      }
+                    }}
+                  >
+                    <View style={styles.forYouImageWrap}>
+                      {item.image_url ? (
+                        <Image source={{ uri: item.image_url }} style={styles.forYouImage} />
+                      ) : (
+                        <View style={styles.forYouImagePlaceholder}>
+                          <Text style={styles.forYouImageEmoji}>{item.type === 'shop' ? '🏪' : '📦'}</Text>
+                        </View>
                       )}
+                      <View style={[styles.forYouBadge, { backgroundColor: getReasonBadgeStyle(item.reason).backgroundColor }] }>
+                        <Text style={[styles.forYouBadgeText, { color: getReasonBadgeStyle(item.reason).color }] }>
+                          {item.type === 'shop' ? 'Shop' : getRankingReasonLabel(item.reason)}
+                        </Text>
+                      </View>
                     </View>
-                    {item.rating > 0 && (
-                      <Text style={styles.deliveryShopRating}>⭐ {Number(item.rating).toFixed(1)}</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        )}
-
-        {/* ── Products Grid ──────────────────────────────────────── */}
-        {products.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Just In</Text>
+                    <View style={styles.forYouCardContent}>
+                      <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
+                      {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
+                      {item.shop_name && <Text style={styles.forYouCardShop} numberOfLines={1}>{item.shop_name}</Text>}
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
             </View>
-            <FlatList
-              data={products}
-              keyExtractor={(item) => String(item.id)}
-              numColumns={2}
-              scrollEnabled={false}
-              columnWrapperStyle={styles.productRow}
-              contentContainerStyle={styles.productGrid}
-              renderItem={({ item }) => (
-                <View style={styles.productCardWrap}>
-                  <ProductCard product={item} tracking={{ ranking_surface: 'home_feed', source_screen: 'home_just_in' }} />
-                </View>
-              )}
-            />
           </View>
         )}
 
-        {/* ── Trending Near You ─────────────────────────────────── */}
-        {trending.length > 0 && (
-          <View style={styles.section}>
+        {user && cfRecs.length > 0 && (
+          <View style={styles.sectionCompact}>
             <View style={styles.sectionHeader}>
               <View style={styles.aiTitleRow}>
-                <Text style={styles.aiTitleIcon}>📈</Text>
-                <Text style={styles.sectionTitle}>Trending Near You</Text>
+                <Text style={styles.aiTitleIcon}>🤝</Text>
+                <Text style={styles.sectionTitle}>More picks you'll like</Text>
               </View>
             </View>
             <FlatList
-              data={trending}
+              data={cfRecs}
               keyExtractor={(item) => String(item.id)}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -519,17 +443,89 @@ export default function HomeScreen() {
                   activeOpacity={0.8}
                   onPress={() => {
                     trackRankingClick(item, {
-                      ranking_surface: 'home_feed',
-                      source_screen: 'home_trending',
+                      ranking_surface: 'collaborative_recommendations',
+                      source_screen: 'home_collaborative',
                       position: index + 1,
                     });
                     router.push({
                       pathname: `/(customer)/product/${item.id}`,
                       params: rankingRouteParams({
-                        ranking_surface: 'home_feed',
-                        source_screen: 'home_trending',
-                        ranking_reason: item.reason || item.trend_label || 'trending',
+                        ranking_surface: 'collaborative_recommendations',
+                        source_screen: 'home_collaborative',
+                        ranking_reason: item.reason,
                         position: index + 1,
+                      }),
+                    });
+                  }}
+                >
+                  <View style={styles.forYouImageWrap}>
+                    {item.images?.[0] ? (
+                      <Image source={{ uri: item.images[0] }} style={styles.forYouImage} />
+                    ) : (
+                      <View style={styles.forYouImagePlaceholder}>
+                        <Text style={styles.forYouImageEmoji}>📦</Text>
+                      </View>
+                    )}
+                    <View style={[styles.forYouBadge, styles.cfBadge]}>
+                      <Text style={[styles.forYouBadgeText, styles.cfBadgeText]}>
+                        {getRankingReasonLabel(item.reason, 'Nearby match')}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.forYouCardContent}>
+                    <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
+                    {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
+                    <Text style={styles.aiReason} numberOfLines={2}>
+                      {getRankingReasonLabel(item.reason, 'People near you also bought this')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        )}
+
+        <RecentlyViewed />
+
+        {user && recentSearches.length > 0 && (
+          <View style={styles.sectionCompact}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.recentSearchTitleRow}>
+                <Text style={styles.recentSearchIcon}>🕐</Text>
+                <Text style={styles.recentSearchTitle}>Your recent searches</Text>
+              </View>
+            </View>
+            <View style={styles.recentSearchList}>
+              {recentSearches.map((query, idx) => {
+                const searchText = typeof query === 'string' ? query : String(query || '');
+                if (!searchText) return null;
+
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.recentSearchPill}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/(customer)/search?q=${encodeURIComponent(searchText)}`)}
+                  >
+                    <Text style={styles.recentSearchPillIcon}>🔍</Text>
+                    <Text style={styles.recentSearchPillText}>{searchText}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ── Hot Deals ──────────────────────────────────────────── */}
+        {deals.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Hot Deals 🔥</Text>
+              <TouchableOpacity onPress={() => router.push('/(customer)/deals')} activeOpacity={0.7}>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
                       }),
                     });
                   }}
@@ -893,6 +889,9 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 20,
   },
+  sectionCompact: {
+    marginTop: 14,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1053,21 +1052,21 @@ const styles = StyleSheet.create({
 
   // For You Section
   forYouSection: {
-    marginTop: 20,
+    marginTop: 14,
     marginHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   forYouGradient: {
-    paddingVertical: 16,
-    backgroundColor: '#F8F3FF',
+    paddingVertical: 12,
+    backgroundColor: '#F7F4FF',
   },
   forYouHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   forYouTitleRow: {
     flexDirection: 'row',
@@ -1099,14 +1098,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   forYouCard: {
-    width: 140,
+    width: 132,
     backgroundColor: COLORS.white,
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
     ...SHADOWS.card,
   },
   forYouImageWrap: {
-    height: 96,
+    height: 88,
     backgroundColor: COLORS.gray100,
     position: 'relative',
   },
@@ -1154,15 +1153,15 @@ const styles = StyleSheet.create({
     color: '#DB2777',
   },
   forYouCardContent: {
-    padding: 10,
+    padding: 8,
   },
   forYouCardName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.gray900,
   },
   forYouCardPrice: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.primary,
     marginTop: 3,

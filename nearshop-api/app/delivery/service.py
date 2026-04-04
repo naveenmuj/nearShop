@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.geo import haversine_distance_km
+from app.core.geo import haversine_distance_km_value
 from app.shops.models import Shop
 from app.delivery.models import DeliveryZone
 
@@ -73,8 +73,15 @@ async def check_delivery_eligibility(
             reason="Delivery not available (pickup only)"
         )
 
+    if shop.latitude is None or shop.longitude is None:
+        return DeliveryInfo(
+            can_deliver=False,
+            distance_km=0,
+            reason="Delivery unavailable (shop location not configured)",
+        )
+
     # Calculate distance
-    distance_km = haversine_distance_km(
+    distance_km = haversine_distance_km_value(
         customer_lat, customer_lng, shop.latitude, shop.longitude
     )
 
@@ -168,7 +175,9 @@ async def get_nearby_deliverable_shops(
     for shop in shops:
         # Check if shop has delivery option (using array contains)
         if shop.delivery_options and 'delivery' in shop.delivery_options:
-            dist = haversine_distance_km(
+            if shop.latitude is None or shop.longitude is None:
+                continue
+            dist = haversine_distance_km_value(
                 customer_lat, customer_lng, shop.latitude, shop.longitude
             )
             # Check delivery radius

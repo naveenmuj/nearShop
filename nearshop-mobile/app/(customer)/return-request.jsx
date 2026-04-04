@@ -13,12 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { toast } from '../../../components/ui/Toast';
-import { alert } from '../../../components/ui/PremiumAlert';
-import { getOrderById } from '../../../lib/orders';
-import { createReturnRequest, getReturnReasons } from '../../../lib/returns';
-import { uploadFile } from '../../../lib/auth';
-import { COLORS } from '../../../constants/theme';
+import { toast } from '../../components/ui/Toast';
+import { alert } from '../../components/ui/PremiumAlert';
+import { getOrderById } from '../../lib/orders';
+import { createReturnRequest, getReturnReasons } from '../../lib/returns';
+import { uploadFile } from '../../lib/auth';
+import { COLORS } from '../../constants/theme';
 
 const RETURN_REASONS = [
   { value: 'damaged', label: 'Damaged/Defective' },

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import useAuthStore from '../../store/authStore';
 import useLocationStore from '../../store/locationStore';
-import { switchRole as apiSwitchRole, deleteAccount as apiDeleteAccount } from '../../lib/auth';
+import { switchRole as apiSwitchRole, deleteAccount as apiDeleteAccount, getMe, updateUserSettings } from '../../lib/auth';
 import { isSoundEnabled, setSoundEnabled, initSound } from '../../lib/sound';
 import { getMyOrders } from '../../lib/orders';
 import { getWishlist } from '../../lib/wishlists';
@@ -97,7 +97,25 @@ export default function ProfileScreen() {
   const locality = address || 'Location not set';
 
   useEffect(() => {
-    initSound().then(() => setSoundOn(isSoundEnabled()));
+    const loadSoundSettings = async () => {
+      await initSound();
+      const localValue = isSoundEnabled();
+      setSoundOn(localValue);
+
+      // Prefer backend preference when available to keep devices in sync.
+      try {
+        const res = await getMe();
+        const serverSound = res?.data?.sound_enabled;
+        if (typeof serverSound === 'boolean') {
+          setSoundOn(serverSound);
+          await setSoundEnabled(serverSound);
+        }
+      } catch {
+        // Local setting remains the fallback.
+      }
+    };
+
+    loadSoundSettings();
   }, []);
 
   // Fetch counts whenever screen is focused
@@ -122,8 +140,17 @@ export default function ProfileScreen() {
   );
 
   const handleSoundToggle = async (val) => {
+    const prev = soundOn;
     setSoundOn(val);
     await setSoundEnabled(val);
+    try {
+      await updateUserSettings({ sound_enabled: val });
+    } catch {
+      // Keep UX optimistic but revert when server save fails.
+      setSoundOn(prev);
+      await setSoundEnabled(prev);
+      toast.error('Could not save sound preference. Please try again.');
+    }
   };
 
   const handleRefreshLocation = async () => {

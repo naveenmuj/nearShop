@@ -13,11 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { toast } from '../../../../components/ui/Toast';
-import { alert } from '../../../../components/ui/PremiumAlert';
-import { submitReview } from '../../../../lib/reviews';
-import { uploadFile } from '../../../../lib/auth';
-import { COLORS } from '../../../../constants/theme';
+import { toast } from '../../../components/ui/Toast';
+import { alert } from '../../../components/ui/PremiumAlert';
+import { submitReview } from '../../../lib/reviews';
+import { uploadFile } from '../../../lib/auth';
+import { COLORS } from '../../../constants/theme';
 
 export default function SubmitReview() {
   const router = useRouter();

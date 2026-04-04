@@ -1,5 +1,6 @@
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
+import logging
 
 from sqlalchemy import select, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.broadcast.models import BroadcastMessage
 from app.orders.models import Order
 from app.auth.models import Follow
+
+logger = logging.getLogger(__name__)
 
 
 async def get_target_customers(db: AsyncSession, shop_id: UUID, segment: str, filters: dict = None) -> list:
@@ -50,15 +53,18 @@ async def send_broadcast(db: AsyncSession, shop_id: UUID, title: str, body: str,
 
     customer_ids = await get_target_customers(db, shop_id, segment, filters)
     sent = 0
-    for uid in customer_ids[:200]:
+    failed = 0
+    for uid in customer_ids:
         try:
             await create_notification(
                 db, user_id=uid, title=title, body=body,
                 notification_type="broadcast", reference_type="shop", reference_id=str(shop_id),
             )
             sent += 1
-        except Exception:
-            pass
+        except Exception as exc:
+            failed += 1
+            # Best effort fanout: keep processing recipients while capturing failures.
+            logger.warning("broadcast delivery failed for user %s: %s", uid, exc)
 
     msg = BroadcastMessage(
         shop_id=shop_id, title=title, body=body,
@@ -66,7 +72,12 @@ async def send_broadcast(db: AsyncSession, shop_id: UUID, title: str, body: str,
     )
     db.add(msg)
     await db.flush()
-    return {"sent": sent, "total_targets": len(customer_ids), "message_id": str(msg.id)}
+    return {
+        "sent": sent,
+        "failed": failed,
+        "total_targets": len(customer_ids),
+        "message_id": str(msg.id),
+    }
 
 
 async def get_broadcast_history(db: AsyncSession, shop_id: UUID, limit: int = 20) -> list:

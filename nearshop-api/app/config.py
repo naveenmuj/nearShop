@@ -41,8 +41,8 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     
-    # Payment Test Mode - set to True for development to bypass actual Razorpay
-    PAYMENT_TEST_MODE: bool = True
+    # Payment Test Mode - keep OFF by default for safer production deployments
+    PAYMENT_TEST_MODE: bool = False
 
     # CORS — comma-separated list of allowed origins for production
     # e.g. ALLOWED_ORIGINS=https://nearshop.in,https://www.nearshop.in
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
 
     # App
     APP_ENV: str = "development"
-    APP_DEBUG: bool = True
+    APP_DEBUG: bool = False
 
     # ── Feature flags ────────────────────────────────────────────
     # Paid / optional features that can be toggled via environment variables.

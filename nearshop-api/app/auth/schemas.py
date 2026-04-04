@@ -26,6 +26,7 @@ class UserResponse(BaseModel):
     interests: Optional[list[str]] = None
     referral_code: Optional[str] = None
     created_at: datetime
+    sound_enabled: Optional[bool] = None
 
     model_config = ConfigDict(from_attributes=True)
 

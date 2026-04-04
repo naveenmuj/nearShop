@@ -15,7 +15,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-import { getShop, getShopProducts, getShopReviews, followShop, unfollowShop } from '../../../lib/shops';
+import { checkShopDelivery, getShop, getShopPickupInfo, getShopProducts, getShopReviews, followShop, unfollowShop } from '../../../lib/shops';
 import { startConversation } from '../../../lib/messaging';
 import { trackEvent } from '../../../lib/analytics';
 import ProductCard from '../../../components/ProductCard';
@@ -98,6 +98,8 @@ export default function ShopDetailScreen() {
   const [followerCount, setFollowerCount] = useState(0);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
+  const [pickupInfo, setPickupInfo] = useState(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -178,6 +180,34 @@ export default function ShopDetailScreen() {
     loadShop();
     loadProducts();
   }, [loadShop, loadProducts]);
+
+  useEffect(() => {
+    const loadDeliveryInfo = async () => {
+      const shopId = shop?.id || id;
+      if (!shopId) return;
+
+      try {
+        const pickupRes = await getShopPickupInfo(shopId);
+        setPickupInfo(pickupRes?.data ?? null);
+      } catch {
+        setPickupInfo(null);
+      }
+
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        setDeliveryInfo(null);
+        return;
+      }
+
+      try {
+        const res = await checkShopDelivery(shopId, lat, lng);
+        setDeliveryInfo(res?.data ?? null);
+      } catch {
+        setDeliveryInfo(null);
+      }
+    };
+
+    loadDeliveryInfo();
+  }, [shop?.id, id, lat, lng]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -400,6 +430,39 @@ export default function ShopDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Delivery status */}
+          {(deliveryInfo || pickupInfo?.can_pickup) && (
+            <View style={styles.deliveryStrip}>
+              {deliveryInfo ? (
+                <View
+                  style={[
+                    styles.deliveryBadge,
+                    deliveryInfo.can_deliver ? styles.deliveryBadgeOn : styles.deliveryBadgeOff,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.deliveryBadgeText,
+                      deliveryInfo.can_deliver ? styles.deliveryBadgeTextOn : styles.deliveryBadgeTextOff,
+                    ]}
+                  >
+                    {deliveryInfo.can_deliver
+                      ? `Delivers ${deliveryInfo.distance_km ? `(${deliveryInfo.distance_km} km)` : ''}`
+                      : deliveryInfo.reason || 'Delivery unavailable'}
+                  </Text>
+                </View>
+              ) : null}
+
+              {pickupInfo?.can_pickup ? (
+                <View style={[styles.deliveryBadge, styles.pickupBadge]}>
+                  <Text style={[styles.deliveryBadgeText, styles.pickupBadgeText]}>
+                    {pickupInfo?.is_open_now ? 'Pickup available now' : 'Pickup available'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
 
           {/* Divider */}
           <View style={styles.divider} />
@@ -875,6 +938,39 @@ const styles = StyleSheet.create({
   openBadgeText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  deliveryStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  deliveryBadge: {
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  deliveryBadgeOn: {
+    backgroundColor: COLORS.greenLight,
+  },
+  deliveryBadgeOff: {
+    backgroundColor: COLORS.redLight,
+  },
+  pickupBadge: {
+    backgroundColor: COLORS.primaryLight,
+  },
+  deliveryBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  deliveryBadgeTextOn: {
+    color: COLORS.green,
+  },
+  deliveryBadgeTextOff: {
+    color: COLORS.red,
+  },
+  pickupBadgeText: {
+    color: COLORS.primary,
   },
   divider: {
     height: 1,

@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import client, { buildAuthConfig } from './api';
 import useAuthStore from '../store/authStore';
+import { initSound, isSoundEnabled } from './sound';
 
 // Dynamic imports with fallbacks
 let Notifications = null;
@@ -18,15 +19,6 @@ try {
   Notifications = require('expo-notifications');
   Device = require('expo-device');
   notificationsAvailable = true;
-  
-  // Configure notification behavior when app is foregrounded
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
 } catch (e) {
   console.log('Push notifications not available:', e.message);
 }
@@ -36,6 +28,16 @@ class PushNotificationService {
     this.expoPushToken = null;
     this.notificationListener = null;
     this.responseListener = null;
+    this.playSound = true;
+  }
+
+  async syncSoundPreference() {
+    try {
+      await initSound();
+      this.playSound = isSoundEnabled();
+    } catch {
+      this.playSound = true;
+    }
   }
 
   /**
@@ -48,6 +50,16 @@ class PushNotificationService {
     }
     
     try {
+      await this.syncSoundPreference();
+
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: this.playSound,
+          shouldSetBadge: true,
+        }),
+      });
+
       // Get push token
       const token = await this.registerForPushNotifications();
       
@@ -111,12 +123,13 @@ class PushNotificationService {
 
     // Configure Android channel
     if (Platform.OS === 'android') {
+      const selectedSound = this.playSound ? 'default' : null;
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#7F77DD',
-        sound: 'default',
+        sound: selectedSound,
       });
 
       // Order notifications channel
@@ -126,7 +139,7 @@ class PushNotificationService {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#1D9E75',
-        sound: 'default',
+        sound: selectedSound,
       });
 
       // Deals and promotions channel
@@ -144,7 +157,7 @@ class PushNotificationService {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 100, 100, 100],
         lightColor: '#3B8BD4',
-        sound: 'default',
+        sound: selectedSound,
       });
     }
 
@@ -352,13 +365,14 @@ class PushNotificationService {
    */
   async scheduleLocalNotification(title, body, data = {}, seconds = 1) {
     if (!notificationsAvailable || !Notifications) return;
+    await this.syncSoundPreference();
     
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         data,
-        sound: 'default',
+        sound: this.playSound ? 'default' : null,
       },
       trigger: { seconds },
     });

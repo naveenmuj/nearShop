@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice, formatDate } from '../../../constants/theme';
 import { getProduct, getSimilarProducts } from '../../../lib/products';
+import { checkShopDelivery, getShopPickupInfo } from '../../../lib/shops';
 import DealCountdown from '../../../components/DealCountdown';
 import { addToWishlist, removeFromWishlist } from '../../../lib/wishlists';
 import { trackView } from '../../../lib/engagement';
@@ -262,6 +263,8 @@ export default function ProductDetailScreen() {
   const [showHaggle, setShowHaggle] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [deliveryInfo, setDeliveryInfo] = useState(null);
+  const [pickupInfo, setPickupInfo] = useState(null);
   const rankingContext = useMemo(
     () => extractRankingContextFromParams(params),
     [params.surface, params.reason, params.query, params.source_screen, params.position],
@@ -292,6 +295,34 @@ export default function ProductDetailScreen() {
     };
     load();
   }, [id, lat, lng, rankingContext]);
+
+  useEffect(() => {
+    const loadDelivery = async () => {
+      const shopId = product?.shop_id;
+      if (!shopId) return;
+
+      try {
+        const pickupRes = await getShopPickupInfo(shopId);
+        setPickupInfo(pickupRes?.data ?? null);
+      } catch {
+        setPickupInfo(null);
+      }
+
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        setDeliveryInfo(null);
+        return;
+      }
+
+      try {
+        const res = await checkShopDelivery(shopId, lat, lng);
+        setDeliveryInfo(res?.data ?? null);
+      } catch {
+        setDeliveryInfo(null);
+      }
+    };
+
+    loadDelivery();
+  }, [product?.shop_id, lat, lng]);
 
   const toggleWishlist = async () => {
     try {
@@ -482,6 +513,27 @@ export default function ProductDetailScreen() {
             ) : null}
           </View>
 
+          {(deliveryInfo || pickupInfo?.can_pickup) ? (
+            <View style={styles.fulfillmentCard}>
+              {deliveryInfo ? (
+                <View style={[styles.fulfillmentBadge, deliveryInfo.can_deliver ? styles.fulfillmentOn : styles.fulfillmentOff]}>
+                  <Text style={[styles.fulfillmentBadgeText, deliveryInfo.can_deliver ? styles.fulfillmentOnText : styles.fulfillmentOffText]}>
+                    {deliveryInfo.can_deliver
+                      ? `Delivery ${deliveryInfo.distance_km ? `in ${deliveryInfo.distance_km} km` : 'available'}`
+                      : deliveryInfo.reason || 'Delivery unavailable'}
+                  </Text>
+                </View>
+              ) : null}
+              {pickupInfo?.can_pickup ? (
+                <View style={[styles.fulfillmentBadge, styles.fulfillmentPickup]}>
+                  <Text style={[styles.fulfillmentBadgeText, styles.fulfillmentPickupText]}>
+                    {pickupInfo?.is_open_now ? 'Pickup available now' : 'Pickup available'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
           {/* Deal Countdown */}
           {product.deal_ends_at ? (
             <View style={styles.dealCountdownWrap}>
@@ -655,6 +707,15 @@ const styles = StyleSheet.create({
   originalPrice: { fontSize: 15, color: COLORS.gray400, textDecorationLine: 'line-through' },
   discountBadge: { backgroundColor: COLORS.redLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   discountText: { fontSize: 12, fontWeight: '700', color: COLORS.red },
+  fulfillmentCard: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  fulfillmentBadge: { borderRadius: 16, paddingHorizontal: 10, paddingVertical: 5 },
+  fulfillmentOn: { backgroundColor: COLORS.greenLight },
+  fulfillmentOff: { backgroundColor: COLORS.redLight },
+  fulfillmentPickup: { backgroundColor: COLORS.primaryLight },
+  fulfillmentBadgeText: { fontSize: 12, fontWeight: '700' },
+  fulfillmentOnText: { color: COLORS.green },
+  fulfillmentOffText: { color: COLORS.red },
+  fulfillmentPickupText: { color: COLORS.primary },
   shopCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.white, borderRadius: 14, padding: 14, marginBottom: 20,
