@@ -151,7 +151,13 @@ class AuthService:
     @staticmethod
     async def complete_profile(
         db: AsyncSession, user_id: UUID, data: CompleteProfileRequest
-    ) -> User:
+    ) -> dict:
+        """
+        Complete user profile during onboarding.
+        
+        Returns new tokens with updated role embedded, so subsequent API calls
+        (like createShop) will have the correct active_role in the token.
+        """
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 
@@ -173,7 +179,19 @@ class AuthService:
 
         await db.flush()
         await db.refresh(user)
-        return user
+        
+        # Issue new tokens with the updated role embedded
+        # This ensures subsequent API calls use the correct role
+        token_data = {"sub": str(user.id), "role": user.active_role}
+        access_token = create_access_token(token_data)
+        refresh_token = create_refresh_token(token_data)
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": user,
+        }
 
     @staticmethod
     async def switch_role(db: AsyncSession, user_id: UUID, role: str) -> dict:

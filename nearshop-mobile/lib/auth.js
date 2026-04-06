@@ -4,11 +4,33 @@ import AuthService from './authService';
 export const sendOtp = (phone) => client.post('/auth/send-otp', { phone });
 export const verifyOtp = (phone, code) => client.post('/auth/verify-otp', { phone, code });
 
-// Complete profile with fallback endpoints - requires auth
+/**
+ * Complete profile with fallback endpoints - requires auth
+ * 
+ * After completing profile, the backend returns new tokens with the updated role.
+ * This is critical for business users - without new tokens, subsequent calls
+ * to business-only endpoints (like createShop) would fail.
+ * 
+ * @param {Object} data - Profile data (name, role, interests)
+ * @returns {Promise<Object>} - The API response
+ */
 export const completeProfile = async (data) => {
   try {
     // Try primary endpoint with authentication
-    return await authPost('/auth/complete-profile', data);
+    const response = await authPost('/auth/complete-profile', data);
+    
+    // Save new tokens if backend provides them (critical for role changes)
+    if (response?.data?.access_token) {
+      await AuthService.saveTokens({
+        access_token: response.data.access_token,
+        refresh_token: response.data.refresh_token,
+      });
+      if (__DEV__) {
+        console.log('[Auth] New tokens saved after profile completion with role:', data.role);
+      }
+    }
+    
+    return response;
   } catch (err) {
     // If 404, try alternative endpoint names
     if (err.response?.status === 404) {

@@ -93,14 +93,25 @@ async def verify_otp(
     return result
 
 
-@router.post("/complete-profile", response_model=UserResponse)
+@router.post("/complete-profile", response_model=TokenResponse)
 async def complete_profile(
     body: CompleteProfileRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user = await AuthService.complete_profile(db, current_user.id, body)
-    return UserResponse.model_validate(user)
+    """
+    Complete user profile during onboarding.
+    
+    Returns new access/refresh tokens with the updated role embedded.
+    This is critical for business users - without new tokens, subsequent
+    calls to business-only endpoints (like createShop) would fail because
+    the old token still has role='customer'.
+    """
+    result = await AuthService.complete_profile(db, current_user.id, body)
+    return {
+        **result,
+        "user": UserResponse.model_validate(result["user"]),
+    }
 
 
 @router.post("/switch-role", response_model=TokenResponse)
