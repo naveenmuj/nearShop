@@ -81,15 +81,28 @@ export const refreshToken = (token) => client.post('/auth/refresh', { refresh_to
 export const deleteAccount = (deleteCustomer, deleteBusiness) =>
   authDelete('/auth/delete-account', { data: { delete_customer: deleteCustomer, delete_business: deleteBusiness } });
 
+function _guessMimeType(filename = '') {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'doc') return 'application/msword';
+  if (ext === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (ext === 'txt') return 'text/plain';
+  return 'application/octet-stream';
+}
+
 export const uploadFile = async (uri, options = 'general') => {
   const uploadOptions = typeof options === 'string' ? { folder: options } : (options || {});
   const formData = new FormData();
-  const filename = uri.split('/').pop();
-  const ext = filename.split('.').pop();
+  const filename = uploadOptions.fileName || uri.split('/').pop();
+  const mimeType = uploadOptions.mimeType || _guessMimeType(filename);
   formData.append('file', {
     uri,
     name: filename,
-    type: `image/${ext === 'png' ? 'png' : 'jpeg'}`,
+    type: mimeType,
   });
   formData.append('folder', uploadOptions.folder || 'general');
   if (uploadOptions.entityType) formData.append('entity_type', uploadOptions.entityType);

@@ -51,12 +51,14 @@ export default function CustomerTabs() {
       <Tabs.Screen name="wallet" options={{ href: null }} />
       <Tabs.Screen name="haggle" options={{ href: null }} />
       <Tabs.Screen name="order-detail/[id]" options={{ href: null }} />
+      <Tabs.Screen name="order-detail/review" options={{ href: null }} />
       <Tabs.Screen name="order-tracking/[id]" options={{ href: null }} />
       <Tabs.Screen name="achievements" options={{ href: null }} />
       <Tabs.Screen name="spin" options={{ href: null }} />
       <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="checkout" options={{ href: null }} />
       <Tabs.Screen name="returns" options={{ href: null }} />
+      <Tabs.Screen name="return-request" options={{ href: null }} />
       <Tabs.Screen name="messages" options={{ href: null }} />
       <Tabs.Screen name="chat/[id]" options={{ href: null }} />
     </Tabs>

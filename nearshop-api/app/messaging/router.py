@@ -3,6 +3,7 @@ from uuid import UUID
 from typing import Dict, Set
 import json
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,11 +17,12 @@ from app.core.security import decode_token
 from app.messaging.schemas import (
     MessageCreate, MessageResponse, ConversationCreate, BusinessConversationCreate,
     ConversationSummary, ConversationDetail, ConversationListResponse,
-    TemplateCreate, TemplateResponse,
+    TemplateCreate, TemplateResponse, ReactionUpdate, PresenceResponse,
 )
 from app.messaging.service import (
     get_or_create_conversation, send_message, get_conversation_messages,
     mark_messages_read, get_user_conversations, get_shop_templates, create_template,
+    search_conversation_messages, add_message_reaction, remove_message_reaction,
 )
 from app.shops.models import Shop
 
@@ -52,16 +54,49 @@ def _user_display_name(user) -> str:
 class MessagingConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, Set[WebSocket]] = {}
+        self.connection_context: Dict[WebSocket, tuple[str, str, str]] = {}
+        self.role_counts: Dict[str, Dict[str, int]] = {}
+        self.role_last_seen: Dict[str, Dict[str, str]] = {}
     
-    async def connect(self, websocket: WebSocket, conversation_id: str, user_id: str):
+    async def connect(self, websocket: WebSocket, conversation_id: str, user_id: str, role: str):
         await websocket.accept()
         if conversation_id not in self.active_connections:
             self.active_connections[conversation_id] = set()
         self.active_connections[conversation_id].add(websocket)
+        self.connection_context[websocket] = (conversation_id, user_id, role)
+
+        if conversation_id not in self.role_counts:
+            self.role_counts[conversation_id] = {"customer": 0, "business": 0}
+        self.role_counts[conversation_id][role] = self.role_counts[conversation_id].get(role, 0) + 1
     
-    def disconnect(self, websocket: WebSocket, conversation_id: str):
+    def disconnect(self, websocket: WebSocket, conversation_id: str | None = None):
+        context = self.connection_context.pop(websocket, None)
+        if context:
+            ctx_conversation_id, _, role = context
+            conversation_id = conversation_id or ctx_conversation_id
+            if conversation_id in self.role_counts:
+                self.role_counts[conversation_id][role] = max(0, self.role_counts[conversation_id].get(role, 0) - 1)
+                if conversation_id not in self.role_last_seen:
+                    self.role_last_seen[conversation_id] = {}
+                if self.role_counts[conversation_id][role] == 0:
+                    self.role_last_seen[conversation_id][role] = datetime.now(timezone.utc).isoformat()
+
         if conversation_id in self.active_connections:
             self.active_connections[conversation_id].discard(websocket)
+
+    def get_presence(self, conversation_id: str) -> dict:
+        counts = self.role_counts.get(conversation_id, {})
+        last_seen = self.role_last_seen.get(conversation_id, {})
+        return {
+            "role_online": {
+                "customer": bool(counts.get("customer", 0)),
+                "business": bool(counts.get("business", 0)),
+            },
+            "role_last_seen": {
+                "customer": last_seen.get("customer"),
+                "business": last_seen.get("business"),
+            },
+        }
     
     async def broadcast(self, conversation_id: str, message: dict, exclude: WebSocket = None):
         if conversation_id in self.active_connections:
@@ -212,6 +247,91 @@ async def post_message(
     return MessageResponse.model_validate(message)
 
 
+@router.get("/conversations/{conversation_id}/messages/search", response_model=list[MessageResponse])
+async def search_messages(
+    conversation_id: UUID,
+    q: str = Query(default="", min_length=1, max_length=200),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.messaging.models import Conversation
+
+    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    sender_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not sender_role:
+        raise HTTPException(status_code=403, detail="Not authorized to search this conversation")
+
+    messages = await search_conversation_messages(db, conversation_id, q, limit)
+    return [MessageResponse.model_validate(m) for m in messages]
+
+
+@router.post("/conversations/{conversation_id}/messages/{message_id}/reactions", response_model=MessageResponse)
+async def react_to_message(
+    conversation_id: UUID,
+    message_id: UUID,
+    body: ReactionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.messaging.models import Conversation
+
+    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    sender_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not sender_role:
+        raise HTTPException(status_code=403, detail="Not authorized to react in this conversation")
+
+    message = await add_message_reaction(db, conversation_id, message_id, current_user.id, body.emoji)
+    response = MessageResponse.model_validate(message)
+    await messaging_manager.broadcast(
+        str(conversation_id),
+        {
+            "type": "message_reaction",
+            "message": response.model_dump(mode="json", by_alias=True),
+        },
+    )
+    return response
+
+
+@router.delete("/conversations/{conversation_id}/messages/{message_id}/reactions", response_model=MessageResponse)
+async def unreact_to_message(
+    conversation_id: UUID,
+    message_id: UUID,
+    emoji: str = Query(..., min_length=1, max_length=16),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.messaging.models import Conversation
+
+    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    sender_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not sender_role:
+        raise HTTPException(status_code=403, detail="Not authorized to react in this conversation")
+
+    message = await remove_message_reaction(db, conversation_id, message_id, current_user.id, emoji)
+    response = MessageResponse.model_validate(message)
+    await messaging_manager.broadcast(
+        str(conversation_id),
+        {
+            "type": "message_reaction",
+            "message": response.model_dump(mode="json", by_alias=True),
+        },
+    )
+    return response
+
+
 @router.post("/conversations/{conversation_id}/read")
 async def mark_read(
     conversation_id: UUID,
@@ -229,7 +349,41 @@ async def mark_read(
         raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
 
     count = await mark_messages_read(db, conversation_id, current_user.id, reader_role)
+    if count:
+        await messaging_manager.broadcast(
+            str(conversation_id),
+            {
+                "type": "read",
+                "by": reader_role,
+                "count": count,
+            },
+        )
     return {"marked_read": count}
+
+
+@router.get("/conversations/{conversation_id}/presence", response_model=PresenceResponse)
+async def get_conversation_presence(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.messaging.models import Conversation
+
+    conversation_result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conversation = conversation_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    sender_role = await _resolve_sender_role(db, conversation, current_user.id)
+    if not sender_role:
+        raise HTTPException(status_code=403, detail="Not authorized to access this conversation")
+
+    presence = messaging_manager.get_presence(str(conversation_id))
+    return PresenceResponse(
+        conversation_id=conversation_id,
+        role_online=presence["role_online"],
+        role_last_seen=presence["role_last_seen"],
+    )
 
 
 @router.get("/templates", response_model=list[TemplateResponse])
@@ -273,8 +427,6 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
         await websocket.close(code=4001)
         return
     
-    await messaging_manager.connect(websocket, conversation_id, user_id)
-    
     try:
         async with get_async_session() as db:
             from app.messaging.models import Conversation
@@ -293,8 +445,18 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
                     await websocket.close(code=4003)
                     return
                 role = "business"
+
+        await messaging_manager.connect(websocket, conversation_id, user_id, role)
+        await messaging_manager.broadcast(
+            conversation_id,
+            {
+                "type": "presence",
+                **messaging_manager.get_presence(conversation_id),
+            },
+        )
         
         await websocket.send_json({"type": "connected", "conversation_id": conversation_id, "role": role})
+        await websocket.send_json({"type": "presence", **messaging_manager.get_presence(conversation_id)})
         
         while True:
             data = await websocket.receive_json()
@@ -304,7 +466,12 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
                 async with get_async_session() as db:
                     message = await send_message(
                         db, UUID(conversation_id), user_uuid, role,
-                        MessageCreate(content=data.get("content"), message_type=data.get("message_type", "text"))
+                        MessageCreate(
+                            content=data.get("content"),
+                            message_type=data.get("message_type", "text"),
+                            attachments=data.get("attachments"),
+                            metadata=data.get("metadata"),
+                        )
                     )
                     await messaging_manager.broadcast(conversation_id, {
                         "type": "new_message",
@@ -316,11 +483,23 @@ async def messaging_websocket(websocket: WebSocket, conversation_id: str, token:
                 await messaging_manager.broadcast(conversation_id, {"type": "typing", "sender_role": role}, exclude=websocket)
             elif msg_type == "read":
                 async with get_async_session() as db:
-                    await mark_messages_read(db, UUID(conversation_id), user_uuid, role)
-                    await messaging_manager.broadcast(conversation_id, {"type": "read", "by": role}, exclude=websocket)
+                    count = await mark_messages_read(db, UUID(conversation_id), user_uuid, role)
+                    if count:
+                        await messaging_manager.broadcast(
+                            conversation_id,
+                            {"type": "read", "by": role, "count": count},
+                            exclude=websocket,
+                        )
     except WebSocketDisconnect:
         pass
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
         messaging_manager.disconnect(websocket, conversation_id)
+        await messaging_manager.broadcast(
+            conversation_id,
+            {
+                "type": "presence",
+                **messaging_manager.get_presence(conversation_id),
+            },
+        )

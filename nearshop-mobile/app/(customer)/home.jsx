@@ -526,30 +526,17 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
             <FlatList
-                      }),
-                    });
-                  }}
-                >
-                  <View style={styles.forYouImageWrap}>
-                    {item.images?.[0] ? (
-                      <Image source={{ uri: item.images[0] }} style={styles.forYouImage} />
-                    ) : (
-                      <View style={styles.forYouImagePlaceholder}>
-                        <Text style={styles.forYouImageEmoji}>📦</Text>
-                      </View>
-                    )}
-                    <View style={[styles.forYouBadge, styles.trendingBadge]}>
-                      <Text style={[styles.forYouBadgeText, styles.trendingBadgeText]}>
-                        {item.trend_label || 'Trending'}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.forYouCardContent}>
-                    <Text style={styles.forYouCardName} numberOfLines={1}>{item.name}</Text>
-                    {item.price && <Text style={styles.forYouCardPrice}>₹{item.price}</Text>}
-                    {item.shop_name && <Text style={styles.forYouCardShop} numberOfLines={1}>{item.shop_name}</Text>}
-                  </View>
-                </TouchableOpacity>
+              data={deals}
+              keyExtractor={(item) => String(item.id)}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              renderItem={({ item }) => (
+                <DealCard
+                  deal={item}
+                  onPress={() => router.push(`/(customer)/product/${item.product_id}`)}
+                />
               )}
             />
           </View>

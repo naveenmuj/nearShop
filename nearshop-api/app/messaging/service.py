@@ -18,6 +18,7 @@ from app.core.firebase import send_push_notification
 
 
 logger = logging.getLogger(__name__)
+_ALLOWED_MESSAGE_TYPES = {"text", "image", "file", "audio", "video"}
 
 
 def _display_name(user: User | None) -> str:
@@ -128,10 +129,43 @@ async def send_message(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
+    message_type = (message_data.message_type or "text").strip().lower()
+    if message_type not in _ALLOWED_MESSAGE_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unsupported message_type '{message_type}'")
+
+    has_text = bool((message_data.content or "").strip())
+    has_attachments = bool(message_data.attachments)
+    if not has_text and not has_attachments:
+        raise HTTPException(status_code=400, detail="Message must include content or attachments")
+
+    metadata = dict(message_data.metadata or {})
+    reply_to_id = metadata.get("reply_to_message_id")
+    if reply_to_id:
+        try:
+            reply_uuid = UUID(str(reply_to_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid reply_to_message_id") from exc
+
+        reply_result = await db.execute(
+            select(Message).where(
+                and_(
+                    Message.id == reply_uuid,
+                    Message.conversation_id == conversation_id,
+                )
+            )
+        )
+        reply_message = reply_result.scalar_one_or_none()
+        if not reply_message:
+            raise HTTPException(status_code=404, detail="Reply target message not found")
+
+        metadata["reply_to_message_id"] = str(reply_message.id)
+        metadata["reply_preview"] = (reply_message.content or "Attachment")[:140]
+        metadata["reply_sender_role"] = reply_message.sender_role
+
     message = Message(
         conversation_id=conversation_id, sender_id=sender_id, sender_role=sender_role,
-        content=message_data.content, message_type=message_data.message_type,
-        attachments=message_data.attachments, message_metadata=message_data.metadata,
+        content=message_data.content, message_type=message_type,
+        attachments=message_data.attachments, message_metadata=metadata,
     )
     db.add(message)
     
@@ -186,6 +220,110 @@ async def mark_messages_read(
     
     await db.commit()
     return result.rowcount
+
+
+async def search_conversation_messages(
+    db: AsyncSession,
+    conversation_id: UUID,
+    query: str,
+    limit: int = 20,
+) -> List[Message]:
+    q = (query or "").strip()
+    if not q:
+        return []
+
+    stmt = (
+        select(Message)
+        .where(
+            and_(
+                Message.conversation_id == conversation_id,
+                Message.content.ilike(f"%{q}%"),
+            )
+        )
+        .order_by(desc(Message.created_at))
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    messages = list(result.scalars().all())
+    return messages[::-1]
+
+
+async def add_message_reaction(
+    db: AsyncSession,
+    conversation_id: UUID,
+    message_id: UUID,
+    user_id: UUID,
+    emoji: str,
+) -> Message:
+    reaction = (emoji or "").strip()
+    if not reaction:
+        raise HTTPException(status_code=400, detail="emoji is required")
+
+    result = await db.execute(
+        select(Message).where(
+            and_(Message.id == message_id, Message.conversation_id == conversation_id)
+        )
+    )
+    message = result.scalar_one_or_none()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    metadata = dict(message.message_metadata or {})
+    reactions = dict(metadata.get("reactions") or {})
+    user_key = str(user_id)
+
+    for key, users in list(reactions.items()):
+        reactions[key] = [uid for uid in (users or []) if uid != user_key]
+        if not reactions[key]:
+            reactions.pop(key, None)
+
+    users_for_emoji = list(reactions.get(reaction) or [])
+    if user_key not in users_for_emoji:
+        users_for_emoji.append(user_key)
+    reactions[reaction] = users_for_emoji
+
+    metadata["reactions"] = reactions
+    message.message_metadata = metadata
+    await db.commit()
+    await db.refresh(message)
+    return message
+
+
+async def remove_message_reaction(
+    db: AsyncSession,
+    conversation_id: UUID,
+    message_id: UUID,
+    user_id: UUID,
+    emoji: str,
+) -> Message:
+    reaction = (emoji or "").strip()
+    if not reaction:
+        raise HTTPException(status_code=400, detail="emoji is required")
+
+    result = await db.execute(
+        select(Message).where(
+            and_(Message.id == message_id, Message.conversation_id == conversation_id)
+        )
+    )
+    message = result.scalar_one_or_none()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    metadata = dict(message.message_metadata or {})
+    reactions = dict(metadata.get("reactions") or {})
+    users = list(reactions.get(reaction) or [])
+    user_key = str(user_id)
+    users = [uid for uid in users if uid != user_key]
+    if users:
+        reactions[reaction] = users
+    else:
+        reactions.pop(reaction, None)
+
+    metadata["reactions"] = reactions
+    message.message_metadata = metadata
+    await db.commit()
+    await db.refresh(message)
+    return message
 
 
 async def get_user_conversations(

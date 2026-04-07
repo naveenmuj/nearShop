@@ -59,6 +59,10 @@ function ProductImage({ uri, onRemove, showRemove = true }) {
 }
 
 function SavedItemCard({ item, onRemove, onPress }) {
+  // Map backend response to component props
+  const imageUrl = item.image || (item.product_images && item.product_images[0]) || null;
+  const price = item.price ?? item.product_price ?? 0;
+  
   return (
     <TouchableOpacity
       style={styles.card}
@@ -68,7 +72,7 @@ function SavedItemCard({ item, onRemove, onPress }) {
       accessibilityLabel={`View ${item.product_name}`}
     >
       <ProductImage
-        uri={item.image}
+        uri={imageUrl}
         onRemove={() => onRemove(item.product_id)}
         showRemove
       />
@@ -76,7 +80,7 @@ function SavedItemCard({ item, onRemove, onPress }) {
         <Text style={styles.productName} numberOfLines={2}>
           {item.product_name}
         </Text>
-        <Text style={styles.price}>{formatPrice(item.price)}</Text>
+        <Text style={styles.price}>{formatPrice(price)}</Text>
         <Text style={styles.shopName} numberOfLines={1}>
           {item.shop_name}
         </Text>
@@ -87,9 +91,9 @@ function SavedItemCard({ item, onRemove, onPress }) {
 
 function PriceDropCard({ item, onRemove, onPress }) {
   const name = item.product_name || item.name || 'Product';
-  const imageUri = item.image || (item.images && item.images[0]) || null;
-  const oldPrice = item.old_price ?? item.saved_price ?? 0;
-  const newPrice = item.price ?? item.current_price ?? 0;
+  const imageUri = item.image || (item.images && item.images[0]) || (item.product_images && item.product_images[0]) || null;
+  const oldPrice = item.old_price ?? item.saved_price ?? item.price_at_save ?? 0;
+  const newPrice = item.price ?? item.current_price ?? item.product_price ?? 0;
   const shopName = item.shop_name || '';
 
   const dropPercent =

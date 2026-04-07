@@ -2,7 +2,7 @@
  * Messaging API - Direct chat with shops
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE, authGet, authPost } from './api';
+import { API_BASE, authDelete, authGet, authPost } from './api';
 
 const MESSAGE_QUEUE_KEY = '@nearshop:message_queue:v1';
 
@@ -56,12 +56,37 @@ export async function getConversation(conversationId, options = {}) {
 }
 
 // Send message
-export async function sendMessage(conversationId, content, messageType = 'text', attachments = null) {
+export async function sendMessage(conversationId, content, messageType = 'text', attachments = null, metadata = null) {
   const response = await authPost(`/messaging/conversations/${conversationId}/messages`, {
     content,
     message_type: messageType,
     attachments,
+    metadata,
   });
+  return response.data;
+}
+
+export async function searchConversationMessages(conversationId, query, limit = 20) {
+  const response = await authGet(
+    `/messaging/conversations/${conversationId}/messages/search?q=${encodeURIComponent(query)}&limit=${limit}`
+  );
+  return response.data;
+}
+
+export async function reactToMessage(conversationId, messageId, emoji) {
+  const response = await authPost(`/messaging/conversations/${conversationId}/messages/${messageId}/reactions`, { emoji });
+  return response.data;
+}
+
+export async function unreactToMessage(conversationId, messageId, emoji) {
+  const response = await authDelete(
+    `/messaging/conversations/${conversationId}/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`
+  );
+  return response.data;
+}
+
+export async function getConversationPresence(conversationId) {
+  const response = await authGet(`/messaging/conversations/${conversationId}/presence`);
   return response.data;
 }
 
@@ -105,6 +130,7 @@ export async function queueMessage(conversationId, payload) {
     content: payload.content || '',
     message_type: payload.message_type || 'text',
     attachments: payload.attachments || null,
+    metadata: payload.metadata || null,
     created_at: payload.created_at || new Date().toISOString(),
     sender_role: payload.sender_role,
   };
@@ -126,7 +152,13 @@ export async function flushQueuedMessages(conversationId, onSent) {
   const queued = await getQueuedConversationMessages(conversationId);
   for (const item of queued) {
     try {
-      const sent = await sendMessage(item.conversation_id, item.content, item.message_type, item.attachments);
+      const sent = await sendMessage(
+        item.conversation_id,
+        item.content,
+        item.message_type,
+        item.attachments,
+        item.metadata,
+      );
       await removeQueuedMessage(item.local_id);
       onSent?.(item.local_id, sent);
     } catch {
@@ -140,64 +172,100 @@ export async function flushQueuedMessages(conversationId, onSent) {
 export function createMessagingConnection(conversationId, token, handlers) {
   const wsBase = buildMessagingWsBase();
   const wsUrl = `${wsBase}/api/v1/messaging/ws/${conversationId}?token=${encodeURIComponent(token)}`;
-  const ws = new WebSocket(wsUrl);
-  
-  ws.onopen = () => {
-    console.log('[Messaging] Connected');
-    handlers.onConnected?.();
-  };
-  
-  ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      switch (data.type) {
-        case 'connected':
-          handlers.onConnected?.(data);
-          break;
-        case 'new_message':
-          handlers.onMessage?.(data.message);
-          break;
-        case 'typing':
-          handlers.onTyping?.(data.sender_role);
-          break;
-        case 'read':
-          handlers.onRead?.(data.by);
-          break;
-        case 'error':
-          handlers.onError?.(data.message);
-          break;
-      }
-    } catch (e) {
-      console.error('[Messaging] Parse error:', e);
+  let ws = null;
+  let reconnectTimer = null;
+  let reconnectAttempt = 0;
+  let closedByUser = false;
+
+  const shouldReconnect = handlers?.autoReconnect !== false;
+
+  const sendPayload = (payload) => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+      return true;
     }
+    return false;
   };
-  
-  ws.onerror = (error) => {
-    console.error('[Messaging] WebSocket error:', error);
-    handlers.onError?.('Connection error');
+
+  const scheduleReconnect = () => {
+    if (!shouldReconnect || closedByUser) return;
+    reconnectAttempt += 1;
+    const backoff = Math.min(10000, 800 * (2 ** Math.min(reconnectAttempt, 4)));
+    reconnectTimer = setTimeout(() => connect(), backoff);
   };
-  
-  ws.onclose = () => {
-    console.log('[Messaging] Disconnected');
-    handlers.onDisconnected?.();
+
+  const connect = () => {
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      reconnectAttempt = 0;
+      console.log('[Messaging] Connected');
+      handlers.onConnected?.();
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        switch (data.type) {
+          case 'connected':
+            handlers.onConnected?.(data);
+            break;
+          case 'new_message':
+            handlers.onMessage?.(data.message);
+            break;
+          case 'typing':
+            handlers.onTyping?.(data.sender_role);
+            break;
+          case 'read':
+            handlers.onRead?.(data);
+            break;
+          case 'message_reaction':
+            handlers.onReaction?.(data.message);
+            break;
+          case 'presence':
+            handlers.onPresence?.(data);
+            break;
+          case 'error':
+            handlers.onError?.(data.message);
+            break;
+          default:
+            break;
+        }
+      } catch (e) {
+        console.error('[Messaging] Parse error:', e);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('[Messaging] WebSocket error:', error);
+      handlers.onError?.('Connection error');
+    };
+
+    ws.onclose = () => {
+      console.log('[Messaging] Disconnected');
+      handlers.onDisconnected?.();
+      scheduleReconnect();
+    };
   };
-  
+
+  connect();
+
   return {
     send: (content, messageType = 'text') => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'message', content, message_type: messageType }));
-      }
+      sendPayload({ type: 'message', content, message_type: messageType });
     },
     sendTyping: () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'typing' }));
-      }
+      sendPayload({ type: 'typing' });
     },
     markRead: () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'read' }));
-      }
+      sendPayload({ type: 'read' });
     },
-    close: () => ws.close(),
+    close: () => {
+      closedByUser = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      ws?.close();
+    },
   };
 }

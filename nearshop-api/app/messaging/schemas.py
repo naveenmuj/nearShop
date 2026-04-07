@@ -12,6 +12,16 @@ class MessageCreate(BaseModel):
     metadata: Optional[dict] = None
 
 
+class ReactionUpdate(BaseModel):
+    emoji: str
+
+
+class PresenceResponse(BaseModel):
+    conversation_id: UUID
+    role_online: dict
+    role_last_seen: dict
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     
