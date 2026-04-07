@@ -15,6 +15,7 @@ import {
   Alert,
   Keyboard,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,12 +37,18 @@ import {
   getConversationPresence,
 } from '../../lib/messaging';
 import { uploadFile } from '../../lib/auth';
-import { getStoredAccessToken } from '../../lib/api';
+import { authPost, getStoredAccessToken } from '../../lib/api';
 import useAuthStore from '../../store/authStore';
 
 const PAGE_SIZE = 30;
 const EMOJIS = ['😀', '😂', '😍', '🥳', '🙏', '👍', '🔥', '❤️', '🎉', '🤝', '💯', '👏'];
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥'];
+const BUSINESS_QUICK_TEMPLATES = [
+  'Thanks for reaching out. Let me check and confirm shortly.',
+  'Your order is in progress. We will update you soon.',
+  'Please share a quick photo so I can help faster.',
+  'We can arrange delivery today. Preferred time?',
+];
 
 function formatTime(dateStr) {
   const date = new Date(dateStr);
@@ -94,6 +101,8 @@ export default function ChatScreenBase({ viewerRole }) {
   const [showAttachTray, setShowAttachTray] = useState(false);
   const [replyTarget, setReplyTarget] = useState(null);
   const [presence, setPresence] = useState({ role_online: { customer: false, business: false }, role_last_seen: {} });
+  const [aiReplyLoading, setAiReplyLoading] = useState(false);
+  const [aiReplyDrafts, setAiReplyDrafts] = useState([]);
 
   const flatListRef = useRef(null);
   const wsRef = useRef(null);
@@ -489,6 +498,49 @@ export default function ChatScreenBase({ viewerRole }) {
     }
   };
 
+  const handleSuggestReply = useCallback(async () => {
+    if (viewerRole !== 'business' || aiReplyLoading) return;
+
+    const customerMessage = replyTarget
+      || [...messages].reverse().find((m) => m?.sender_role === 'customer' && (m?.content || m?.attachments?.length));
+
+    if (!customerMessage) {
+      Alert.alert('No customer message', 'Select a customer message to reply, or wait for a message to arrive.');
+      return;
+    }
+
+    const basisText = (customerMessage.content || '').trim() || 'Customer sent an attachment.';
+    setAiReplyLoading(true);
+    try {
+      const res = await authPost('/advisor/chat', {
+        question: `Draft exactly 3 short, polite business reply options (max 2 sentences each) for this customer message: "${basisText}". Separate options with || only.`,
+      });
+      const raw = (res?.data?.answer || '').trim();
+      if (!raw) {
+        throw new Error('No suggestion generated');
+      }
+
+      const drafts = raw
+        .split('||')
+        .map((d) => d.replace(/^\s*[-\d.)]+\s*/, '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+
+      if (!drafts.length) {
+        throw new Error('No structured drafts generated');
+      }
+
+      setAiReplyDrafts(drafts);
+      setInputText(drafts[0]);
+      setShowEmojiTray(false);
+      setShowAttachTray(false);
+    } catch (err) {
+      Alert.alert('Suggestion unavailable', 'Could not generate an AI reply right now.');
+    } finally {
+      setAiReplyLoading(false);
+    }
+  }, [aiReplyLoading, messages, replyTarget, viewerRole]);
+
   const handleToggleReaction = useCallback(async (item, emoji = '👍') => {
     if (!item?.id || item.local_id) return;
     const reactions = item?.message_metadata?.reactions || {};
@@ -638,6 +690,8 @@ export default function ChatScreenBase({ viewerRole }) {
     ? conversation?.shop_name
     : (conversation?.other_party_name || 'Customer');
 
+  const queuedCount = messages.filter((m) => m?._local_state === 'queued').length;
+
   const otherRole = viewerRole === 'customer' ? 'business' : 'customer';
   const isOtherOnline = Boolean(presence?.role_online?.[otherRole]);
   const otherLastSeen = presence?.role_last_seen?.[otherRole];
@@ -698,6 +752,17 @@ export default function ChatScreenBase({ viewerRole }) {
           )}
         />
 
+        {queuedCount > 0 && (
+          <View style={styles.outboxBanner}>
+            <Text style={styles.outboxText}>
+              {queuedCount} message{queuedCount > 1 ? 's' : ''} waiting to send
+            </Text>
+            <TouchableOpacity style={styles.outboxRetryBtn} onPress={() => flushQueue()}>
+              <Text style={styles.outboxRetryText}>Retry now</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {isTyping && (
           <View style={styles.typingContainer}>
             <Animated.View style={[styles.typingDot, { opacity: typingAnim }]} />
@@ -746,6 +811,32 @@ export default function ChatScreenBase({ viewerRole }) {
           </View>
         )}
 
+        {viewerRole === 'business' && (
+          <View style={styles.quickReplyTray}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickReplyRow}>
+              {BUSINESS_QUICK_TEMPLATES.map((template) => (
+                <TouchableOpacity
+                  key={template}
+                  style={styles.quickReplyChip}
+                  onPress={() => setInputText(template)}
+                >
+                  <Text style={styles.quickReplyChipText} numberOfLines={1}>{template}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {viewerRole === 'business' && aiReplyDrafts.length > 0 && (
+          <View style={styles.aiDraftTray}>
+            {aiReplyDrafts.map((draft, idx) => (
+              <TouchableOpacity key={`ai-draft-${idx}`} style={styles.aiDraftChip} onPress={() => setInputText(draft)}>
+                <Text style={styles.aiDraftChipText}>{`Option ${idx + 1}`}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {pendingAttachment && (
           <View style={styles.pendingAttachmentRow}>
             {pendingAttachment.type === 'image' ? (
@@ -768,6 +859,20 @@ export default function ChatScreenBase({ viewerRole }) {
         )}
 
         <View style={styles.composerWrap}>
+          {viewerRole === 'business' && (
+            <TouchableOpacity
+              style={styles.aiReplyBtn}
+              onPress={handleSuggestReply}
+              disabled={aiReplyLoading}
+            >
+              {aiReplyLoading ? (
+                <ActivityIndicator size="small" color={COLORS.white} />
+              ) : (
+                <Ionicons name="sparkles-outline" size={19} color={COLORS.white} />
+              )}
+            </TouchableOpacity>
+          )}
+
           <View style={styles.inputContainer}>
             <TouchableOpacity
               style={styles.iconBtn}
@@ -916,6 +1021,26 @@ const styles = StyleSheet.create({
   typingContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 8 },
   typingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.gray },
   typingText: { fontSize: 12, color: COLORS.gray, marginLeft: 8 },
+  outboxBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF7E6',
+    borderTopWidth: 1,
+    borderTopColor: '#F8D7A8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8D7A8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  outboxText: { color: '#8A5B13', fontSize: 12, fontWeight: '600' },
+  outboxRetryBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#EAAA3B',
+  },
+  outboxRetryText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
   emojiTray: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingVertical: 10,
     backgroundColor: '#f6fbff', borderTopWidth: 1, borderTopColor: '#dce8f2',
@@ -959,9 +1084,51 @@ const styles = StyleSheet.create({
   },
   replyComposerTitle: { fontSize: 12, fontWeight: '700', color: '#2a6da1' },
   replyComposerText: { fontSize: 12, color: COLORS.text },
+  quickReplyTray: {
+    backgroundColor: '#f8fbff',
+    borderTopWidth: 1,
+    borderTopColor: '#dce8f2',
+    paddingVertical: 8,
+  },
+  quickReplyRow: { paddingHorizontal: 12, gap: 8 },
+  quickReplyChip: {
+    maxWidth: 260,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#eaf3ff',
+    borderWidth: 1,
+    borderColor: '#cde2ff',
+  },
+  quickReplyChipText: { fontSize: 12, color: '#285481', fontWeight: '600' },
+  aiDraftTray: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f8fbff',
+    borderTopWidth: 1,
+    borderTopColor: '#dce8f2',
+  },
+  aiDraftChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#d8ecff',
+  },
+  aiDraftChipText: { fontSize: 11, fontWeight: '700', color: '#1f5183' },
   composerWrap: {
     flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 10, paddingVertical: 8,
     backgroundColor: '#f9fcff', borderTopWidth: 1, borderTopColor: '#dce8f2',
+  },
+  aiReplyBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#2f7ad8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   inputContainer: {
     flex: 1, flexDirection: 'row', alignItems: 'flex-end', borderRadius: 24,

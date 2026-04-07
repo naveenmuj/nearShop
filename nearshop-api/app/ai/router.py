@@ -119,7 +119,18 @@ async def visual_search(
         radius_km=body.radius_km,
         limit=body.limit,
     )
-    return {"results": results, "count": len(results)}
+    summary = {"strong": 0, "good": 0, "possible": 0, "weak": 0}
+    for item in results:
+        band = str(item.get("confidence_band") or "weak")
+        if band not in summary:
+            band = "weak"
+        summary[band] += 1
+    return {
+        "results": results,
+        "count": len(results),
+        "source": "visual_search",
+        "summary": summary,
+    }
 
 
 @router.post("/search/conversational")

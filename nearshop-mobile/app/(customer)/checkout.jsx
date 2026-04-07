@@ -1,29 +1,40 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, ActivityIndicator, StatusBar, Modal, Linking, BackHandler,
+  TextInput, ActivityIndicator, StatusBar, Modal, BackHandler,
 } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useCartStore from '../../store/cartStore';
 import useLocationStore from '../../store/locationStore';
-import { createOrder, createPaymentOrder, confirmPayment } from '../../lib/orders';
+import { createOrder, createPaymentOrder, confirmPayment, cancelOrder } from '../../lib/orders';
 import { validateCoupon, useCoupon } from '../../lib/deals';
 import { listAddresses, createAddress } from '../../lib/auth';
 import { getBalance } from '../../lib/loyalty';
+import { withRetry } from '../../lib/retry';
+import { recordLocalTelemetry } from '../../lib/localTelemetry';
+import { trackEvent } from '../../lib/analytics';
 import { toast } from '../../components/ui/Toast';
 import { alert } from '../../components/ui/PremiumAlert';
+import LocationFallbackBanner from '../../components/LocationFallbackBanner';
 import { COLORS, SHADOWS } from '../../constants/theme';
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN');
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { getShopGroups, getSubtotal, clearShopItems, clearCart } = useCartStore();
+  const { getShopGroups, getSubtotal, clearShopItems } = useCartStore();
   const shopGroups = getShopGroups();
   const grandSubtotal = getSubtotal();
 
-  const { address: locationAddress, latitude, longitude } = useLocationStore();
+  const {
+    address: locationAddress,
+    lat,
+    lng,
+    error: locationError,
+    refreshLocation,
+  } = useLocationStore();
   const [deliveryType, setDeliveryType] = useState('pickup');
   const [address, setAddress] = useState(locationAddress || '');
   const [notes, setNotes] = useState('');
@@ -50,6 +61,7 @@ export default function CheckoutScreen() {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [newAddress, setNewAddress] = useState({ label: 'home', address_line1: '', city: '', pincode: '' });
+  const [deliveryConfirmedFallback, setDeliveryConfirmedFallback] = useState(false);
 
   // Calculate total with coupon and wallet
   const coinDiscount = coinsToUse / 10; // 10 coins = ₹1
@@ -83,6 +95,12 @@ export default function CheckoutScreen() {
     loadAddresses();
     loadWalletBalance();
   }, []);
+
+  useEffect(() => {
+    if (deliveryType !== 'delivery') {
+      setDeliveryConfirmedFallback(false);
+    }
+  }, [deliveryType]);
 
   useEffect(() => {
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -134,12 +152,15 @@ export default function CheckoutScreen() {
     }
     
     try {
-      const { data } = await createAddress({
-        ...newAddress,
-        latitude,
-        longitude,
-        is_default: addresses.length === 0,
-      });
+      const { data } = await withRetry(
+        () => createAddress({
+          ...newAddress,
+          latitude: lat,
+          longitude: lng,
+          is_default: addresses.length === 0,
+        }),
+        { retries: 2, delayMs: 450 },
+      );
       setAddresses(prev => [...prev, data]);
       setSelectedAddressId(data.id);
       setAddress(data.formatted_address);
@@ -154,6 +175,13 @@ export default function CheckoutScreen() {
   const handlePlaceOrder = async () => {
     if (deliveryType === 'delivery' && !address.trim()) {
       alert.warning({ title: 'Error', message: 'Please enter your delivery address' });
+      return;
+    }
+    if (deliveryType === 'delivery' && locationError && !deliveryConfirmedFallback) {
+      alert.warning({
+        title: 'Confirm delivery address',
+        message: 'Please confirm the fallback location warning before placing this delivery order.',
+      });
       return;
     }
     setLoading(true);
@@ -183,9 +211,84 @@ export default function CheckoutScreen() {
         
         const { data: orderData } = await createOrder(payload);
         createdOrderIds.push(orderData.id); // Track successful order
-        
-        // Online payment is disabled - only COD available
-        // TODO: Implement Razorpay SDK for online payments
+
+        if (paymentMethod === 'online') {
+          try {
+            const { data: paymentOrder } = await createPaymentOrder(orderData.id);
+
+            if (paymentOrder?.test_mode) {
+              await withRetry(
+                () => confirmPayment({
+                  order_id: orderData.id,
+                  razorpay_order_id: paymentOrder.razorpay_order_id,
+                  razorpay_payment_id: paymentOrder.test_payment_id,
+                  razorpay_signature: paymentOrder.test_signature || 'test_signature',
+                }),
+                { retries: 2, delayMs: 550 },
+              );
+            } else {
+              const paymentResult = await RazorpayCheckout.open({
+                key: paymentOrder.razorpay_key_id,
+                amount: String(paymentOrder.amount),
+                currency: paymentOrder.currency || 'INR',
+                order_id: paymentOrder.razorpay_order_id,
+                name: 'NearShop',
+                description: `Order ${paymentOrder.order_number}`,
+                prefill: {
+                  name: 'NearShop customer',
+                },
+                theme: { color: '#7F77DD' },
+              });
+
+              await confirmPayment({
+                order_id: orderData.id,
+                razorpay_order_id: paymentResult.razorpay_order_id || paymentOrder.razorpay_order_id,
+                razorpay_payment_id: paymentResult.razorpay_payment_id,
+                razorpay_signature: paymentResult.razorpay_signature,
+              });
+            }
+
+            recordLocalTelemetry({
+              type: 'mutation',
+              name: paymentOrder?.test_mode ? 'checkout_test_payment' : 'checkout_live_payment',
+              outcome: 'success',
+              meta: { orderId: orderData.id, testMode: Boolean(paymentOrder?.test_mode) },
+            }).catch(() => {});
+
+            trackEvent({
+              event_type: paymentOrder?.test_mode ? 'checkout_payment_test_success' : 'checkout_payment_success',
+              entity_type: 'order',
+              entity_id: orderData.id,
+              metadata: {
+                payment_method: 'online',
+                mode: paymentOrder?.test_mode ? 'test' : 'live',
+              },
+            }).catch(() => {});
+          } catch (paymentErr) {
+            const cancelledByUser = String(paymentErr?.code || paymentErr?.description || '').toLowerCase().includes('cancel');
+            try {
+              await cancelOrder(orderData.id, 'payment_not_completed');
+            } catch (cancelErr) {
+              console.error('Failed to rollback unpaid order:', cancelErr);
+            }
+            recordLocalTelemetry({
+              type: 'mutation',
+              name: cancelledByUser ? 'checkout_live_payment' : 'checkout_payment_failure',
+              outcome: cancelledByUser ? 'cancelled' : 'failure',
+              meta: { orderId: orderData.id },
+            }).catch(() => {});
+            trackEvent({
+              event_type: cancelledByUser ? 'checkout_payment_cancelled' : 'checkout_payment_failed',
+              entity_type: 'order',
+              entity_id: orderData.id,
+              metadata: {
+                payment_method: 'online',
+                error: paymentErr?.message || paymentErr?.description || 'unknown',
+              },
+            }).catch(() => {});
+            throw paymentErr;
+          }
+        }
         
         clearShopItems(group.shop_id);
         successCount++;
@@ -277,6 +380,30 @@ export default function CheckoutScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        )}
+
+        {deliveryType === 'delivery' && (
+          <LocationFallbackBanner
+            visible={Boolean(locationError)}
+            message="Delivery ETA and nearby shop matching may be less accurate. Please confirm your address carefully."
+            onRetry={async () => {
+              const result = await refreshLocation();
+              if (result?.success && result?.address && deliveryType === 'delivery' && !selectedAddressId) {
+                setAddress(result.address);
+              }
+            }}
+          >
+            <TouchableOpacity
+              style={styles.locationConfirmRow}
+              onPress={() => setDeliveryConfirmedFallback((v) => !v)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.locationConfirmCheckbox, deliveryConfirmedFallback && styles.locationConfirmCheckboxActive]}>
+                {deliveryConfirmedFallback ? <Text style={styles.locationConfirmTick}>✓</Text> : null}
+              </View>
+              <Text style={styles.locationConfirmText}>I confirm this delivery address is correct</Text>
+            </TouchableOpacity>
+          </LocationFallbackBanner>
         )}
 
         {/* Order Summary */}
@@ -443,21 +570,19 @@ export default function CheckoutScreen() {
                 💵 Cash on Delivery
               </Text>
             </TouchableOpacity>
-            {/* Online payment temporarily disabled - Razorpay SDK implementation pending */}
-            {false && (
-              <TouchableOpacity
-                style={[styles.toggleBtn, paymentMethod === 'online' && styles.toggleBtnActive, styles.toggleBtnDisabled]}
-                onPress={() => setPaymentMethod('online')}
-                disabled={true}
-              >
-                <Text style={[styles.toggleText, paymentMethod === 'online' && styles.toggleTextActive, styles.toggleTextDisabled]}>
-                  💳 Pay Online
-                </Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[styles.toggleBtn, paymentMethod === 'online' && styles.toggleBtnActive]}
+              onPress={() => setPaymentMethod('online')}
+            >
+              <Text style={[styles.toggleText, paymentMethod === 'online' && styles.toggleTextActive]}>
+                💳 Pay Online
+              </Text>
+            </TouchableOpacity>
           </View>
           <Text style={styles.paymentNote}>
-            💡 Online payment coming soon! Pay securely with Cash on Delivery for now.
+            {paymentMethod === 'online'
+              ? '💡 Test mode payments are auto-confirmed. Live Razorpay checkout now uses the native SDK.'
+              : '💡 You can switch to online payment above.'}
           </Text>
         </View>
 
@@ -717,4 +842,31 @@ const styles = StyleSheet.create({
   successPrimaryText: { color: COLORS.white, fontWeight: '700', fontSize: 15 },
   successSecondaryBtn: { paddingVertical: 10 },
   successSecondaryText: { color: COLORS.gray500, fontWeight: '600', fontSize: 14 },
+  locationWarningCard: { borderWidth: 1, borderColor: '#FBBF24', backgroundColor: '#FFFBEB' },
+  locationWarningTitle: { color: '#92400E', fontWeight: '700', fontSize: 13, marginBottom: 6 },
+  locationWarningText: { color: '#78350F', fontSize: 12, lineHeight: 17 },
+  locationConfirmRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  locationConfirmCheckbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#B45309',
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  locationConfirmCheckboxActive: { backgroundColor: '#B45309' },
+  locationConfirmTick: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  locationConfirmText: { color: '#78350F', fontSize: 12, fontWeight: '600', flex: 1 },
+  locationRefreshBtn: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F59E0B',
+  },
+  locationRefreshBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 12 },
 });

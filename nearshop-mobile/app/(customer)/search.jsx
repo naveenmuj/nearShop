@@ -9,18 +9,26 @@ import {
   Keyboard,
   Platform,
   BackHandler,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { searchProducts, getSearchSuggestions } from '../../lib/products';
 import { searchShops, searchUnified, runConversationalSearch } from '../../lib/shops';
+import { visualSearchProducts } from '../../lib/api/ai';
+import { uploadFile } from '../../lib/auth';
 import {
   logSearch,
   getRecentSearches,
   deleteRecentSearch,
+  getSavedSearchIntents,
+  saveSearchIntent,
+  deleteSearchIntent,
 } from '../../lib/engagement';
 import ProductCard from '../../components/ProductCard';
 import ShopCard from '../../components/ShopCard';
+import LocationFallbackBanner from '../../components/LocationFallbackBanner';
 import { SearchScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import useLocationStore from '../../store/locationStore';
@@ -35,6 +43,11 @@ const SORT_OPTIONS = [
   { label: 'Popular', value: 'popular' },
 ];
 
+const SEARCH_MODES = [
+  { key: 'smart', label: 'Smart AI' },
+  { key: 'standard', label: 'Standard' },
+];
+
 const TYPE_ICONS = { product: '🛍️', shop: '🏪' };
 
 const EMPTY_SEARCH_META = {
@@ -42,6 +55,7 @@ const EMPTY_SEARCH_META = {
   fallbackUsed: false,
   parsedFilters: null,
   executedQuery: null,
+  visualSummary: null,
 };
 
 function normalizeText(value) {
@@ -78,10 +92,22 @@ function extractActiveAiChips(parsedFilters) {
   return chips;
 }
 
+function toPercent(similarity) {
+  const clamped = Math.max(0, Math.min(1, Number(similarity || 0)));
+  return `${Math.round(clamped * 100)}% match`;
+}
+
+function confidenceLabel(band) {
+  if (band === 'strong') return 'Strong';
+  if (band === 'good') return 'Good';
+  if (band === 'possible') return 'Possible';
+  return 'Low';
+}
+
 export default function SearchScreen() {
   const router = useRouter();
   const { category: initialCategory } = useLocalSearchParams();
-  const { lat, lng } = useLocationStore();
+  const { lat, lng, error: locationError, refreshLocation } = useLocationStore();
 
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState('products');
@@ -95,17 +121,20 @@ export default function SearchScreen() {
     }
   }, [initialCategory]);
   const [selectedSort, setSelectedSort] = useState('newest');
+  const [searchMode, setSearchMode] = useState('smart');
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchMeta, setSearchMeta] = useState(EMPTY_SEARCH_META);
+  const [visualSearchError, setVisualSearchError] = useState(null);
 
   // Suggestions state
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [savedIntents, setSavedIntents] = useState([]);
   const [showRecentPanel, setShowRecentPanel] = useState(false);
 
   const inputRef = useRef(null);
@@ -117,6 +146,9 @@ export default function SearchScreen() {
   useEffect(() => {
     getRecentSearches()
       .then((res) => setRecentSearches(res?.data?.items ?? res?.data ?? []))
+      .catch(() => {});
+    getSavedSearchIntents()
+      .then((res) => setSavedIntents(Array.isArray(res?.data) ? res.data : []))
       .catch(() => {});
   }, []);
 
@@ -142,20 +174,32 @@ export default function SearchScreen() {
 
   // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
-  const fetchProducts = useCallback(async (q, category, sort) => {
+  const fetchProducts = useCallback(async (q, category, sort, mode) => {
     setLoading(true);
     try {
       if (q && q.trim()) {
         let searchData;
-        try {
-          const conversational = await runConversationalSearch(q.trim(), lat, lng);
-          searchData = conversational?.data ?? {};
-        } catch {
+
+        if (mode === 'smart') {
+          try {
+            const conversational = await runConversationalSearch(q.trim(), lat, lng);
+            searchData = conversational?.data ?? {};
+          } catch {
+            const unified = await searchUnified(q.trim(), lat, lng);
+            searchData = {
+              ...(unified?.data ?? {}),
+              ai_used: false,
+              fallback_used: true,
+              parsed_filters: null,
+              executed_query: q.trim(),
+            };
+          }
+        } else {
           const unified = await searchUnified(q.trim(), lat, lng);
           searchData = {
             ...(unified?.data ?? {}),
             ai_used: false,
-            fallback_used: true,
+            fallback_used: false,
             parsed_filters: null,
             executed_query: q.trim(),
           };
@@ -195,20 +239,32 @@ export default function SearchScreen() {
     }
   }, [lat, lng]);
 
-  const fetchShops = useCallback(async (q) => {
+  const fetchShops = useCallback(async (q, mode) => {
     setLoading(true);
     try {
       if (q && q.trim()) {
         let searchData;
-        try {
-          const conversational = await runConversationalSearch(q.trim(), lat, lng);
-          searchData = conversational?.data ?? {};
-        } catch {
+
+        if (mode === 'smart') {
+          try {
+            const conversational = await runConversationalSearch(q.trim(), lat, lng);
+            searchData = conversational?.data ?? {};
+          } catch {
+            const unified = await searchUnified(q.trim(), lat, lng);
+            searchData = {
+              ...(unified?.data ?? {}),
+              ai_used: false,
+              fallback_used: true,
+              parsed_filters: null,
+              executed_query: q.trim(),
+            };
+          }
+        } else {
           const unified = await searchUnified(q.trim(), lat, lng);
           searchData = {
             ...(unified?.data ?? {}),
             ai_used: false,
-            fallback_used: true,
+            fallback_used: false,
             parsed_filters: null,
             executed_query: q.trim(),
           };
@@ -244,12 +300,12 @@ export default function SearchScreen() {
   // ─── Debounced search trigger ─────────────────────────────────────────────────
 
   const scheduleSearch = useCallback(
-    (q, category, sort, tab) => {
+    (q, category, sort, tab, mode) => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       debounceTimer.current = setTimeout(() => {
         setShowSuggestions(false);
-        if (tab === 'products') fetchProducts(q, category, sort);
-        else fetchShops(q);
+        if (tab === 'products') fetchProducts(q, category, sort, mode);
+        else fetchShops(q, mode);
         // Log search query for analytics
         if (q && q.trim().length >= 2) {
           logSearch(q.trim()).catch(() => {});
@@ -260,9 +316,9 @@ export default function SearchScreen() {
   );
 
   useEffect(() => {
-    scheduleSearch(query, selectedCategory, selectedSort, activeTab);
+    scheduleSearch(query, selectedCategory, selectedSort, activeTab, searchMode);
     return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
-  }, [query, selectedCategory, selectedSort, activeTab, scheduleSearch]);
+  }, [query, selectedCategory, selectedSort, activeTab, searchMode, scheduleSearch]);
 
   // Suggestions debounce (faster — 200ms)
   useEffect(() => {
@@ -314,8 +370,8 @@ export default function SearchScreen() {
       .then((res) => setRecentSearches(res?.data?.items ?? res?.data ?? []))
       .catch(() => {});
     setHasSearched(false);
-    scheduleSearch(term, selectedCategory, selectedSort, activeTab);
-  }, [selectedCategory, selectedSort, activeTab, scheduleSearch]);
+    scheduleSearch(term, selectedCategory, selectedSort, activeTab, searchMode);
+  }, [selectedCategory, selectedSort, activeTab, searchMode, scheduleSearch]);
 
   const handleSuggestionPress = (item) => {
     setQuery(item.name);
@@ -330,7 +386,7 @@ export default function SearchScreen() {
       router.push(`/(customer)/shop/${item.id}`);
     } else {
       setHasSearched(false);
-      scheduleSearch(item.name, selectedCategory, selectedSort, 'products');
+      scheduleSearch(item.name, selectedCategory, selectedSort, 'products', searchMode);
       setActiveTab('products');
     }
   };
@@ -351,9 +407,32 @@ export default function SearchScreen() {
     }
   };
 
+  const handleSaveIntent = async () => {
+    const term = query.trim();
+    if (!term) return;
+    try {
+      await saveSearchIntent(term, null);
+      const res = await getSavedSearchIntents();
+      setSavedIntents(Array.isArray(res?.data) ? res.data : []);
+      Alert.alert('Saved', 'Search intent saved for quick rerun.');
+    } catch {
+      Alert.alert('Unable to save', 'Could not save this intent right now.');
+    }
+  };
+
+  const handleDeleteIntent = async (intentId) => {
+    try {
+      await deleteSearchIntent(intentId);
+      setSavedIntents((prev) => prev.filter((i) => String(i.id) !== String(intentId)));
+    } catch {
+      // ignore
+    }
+  };
+
   const handleTabChange = (tab) => { setActiveTab(tab); setHasSearched(false); };
   const handleCategoryChange = (cat) => { setSelectedCategory(cat); setHasSearched(false); };
   const handleSortChange = (sort) => { setSelectedSort(sort); setHasSearched(false); };
+  const handleSearchModeChange = (mode) => { setSearchMode(mode); setHasSearched(false); };
   const handleCancel = () => { Keyboard.dismiss(); router.back(); };
   const handleClearInput = () => {
     setQuery('');
@@ -377,6 +456,84 @@ export default function SearchScreen() {
     }, 150);
   };
 
+  const handleVisualSearch = useCallback(async () => {
+    if (lat == null || lng == null) {
+      Alert.alert('Location required', 'Enable location to run nearby visual search.');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow photo access to run visual search.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.82,
+    });
+
+    if (result.canceled || !result.assets?.length) return;
+
+    setLoading(true);
+    setVisualSearchError(null);
+    try {
+      const asset = result.assets[0];
+      const uploadRes = await uploadFile(asset.uri, {
+        folder: 'search',
+        purpose: 'media',
+        mimeType: asset.mimeType || 'image/jpeg',
+        fileName: asset.fileName || `visual-search-${Date.now()}.jpg`,
+      });
+      const uploadData = uploadRes?.data ?? uploadRes;
+      const imageUrl = uploadData?.url || uploadData?.file_url;
+      if (!imageUrl) throw new Error('Image upload failed');
+
+      const res = await visualSearchProducts({
+        image_url: imageUrl,
+        latitude: lat,
+        longitude: lng,
+        radius_km: 8,
+        limit: 20,
+      });
+
+      const visualProducts = res?.data?.results ?? [];
+      setProducts(visualProducts.map((item) => ({
+        ...item,
+        image_url: Array.isArray(item.images) ? item.images[0] : null,
+        ranking_context: {
+          source: 'visual_search',
+          similarity: item.similarity,
+          confidence_band: item.confidence_band,
+        },
+      })));
+      setShops([]);
+      setActiveTab('products');
+      setHasSearched(true);
+      setQuery('');
+      setSearchMeta({
+        aiUsed: true,
+        fallbackUsed: false,
+        parsedFilters: null,
+        executedQuery: `Visual match (${visualProducts.length})`,
+        visualSummary: res?.data?.summary || null,
+      });
+      if (!visualProducts.length) {
+        setVisualSearchError('No close visual matches found. Try another angle or clearer image.');
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      const errorMessage = typeof detail === 'string' ? detail : 'Could not run visual search right now.';
+      setVisualSearchError(errorMessage);
+      Alert.alert('Visual search unavailable', errorMessage);
+    } finally {
+      setLoading(false);
+      setShowSuggestions(false);
+      setShowRecentPanel(false);
+    }
+  }, [lat, lng]);
+
   const handleSubmitEditing = () => {
     if (query.trim()) {
       executeSearch(query.trim());
@@ -387,19 +544,31 @@ export default function SearchScreen() {
 
   // ─── Render helpers ───────────────────────────────────────────────────────────
 
-  const renderProductItem = ({ item, index }) => (
-    <View style={[styles.productItemWrap, index % 2 === 0 ? styles.productItemLeft : styles.productItemRight]}>
-      <ProductCard
-        product={item}
-        tracking={query.trim() ? {
-          ranking_surface: 'unified_search',
-          source_screen: 'search_results',
-          query: query.trim(),
-          position: index + 1,
-        } : null}
-      />
-    </View>
-  );
+  const renderProductItem = ({ item, index }) => {
+    const isVisualResult = item?.ranking_context?.source === 'visual_search' || item?.source === 'visual_search';
+    const similarity = item?.similarity ?? item?.ranking_context?.similarity;
+    const band = item?.confidence_band ?? item?.ranking_context?.confidence_band;
+
+    return (
+      <View style={[styles.productItemWrap, index % 2 === 0 ? styles.productItemLeft : styles.productItemRight]}>
+        <ProductCard
+          product={item}
+          tracking={query.trim() ? {
+            ranking_surface: 'unified_search',
+            source_screen: 'search_results',
+            query: query.trim(),
+            position: index + 1,
+          } : null}
+        />
+        {isVisualResult && (
+          <View style={styles.visualBadgeWrap}>
+            <Text style={styles.visualBadgePrimary}>{toPercent(similarity)}</Text>
+            <Text style={styles.visualBadgeSecondary}>{confidenceLabel(band)}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderShopItem = ({ item }) => (
     <View style={styles.shopItemWrap}>
@@ -411,6 +580,20 @@ export default function SearchScreen() {
     if (loading || !hasSearched) return null;
     const count = activeTab === 'products' ? products.length : shops.length;
     if (count > 0) return null;
+
+    if (activeTab === 'products' && searchMeta.executedQuery?.startsWith('Visual match')) {
+      return (
+        <View style={styles.visualEmptyPanel}>
+          <Text style={styles.visualEmptyEmoji}>📷</Text>
+          <Text style={styles.visualEmptyTitle}>Visual Search Result</Text>
+          <Text style={styles.visualEmptyText}>{visualSearchError || 'No visual matches found for this image.'}</Text>
+          <TouchableOpacity style={styles.visualRetryBtn} onPress={handleVisualSearch}>
+            <Text style={styles.visualRetryBtnText}>Try Another Image</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.emptyIcon}>🔍</Text>
@@ -467,6 +650,14 @@ export default function SearchScreen() {
             onBlur={handleInputBlur}
             onSubmitEditing={handleSubmitEditing}
           />
+          <TouchableOpacity onPress={handleVisualSearch} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+            <Text style={styles.visualBtn}>📷</Text>
+          </TouchableOpacity>
+          {query.trim().length > 1 && (
+            <TouchableOpacity onPress={handleSaveIntent} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+              <Text style={styles.saveIntentBtn}>★</Text>
+            </TouchableOpacity>
+          )}
           {Platform.OS === 'android' && query.length > 0 && (
             <TouchableOpacity onPress={handleClearInput} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
               <Text style={styles.clearBtn}>✕</Text>
@@ -479,9 +670,36 @@ export default function SearchScreen() {
         </TouchableOpacity>
       </View>
 
+      <LocationFallbackBanner
+        visible={Boolean(locationError)}
+        message="Search ranking and visual proximity matching may be less accurate without precise location."
+        onRetry={async () => {
+          await refreshLocation();
+        }}
+      />
+
       {/* ── Recent searches + trending panel (shown on focus, no query) ────── */}
       {showRecentPanel && !showSuggestions && (
         <View style={styles.suggestionsBox}>
+          {savedIntents.length > 0 && (
+            <>
+              <View style={styles.panelSectionHeader}>
+                <Text style={styles.panelSectionTitle}>Saved Intents</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedIntentRow}>
+                {savedIntents.slice(0, 8).map((intent) => (
+                  <View key={intent.id} style={styles.savedIntentChip}>
+                    <TouchableOpacity onPress={() => executeSearch(intent.query)} style={styles.savedIntentChipMain}>
+                      <Text style={styles.savedIntentText} numberOfLines={1}>{intent.label || intent.query}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteIntent(intent.id)}>
+                      <Text style={styles.savedIntentDelete}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
           {recentSearches.length > 0 && (
             <>
               <View style={styles.panelSectionHeader}>
@@ -562,14 +780,31 @@ export default function SearchScreen() {
         ))}
       </View>
 
+      <View style={styles.searchModeRow}>
+        {SEARCH_MODES.map((mode) => (
+          <TouchableOpacity
+            key={mode.key}
+            style={[styles.searchModePill, searchMode === mode.key && styles.searchModePillActive]}
+            onPress={() => handleSearchModeChange(mode.key)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.searchModeText, searchMode === mode.key && styles.searchModeTextActive]}>
+              {mode.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       {/* ── Filter + Sort chips (products only) ─────────────────────────────── */}
-      {query.trim().length > 0 && hasSearched && !loading && (
+      {(query.trim().length > 0 || searchMeta.visualSummary) && hasSearched && !loading && (
         <View style={styles.aiMetaWrap}>
           <Text style={styles.aiMetaTitle}>
             {searchMeta.aiUsed ? 'AI search active' : 'Standard search active'}
           </Text>
           <Text style={styles.aiMetaSubtitle}>
-            {searchMeta.fallbackUsed
+            {searchMode === 'standard'
+              ? 'Standard mode uses deterministic search without AI query expansion.'
+              : searchMeta.fallbackUsed
               ? 'OpenAI was unavailable, so results came from normal search.'
               : searchMeta.aiUsed && searchMeta.executedQuery && searchMeta.executedQuery !== query.trim()
                 ? `Expanded query: ${searchMeta.executedQuery}`
@@ -588,6 +823,17 @@ export default function SearchScreen() {
                 </View>
               ))}
             </ScrollView>
+          )}
+          {searchMeta.visualSummary && (
+            <View style={styles.visualSummaryRow}>
+              {Object.entries(searchMeta.visualSummary)
+                .filter(([, count]) => Number(count) > 0)
+                .map(([band, count]) => (
+                  <View key={band} style={styles.visualSummaryChip}>
+                    <Text style={styles.visualSummaryText}>{`${band}: ${count}`}</Text>
+                  </View>
+                ))}
+            </View>
           )}
         </View>
       )}
@@ -722,6 +968,15 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     paddingLeft: 4,
   },
+  visualBtn: {
+    fontSize: 16,
+    paddingHorizontal: 2,
+  },
+  saveIntentBtn: {
+    fontSize: 16,
+    color: '#c58a00',
+    paddingHorizontal: 2,
+  },
   cancelBtn: {
     paddingHorizontal: 4,
     paddingVertical: 6,
@@ -782,6 +1037,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  savedIntentRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  savedIntentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#edf6ff',
+    borderRadius: 999,
+    paddingLeft: 10,
+    paddingRight: 8,
+    paddingVertical: 6,
+    maxWidth: 220,
+  },
+  savedIntentChipMain: { maxWidth: 180 },
+  savedIntentText: { fontSize: 12, color: '#164a78', fontWeight: '700' },
+  savedIntentDelete: { marginLeft: 6, fontSize: 11, color: '#607a96', fontWeight: '700' },
   recentRowLeft: {
     flex: 1,
     flexDirection: 'row',
@@ -826,6 +1100,37 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 13, fontWeight: '600', color: COLORS.gray500 },
   tabLabelActive: { color: COLORS.white },
 
+  searchModeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  searchModePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    backgroundColor: COLORS.white,
+  },
+  searchModePillActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  searchModeText: {
+    fontSize: 12,
+    color: COLORS.gray600,
+    fontWeight: '600',
+  },
+  searchModeTextActive: {
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+
   aiMetaWrap: {
     backgroundColor: COLORS.white,
     paddingHorizontal: 16,
@@ -861,6 +1166,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primaryDark,
   },
+  visualSummaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  visualSummaryChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#e7f0ff',
+  },
+  visualSummaryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1e4f86',
+    textTransform: 'capitalize',
+  },
 
   // Chips
   chipsSection: {
@@ -894,6 +1217,26 @@ const styles = StyleSheet.create({
   listContentEmpty: { flexGrow: 1 },
   columnWrapper: { gap: 10, marginBottom: 10 },
   productItemWrap: { flex: 1 },
+  visualBadgeWrap: {
+    position: 'absolute',
+    left: 8,
+    top: 8,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(6, 34, 58, 0.88)',
+  },
+  visualBadgePrimary: {
+    fontSize: 10,
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  visualBadgeSecondary: {
+    fontSize: 9,
+    color: '#9ED0FF',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
   productItemLeft: {},
   productItemRight: {},
   shopItemWrap: { width: '100%', marginBottom: 10 },
@@ -913,4 +1256,24 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 16 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: COLORS.gray800, textAlign: 'center', marginBottom: 8 },
   emptySubtitle: { fontSize: 14, color: COLORS.gray500, textAlign: 'center', lineHeight: 20 },
+  visualEmptyPanel: {
+    marginTop: 24,
+    marginHorizontal: 12,
+    padding: 18,
+    borderRadius: 14,
+    backgroundColor: COLORS.white,
+    ...SHADOWS.card,
+    alignItems: 'center',
+  },
+  visualEmptyEmoji: { fontSize: 34, marginBottom: 8 },
+  visualEmptyTitle: { fontSize: 16, fontWeight: '700', color: COLORS.gray800 },
+  visualEmptyText: { fontSize: 13, color: COLORS.gray500, textAlign: 'center', marginTop: 6, lineHeight: 19 },
+  visualRetryBtn: {
+    marginTop: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  visualRetryBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 12 },
 });

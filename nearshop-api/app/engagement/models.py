@@ -60,6 +60,29 @@ class UserRecentSearch(Base):
     user = relationship("User", foreign_keys=[user_id])
 
 
+class UserSavedSearchIntent(Base):
+    __tablename__ = "user_saved_search_intents"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("uuid_generate_v4()"),
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    query = Column(String(255), nullable=False)
+    label = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "query", name="uq_saved_intent_user_query"),
+    )
+
+    user = relationship("User", foreign_keys=[user_id])
+
+
 class OrderTrackingEvent(Base):
     __tablename__ = "order_tracking_events"
 

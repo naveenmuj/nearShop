@@ -11,6 +11,7 @@ import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogP
 import { PremiumAlertProvider, PremiumAlertContext, setAlertRef } from '../components/ui/PremiumAlert';
 import { useContext } from 'react';
 import pushService from '../lib/pushNotifications';
+import OfflineIndicator from '../components/OfflineIndicator';
 
 // Lazy-load network logger to prevent crash if module has issues
 let NetworkLogger = null;
@@ -257,6 +258,7 @@ export default function RootLayout() {
       <PremiumAlertProvider>
         <ConfirmDialogProvider>
           <AlertRefSync />
+          <OfflineIndicator />
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="index" />

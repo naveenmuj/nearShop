@@ -17,8 +17,13 @@ function buildMessagingWsBase() {
 }
 
 // Get all conversations
-export async function getConversations(limit = 20, offset = 0) {
-  const response = await authGet(`/messaging/conversations?limit=${limit}&offset=${offset}`);
+export async function getConversations(limit = 20, offset = 0, options = {}) {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  if (options.slaRiskLevel) params.set('sla_risk_level', options.slaRiskLevel);
+  if (options.sortBy) params.set('sort_by', options.sortBy);
+  const response = await authGet(`/messaging/conversations?${params.toString()}`);
   return response.data;
 }
 
@@ -62,6 +67,13 @@ export async function sendMessage(conversationId, content, messageType = 'text',
     message_type: messageType,
     attachments,
     metadata,
+  });
+  return response.data;
+}
+
+export async function assignConversation(conversationId, assignedToUserId = null) {
+  const response = await authPost(`/messaging/conversations/${conversationId}/assign`, {
+    assigned_to_user_id: assignedToUserId,
   });
   return response.data;
 }

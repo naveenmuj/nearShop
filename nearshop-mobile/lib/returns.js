@@ -2,6 +2,8 @@
  * Returns API - Return requests and policies
  */
 import { authGet, authPost, authPatch } from './api';
+import { withRetry } from './retry';
+import { recordLocalTelemetry } from './localTelemetry';
 
 // Get return reasons
 export async function getReturnReasons() {
@@ -11,17 +13,32 @@ export async function getReturnReasons() {
 
 // Create return request
 export async function createReturnRequest(orderId, itemName, itemPrice, reason, description = null, images = null, productId = null, itemQuantity = 1) {
-  const response = await authPost('/returns', {
-    order_id: orderId,
-    product_id: productId,
-    item_name: itemName,
-    item_quantity: itemQuantity,
-    item_price: itemPrice,
-    reason,
-    description,
-    images,
-  });
-  return response.data;
+  try {
+    const response = await withRetry(() => authPost('/returns', {
+      order_id: orderId,
+      product_id: productId,
+      item_name: itemName,
+      item_quantity: itemQuantity,
+      item_price: itemPrice,
+      reason,
+      description,
+      images,
+    }), { retries: 2, delayMs: 500 });
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'create_return_request',
+      outcome: 'success',
+    }).catch(() => {});
+    return response.data;
+  } catch (error) {
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'create_return_request',
+      outcome: 'failure',
+      status: error?.response?.status || null,
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 // Get my returns (customer)
@@ -50,14 +67,70 @@ export async function getReturnDetail(returnId) {
 export async function approveReturn(returnId, refundAmount = null, refundMethod = 'store_credit') {
   const params = new URLSearchParams({ refund_method: refundMethod });
   if (refundAmount) params.append('refund_amount', refundAmount);
-  const response = await authPost(`/returns/${returnId}/approve?${params}`);
-  return response.data;
+  try {
+    const response = await withRetry(() => authPost(`/returns/${returnId}/approve?${params}`), { retries: 2, delayMs: 500 });
+    recordLocalTelemetry({ type: 'mutation', name: 'approve_return', outcome: 'success' }).catch(() => {});
+    return response.data;
+  } catch (error) {
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'approve_return',
+      outcome: 'failure',
+      status: error?.response?.status || null,
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 // Reject return (business)
 export async function rejectReturn(returnId, reason) {
-  const response = await authPost(`/returns/${returnId}/reject?reason=${encodeURIComponent(reason)}`);
-  return response.data;
+  try {
+    const response = await withRetry(
+      () => authPost(`/returns/${returnId}/reject?reason=${encodeURIComponent(reason)}`),
+      { retries: 2, delayMs: 500 },
+    );
+    recordLocalTelemetry({ type: 'mutation', name: 'reject_return', outcome: 'success' }).catch(() => {});
+    return response.data;
+  } catch (error) {
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'reject_return',
+      outcome: 'failure',
+      status: error?.response?.status || null,
+    }).catch(() => {});
+    throw error;
+  }
+}
+
+// Update return status (business)
+export async function updateReturnStatus(returnId, payload) {
+  try {
+    const response = await withRetry(() => authPatch(`/returns/${returnId}`, payload), { retries: 2, delayMs: 500 });
+    recordLocalTelemetry({ type: 'mutation', name: 'update_return_status', outcome: 'success' }).catch(() => {});
+    return response.data;
+  } catch (error) {
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'update_return_status',
+      outcome: 'failure',
+      status: error?.response?.status || null,
+    }).catch(() => {});
+    throw error;
+  }
+}
+
+export async function markReturnProcessing(returnId, resolutionNotes = 'Return moved to processing') {
+  return updateReturnStatus(returnId, {
+    status: 'processing',
+    resolution_notes: resolutionNotes,
+  });
+}
+
+export async function markReturnCompleted(returnId, resolutionNotes = 'Return completed') {
+  return updateReturnStatus(returnId, {
+    status: 'completed',
+    resolution_notes: resolutionNotes,
+  });
 }
 
 // Get shop return policy

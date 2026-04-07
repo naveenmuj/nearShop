@@ -17,14 +17,17 @@ from app.core.security import decode_token
 from app.messaging.schemas import (
     MessageCreate, MessageResponse, ConversationCreate, BusinessConversationCreate,
     ConversationSummary, ConversationDetail, ConversationListResponse,
-    TemplateCreate, TemplateResponse, ReactionUpdate, PresenceResponse,
+    TemplateCreate, TemplateResponse, ReactionUpdate, PresenceResponse, ConversationAssignmentUpdate,
 )
 from app.messaging.service import (
     get_or_create_conversation, send_message, get_conversation_messages,
     mark_messages_read, get_user_conversations, get_shop_templates, create_template,
     search_conversation_messages, add_message_reaction, remove_message_reaction,
+    update_conversation_assignment,
 )
 from app.shops.models import Shop
+from app.staff.models import StaffMember
+from app.staff.service import log_activity
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/messaging", tags=["messaging"])
@@ -168,11 +171,22 @@ async def create_conversation_as_business(
 
 @router.get("/conversations", response_model=ConversationListResponse)
 async def list_conversations(
-    limit: int = 20, offset: int = 0,
+    limit: int = 20,
+    offset: int = 0,
+    sla_risk_level: str | None = Query(default=None, pattern="^(low|medium|high)$"),
+    sort_by: str = Query(default="last_message", pattern="^(last_message|pending_minutes)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    conversations, total = await get_user_conversations(db, current_user.id, current_user.active_role, limit, offset)
+    conversations, total = await get_user_conversations(
+        db,
+        current_user.id,
+        current_user.active_role,
+        limit,
+        offset,
+        sla_risk_level=sla_risk_level,
+        sort_by=sort_by,
+    )
     return ConversationListResponse(items=[ConversationSummary(**c) for c in conversations], total=total)
 
 
@@ -192,6 +206,7 @@ async def get_conversation(
             selectinload(Conversation.customer),
             selectinload(Conversation.shop),
             selectinload(Conversation.product),
+            selectinload(Conversation.assigned_to_user),
         )
     )
     conversation = result.scalar_one_or_none()
@@ -213,11 +228,114 @@ async def get_conversation(
         id=conversation.id, customer_id=conversation.customer_id, shop_id=conversation.shop_id,
         product_id=conversation.product_id, order_id=conversation.order_id, status=conversation.status,
         last_message_at=conversation.last_message_at, unread_count=unread_count, created_at=conversation.created_at,
+        assigned_to_user_id=conversation.assigned_to_user_id,
+        assigned_staff_name=_user_display_name(conversation.assigned_to_user) if conversation.assigned_to_user else None,
+        pending_since=None,
+        pending_minutes=None,
+        sla_risk_level=None,
         other_party_name=other_party_name, other_party_avatar=other_party_avatar,
         shop_name=conversation.shop.name, product_name=conversation.product.name if conversation.product else None,
         messages=[MessageResponse.model_validate(m) for m in messages],
         messages_has_more=messages_has_more,
         messages_next_before_id=messages_next_before_id,
+    )
+
+
+@router.post("/conversations/{conversation_id}/assign", response_model=ConversationSummary)
+async def assign_conversation(
+    conversation_id: UUID,
+    body: ConversationAssignmentUpdate,
+    current_user: User = Depends(require_business),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.messaging.models import Conversation
+
+    result = await db.execute(
+        select(Conversation)
+        .where(Conversation.id == conversation_id)
+        .options(
+            selectinload(Conversation.customer),
+            selectinload(Conversation.shop),
+            selectinload(Conversation.product),
+            selectinload(Conversation.assigned_to_user),
+        )
+    )
+    conversation = result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    shop_result = await db.execute(select(Shop.owner_id).where(Shop.id == conversation.shop_id))
+    owner_id = shop_result.scalar_one_or_none()
+
+    actor_staff_result = await db.execute(
+        select(StaffMember).where(
+            StaffMember.shop_id == conversation.shop_id,
+            StaffMember.user_id == current_user.id,
+            StaffMember.status == "active",
+        )
+    )
+    actor_staff = actor_staff_result.scalar_one_or_none()
+    can_assign_as_staff = bool(actor_staff and actor_staff.role in {"admin", "manager"})
+    if owner_id != current_user.id and not can_assign_as_staff:
+        raise HTTPException(status_code=403, detail="Only owner, admin, or manager can assign conversations")
+
+    target_assignee = body.assigned_to_user_id
+    if target_assignee:
+        if target_assignee == owner_id:
+            pass
+        else:
+            staff_match = await db.execute(
+                select(StaffMember.id).where(
+                    StaffMember.shop_id == conversation.shop_id,
+                    StaffMember.user_id == target_assignee,
+                    StaffMember.status == "active",
+                )
+            )
+            if not staff_match.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Assignee must be owner or active staff member of this shop")
+
+    updated = await update_conversation_assignment(db, conversation, target_assignee)
+
+    if actor_staff:
+        await log_activity(
+            db=db,
+            staff_id=actor_staff.id,
+            shop_id=conversation.shop_id,
+            action="conversation_assignment_updated",
+            entity_type="conversation",
+            entity_id=conversation.id,
+            description=f"Assigned conversation to {str(target_assignee) if target_assignee else 'unassigned'}",
+            metadata={
+                "conversation_id": str(conversation.id),
+                "assigned_to_user_id": str(target_assignee) if target_assignee else None,
+            },
+        )
+
+    unread_count = updated.shop_unread_count
+    other_party_name = _user_display_name(updated.customer)
+    other_party_avatar = updated.customer.avatar_url
+
+    return ConversationSummary(
+        id=updated.id,
+        customer_id=updated.customer_id,
+        shop_id=updated.shop_id,
+        product_id=updated.product_id,
+        order_id=updated.order_id,
+        status=updated.status,
+        last_message_at=updated.last_message_at,
+        unread_count=unread_count,
+        created_at=updated.created_at,
+        other_party_name=other_party_name,
+        other_party_avatar=other_party_avatar,
+        last_message_preview=None,
+        shop_name=updated.shop.name if updated.shop else None,
+        product_name=updated.product.name if updated.product else None,
+        assigned_to_user_id=updated.assigned_to_user_id,
+        assigned_staff_name=_user_display_name(current_user) if updated.assigned_to_user_id else "Unassigned",
+        first_unread_at=None,
+        pending_since=None,
+        pending_minutes=None,
+        sla_risk_level=None,
     )
 
 

@@ -1,4 +1,4 @@
-import { authGet } from '../api'
+import { authGet, authPost } from '../api'
 
 // Feature 1: Collaborative Filtering recommendations
 export const getCFRecommendations = (lat, lng, params = {}) =>
@@ -34,3 +34,6 @@ export const getRecommendations = (params = {}) =>
 
 export const getPriceSuggestion = (productId, shopId) =>
   authGet(`/ai/pricing/suggest/${productId}`, { params: { shop_id: shopId } })
+
+export const visualSearchProducts = (payload) =>
+  authPost('/ai/search/visual', payload)

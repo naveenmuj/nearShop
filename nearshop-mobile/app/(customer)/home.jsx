@@ -33,6 +33,7 @@ import ProductCard from '../../components/ProductCard';
 import DealCard from '../../components/DealCard';
 import LocationPicker from '../../components/LocationPicker';
 import RecentlyViewed from '../../components/RecentlyViewed';
+import LocationFallbackBanner from '../../components/LocationFallbackBanner';
 import { HomeScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { getRankingReasonLabel, getRankingReasonTone } from '../../lib/ranking';
@@ -90,7 +91,7 @@ function getReasonBadgeStyle(reason) {
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { lat, lng, address } = useLocationStore();
+  const { lat, lng, address, error: locationError, refreshLocation } = useLocationStore();
   const cartCount = useCartStore((state) => state.getItemCount());
 
   const [stories, setStories] = useState([]);
@@ -318,6 +319,14 @@ export default function HomeScreen() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
+
+        <LocationFallbackBanner
+          visible={Boolean(locationError)}
+          message="Nearby deals, delivery zones, and recommendations may be less accurate without precise location."
+          onRetry={async () => {
+            await refreshLocation();
+          }}
+        />
 
         {/* ── Stories ────────────────────────────────────────────── */}
         {stories.length > 0 && (

@@ -40,6 +40,10 @@ class Conversation(Base):
     order_id = Column(
         UUID(as_uuid=True), ForeignKey("orders.id"), nullable=True
     )
+    assigned_to_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
+    )
+    assigned_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(
         String(20), server_default=text("'active'"), nullable=False
     )
@@ -53,6 +57,7 @@ class Conversation(Base):
     customer = relationship("User", foreign_keys=[customer_id])
     shop = relationship("Shop", foreign_keys=[shop_id])
     product = relationship("Product", foreign_keys=[product_id])
+    assigned_to_user = relationship("User", foreign_keys=[assigned_to_user_id])
     messages = relationship("Message", back_populates="conversation", order_by="Message.created_at")
 
     __table_args__ = (

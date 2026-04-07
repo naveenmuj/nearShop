@@ -13,6 +13,16 @@ from app.shops.models import Shop
 logger = logging.getLogger(__name__)
 
 
+def _similarity_band(similarity: float) -> str:
+    if similarity >= 0.82:
+        return "strong"
+    if similarity >= 0.64:
+        return "good"
+    if similarity >= 0.48:
+        return "possible"
+    return "weak"
+
+
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
     """Compute cosine similarity between two vectors."""
     if not a or not b or len(a) != len(b):
@@ -105,6 +115,8 @@ async def search_similar_products(
             "category": product.category,
             "shop_id": str(product.shop_id),
             "similarity": round(sim, 4),
+            "confidence_band": _similarity_band(sim),
+            "source": "visual_search",
         })
 
     # Sort by similarity descending

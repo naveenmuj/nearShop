@@ -1,25 +1,79 @@
 import client, { authGet, authPost, authPut } from './api';
+import { withRetry } from './retry';
+import { recordLocalTelemetry } from './localTelemetry';
 
-export const createOrder = (data) => authPost('/orders', data);
+export const createOrder = async (data) => {
+  try {
+    const response = await authPost('/orders', data);
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'create_order',
+      outcome: 'success',
+    }).catch(() => {});
+    return response;
+  } catch (error) {
+    recordLocalTelemetry({
+      type: 'mutation',
+      name: 'create_order',
+      outcome: 'failure',
+      status: error?.response?.status || null,
+    }).catch(() => {});
+    throw error;
+  }
+};
 export const getMyOrders = (params = {}) =>
   authGet('/orders/my', { params });
 export const getOrderById = (orderId) => authGet(`/orders/${orderId}`);
 export const getShopOrders = (shopId, params = {}) =>
   authGet(`/orders/shop/${shopId}`, { params });
 export const updateOrderStatus = (id, status) =>
-  authPut(`/orders/${id}/status`, { status });
+  withRetry(() => authPut(`/orders/${id}/status`, { status }), { retries: 2, delayMs: 500 });
 export const cancelOrder = (id, reason = '') =>
-  authPost(`/orders/${id}/cancel`, { reason });
+  withRetry(() => authPost(`/orders/${id}/cancel`, { reason }), { retries: 2, delayMs: 500 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYMENT APIs
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const createPaymentOrder = (orderId) =>
-  authPost('/orders/payments/create-order', { order_id: orderId });
+  withRetry(
+    () => authPost('/orders/payments/create-order', { order_id: orderId }),
+    {
+      retries: 2,
+      delayMs: 500,
+      onSuccess: () => recordLocalTelemetry({
+        type: 'mutation',
+        name: 'create_payment_order',
+        outcome: 'success',
+      }).catch(() => {}),
+      onFailure: ({ error }) => recordLocalTelemetry({
+        type: 'mutation',
+        name: 'create_payment_order',
+        outcome: 'failure',
+        status: error?.response?.status || null,
+      }).catch(() => {}),
+    },
+  );
 
 export const confirmPayment = (data) =>
-  authPost('/orders/payments/confirm', data);
+  withRetry(
+    () => authPost('/orders/payments/confirm', data),
+    {
+      retries: 2,
+      delayMs: 500,
+      onSuccess: () => recordLocalTelemetry({
+        type: 'mutation',
+        name: 'confirm_payment',
+        outcome: 'success',
+      }).catch(() => {}),
+      onFailure: ({ error }) => recordLocalTelemetry({
+        type: 'mutation',
+        name: 'confirm_payment',
+        outcome: 'failure',
+        status: error?.response?.status || null,
+      }).catch(() => {}),
+    },
+  );
 
 export const getPaymentStatus = (orderId) =>
   authGet(`/orders/payments/status/${orderId}`);

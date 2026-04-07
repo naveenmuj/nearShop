@@ -70,6 +70,12 @@ class ConversationSummary(BaseModel):
     last_message_preview: Optional[str] = None
     shop_name: Optional[str] = None
     product_name: Optional[str] = None
+    assigned_to_user_id: Optional[UUID] = None
+    assigned_staff_name: Optional[str] = None
+    first_unread_at: Optional[datetime] = None
+    pending_since: Optional[datetime] = None
+    pending_minutes: Optional[int] = None
+    sla_risk_level: Optional[str] = None
 
 
 class ConversationDetail(ConversationSummary):
@@ -81,6 +87,10 @@ class ConversationDetail(ConversationSummary):
 class ConversationListResponse(BaseModel):
     items: List[ConversationSummary]
     total: int
+
+
+class ConversationAssignmentUpdate(BaseModel):
+    assigned_to_user_id: Optional[UUID] = None
 
 
 class TemplateCreate(BaseModel):

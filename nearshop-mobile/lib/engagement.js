@@ -10,6 +10,9 @@ export const getSearchSuggestions = (q, limit = 5) => client.get('/search/sugges
 export const logSearch = (query) => authPost('/search/log', { query })
 export const getRecentSearches = () => authGet('/search/recent')
 export const deleteRecentSearch = (query) => authDelete(`/search/recent/${encodeURIComponent(query)}`)
+export const getSavedSearchIntents = () => authGet('/search/intents')
+export const saveSearchIntent = (query, label = null) => authPost('/search/intents', { query, label })
+export const deleteSearchIntent = (intentId) => authDelete(`/search/intents/${encodeURIComponent(intentId)}`)
 
 // Order tracking - requires auth
 export const getOrderTracking = (orderId) => authGet(`/orders/${orderId}/tracking`)

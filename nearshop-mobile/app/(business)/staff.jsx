@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS, SHADOWS } from '../../constants/theme';
-import { getShopStaff, inviteStaff, updateStaff, removeStaff, getStaffRoles } from '../../lib/staff';
+import { getShopStaff, inviteStaff, updateStaff, removeStaff, getStaffRoles, getActivityLogs } from '../../lib/staff';
 import { toast } from '../../components/ui/Toast/toastRef';
 
 const ROLE_COLORS = {
@@ -28,15 +28,20 @@ export default function StaffScreen() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ name: '', phone: '', role: 'staff' });
   const [inviting, setInviting] = useState(false);
+  const [assignmentLogs, setAssignmentLogs] = useState([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [staffData, rolesData] = await Promise.all([
+      const [staffData, rolesData, activityData] = await Promise.all([
         getShopStaff(),
         getStaffRoles(),
+        getActivityLogs(null, 40),
       ]);
       setStaff(staffData.items || []);
       setRoles(rolesData || []);
+      const logs = Array.isArray(activityData) ? activityData : [];
+      const assignmentOnly = logs.filter((l) => l?.action === 'conversation_assignment_updated').slice(0, 6);
+      setAssignmentLogs(assignmentOnly);
     } catch (error) {
       console.error('Error loading staff:', error);
     } finally {
@@ -157,6 +162,22 @@ export default function StaffScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderStaff}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={(
+            assignmentLogs.length > 0 ? (
+              <View style={styles.auditWrap}>
+                <Text style={styles.auditTitle}>Recent Assignment Activity</Text>
+                {assignmentLogs.map((log) => (
+                  <View key={log.id} style={styles.auditRow}>
+                    <Ionicons name="swap-horizontal-outline" size={14} color={COLORS.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.auditText} numberOfLines={2}>{log.description || 'Conversation assignment updated'}</Text>
+                      <Text style={styles.auditMeta}>{log.staff_name || 'Staff'} • {new Date(log.created_at).toLocaleString()}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null
+          )}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} colors={[COLORS.primary]} />
           }
@@ -231,6 +252,18 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, fontWeight: '600', color: COLORS.text },
   list: { padding: 16 },
+  auditWrap: {
+    backgroundColor: '#f8fbff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  auditTitle: { fontSize: 13, fontWeight: '700', color: '#1e3a5f', marginBottom: 8 },
+  auditRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  auditText: { fontSize: 12, color: COLORS.text, fontWeight: '600' },
+  auditMeta: { fontSize: 11, color: COLORS.gray, marginTop: 2 },
   staffCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.white,
     borderRadius: 12, padding: 16, marginBottom: 12, ...SHADOWS.small,

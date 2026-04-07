@@ -15,6 +15,7 @@ from app.auth.permissions import get_current_user, get_current_user_optional
 from app.engagement.models import (
     UserRecentlyViewed,
     UserRecentSearch,
+    UserSavedSearchIntent,
     OrderTrackingEvent,
     Achievement,
     UserAchievement,
@@ -48,6 +49,11 @@ class SearchSuggestionsResponse(BaseModel):
     suggestions: list[str]
     trending: list[str]
     recent: list[str]
+
+
+class SaveSearchIntentRequest(BaseModel):
+    query: str
+    label: Optional[str] = None
 
 
 class TrackingEvent(BaseModel):
@@ -324,6 +330,82 @@ async def delete_recent_search(
     if not entry:
         raise HTTPException(status_code=404, detail="Recent search not found")
     await db.delete(entry)
+    await db.flush()
+    return {"message": "Deleted"}
+
+
+@router.get("/api/v1/search/intents")
+async def get_saved_search_intents(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(UserSavedSearchIntent)
+        .where(UserSavedSearchIntent.user_id == current_user.id)
+        .order_by(UserSavedSearchIntent.created_at.desc())
+        .limit(12)
+    )
+    intents = result.scalars().all()
+    return [{
+        "id": str(i.id),
+        "query": i.query,
+        "label": i.label,
+        "created_at": i.created_at,
+    } for i in intents]
+
+
+@router.post("/api/v1/search/intents", status_code=200)
+async def save_search_intent(
+    body: SaveSearchIntentRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = (body.query or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="query is required")
+    if len(query) > 255:
+        raise HTTPException(status_code=400, detail="query too long")
+
+    label = (body.label or "").strip() or None
+    existing_result = await db.execute(
+        select(UserSavedSearchIntent).where(
+            UserSavedSearchIntent.user_id == current_user.id,
+            UserSavedSearchIntent.query == query,
+        )
+    )
+    existing = existing_result.scalar_one_or_none()
+    if existing:
+        existing.label = label
+        await db.flush()
+        return {"id": str(existing.id), "query": existing.query, "label": existing.label, "created_at": existing.created_at}
+
+    intent = UserSavedSearchIntent(user_id=current_user.id, query=query, label=label)
+    db.add(intent)
+    await db.flush()
+    return {"id": str(intent.id), "query": intent.query, "label": intent.label, "created_at": intent.created_at}
+
+
+@router.delete("/api/v1/search/intents/{intent_id}", status_code=200)
+async def delete_search_intent(
+    intent_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        intent_uuid = UUID(intent_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid intent id format")
+
+    result = await db.execute(
+        select(UserSavedSearchIntent).where(
+            UserSavedSearchIntent.id == intent_uuid,
+            UserSavedSearchIntent.user_id == current_user.id,
+        )
+    )
+    intent = result.scalar_one_or_none()
+    if not intent:
+        raise HTTPException(status_code=404, detail="Saved intent not found")
+    await db.delete(intent)
     await db.flush()
     return {"message": "Deleted"}
 

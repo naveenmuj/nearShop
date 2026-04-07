@@ -1,7 +1,7 @@
 """Messaging Service"""
 from uuid import UUID
 from typing import Optional, List, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, desc, update
@@ -19,6 +19,16 @@ from app.core.firebase import send_push_notification
 
 logger = logging.getLogger(__name__)
 _ALLOWED_MESSAGE_TYPES = {"text", "image", "file", "audio", "video"}
+
+
+def _sla_risk_level(pending_minutes: int | None) -> str | None:
+    if pending_minutes is None:
+        return None
+    if pending_minutes >= 180:
+        return "high"
+    if pending_minutes >= 60:
+        return "medium"
+    return "low"
 
 
 def _display_name(user: User | None) -> str:
@@ -327,7 +337,13 @@ async def remove_message_reaction(
 
 
 async def get_user_conversations(
-    db: AsyncSession, user_id: UUID, role: str, limit: int = 20, offset: int = 0,
+    db: AsyncSession,
+    user_id: UUID,
+    role: str,
+    limit: int = 20,
+    offset: int = 0,
+    sla_risk_level: str | None = None,
+    sort_by: str = "last_message",
 ) -> Tuple[List[dict], int]:
     if role == "customer":
         filter_clause = Conversation.customer_id == user_id
@@ -339,13 +355,19 @@ async def get_user_conversations(
         filter_clause = Conversation.shop_id.in_(shop_ids)
     
     count_query = select(func.count()).select_from(Conversation).where(filter_clause)
-    total = (await db.execute(count_query)).scalar() or 0
-    
+    base_total = (await db.execute(count_query)).scalar() or 0
+
+    needs_post_processing = bool(sla_risk_level) or sort_by == "pending_minutes"
+
     query = select(Conversation).where(filter_clause).options(
         selectinload(Conversation.customer),
         selectinload(Conversation.shop),
         selectinload(Conversation.product),
-    ).order_by(desc(Conversation.last_message_at)).offset(offset).limit(limit)
+        selectinload(Conversation.assigned_to_user),
+    ).order_by(desc(Conversation.last_message_at))
+
+    if not needs_post_processing:
+        query = query.offset(offset).limit(limit)
     
     conversations = (await db.execute(query)).scalars().all()
     enriched = []
@@ -356,6 +378,36 @@ async def get_user_conversations(
             .order_by(desc(Message.created_at)).limit(1)
         )
         last_msg = msg_result.scalar_one_or_none()
+
+        unread_sender_role = "business" if role == "customer" else "customer"
+        first_unread_result = await db.execute(
+            select(Message.created_at)
+            .where(
+                and_(
+                    Message.conversation_id == conv.id,
+                    Message.sender_role == unread_sender_role,
+                    Message.is_read == False,  # noqa: E712
+                )
+            )
+            .order_by(Message.created_at.asc())
+            .limit(1)
+        )
+        first_unread_at = first_unread_result.scalar_one_or_none()
+
+        pending_minutes = None
+        if first_unread_at:
+            delta = datetime.now(timezone.utc) - first_unread_at
+            pending_minutes = max(0, int(delta.total_seconds() // 60))
+
+        assigned_user = conv.assigned_to_user
+        assigned_staff_name = None
+        if role != "customer":
+            if assigned_user:
+                assigned_staff_name = _display_name(assigned_user)
+            elif pending_minutes is not None and pending_minutes < 60:
+                assigned_staff_name = "Owner Queue"
+            else:
+                assigned_staff_name = "Unassigned"
         
         enriched.append({
             "id": conv.id, "customer_id": conv.customer_id, "shop_id": conv.shop_id,
@@ -367,9 +419,38 @@ async def get_user_conversations(
             "last_message_preview": last_msg.content[:100] if last_msg and last_msg.content else None,
             "shop_name": conv.shop.name,
             "product_name": conv.product.name if conv.product else None,
+            "assigned_to_user_id": conv.assigned_to_user_id,
+            "assigned_staff_name": assigned_staff_name,
+            "first_unread_at": first_unread_at,
+            "pending_since": first_unread_at,
+            "pending_minutes": pending_minutes,
+            "sla_risk_level": _sla_risk_level(pending_minutes),
         })
     
+    if sla_risk_level:
+        enriched = [item for item in enriched if item.get("sla_risk_level") == sla_risk_level]
+
+    if sort_by == "pending_minutes":
+        enriched.sort(key=lambda item: (item.get("pending_minutes") is None, -(item.get("pending_minutes") or 0)))
+
+    total = len(enriched) if needs_post_processing else base_total
+
+    if needs_post_processing:
+        enriched = enriched[offset: offset + limit]
+
     return enriched, total
+
+
+async def update_conversation_assignment(
+    db: AsyncSession,
+    conversation: Conversation,
+    assignee_user_id: UUID | None,
+) -> Conversation:
+    conversation.assigned_to_user_id = assignee_user_id
+    conversation.assigned_at = datetime.now(timezone.utc) if assignee_user_id else None
+    await db.commit()
+    await db.refresh(conversation)
+    return conversation
 
 
 async def get_shop_templates(db: AsyncSession, shop_id: UUID) -> List[MessageTemplate]:

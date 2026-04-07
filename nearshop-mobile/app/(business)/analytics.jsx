@@ -5,6 +5,7 @@ import {
   ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getLocalTelemetry, recordLocalTelemetry } from '../../lib/localTelemetry';
 import useMyShop from '../../hooks/useMyShop';
 import useLocationStore from '../../store/locationStore';
 import { getShopStats, getProductAnalytics, getDemandInsights, getOperationalInsights } from '../../lib/analytics';
@@ -32,6 +33,8 @@ export default function AnalyticsScreen() {
   const [demandInsights, setDemandInsights] = useState([]);
   const [operationalInsights, setOperationalInsights] = useState(null);
   const [orderBreakdown, setOrderBreakdown] = useState({});
+  const [localActionEvents, setLocalActionEvents] = useState([]);
+  const [localMutationEvents, setLocalMutationEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -79,6 +82,16 @@ export default function AnalyticsScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  useEffect(() => {
+    const loadLocalTelemetry = async () => {
+      const events = await getLocalTelemetry(20);
+      setLocalActionEvents(events.filter((event) => event.type === 'playbook_action'));
+      setLocalMutationEvents(events.filter((event) => event.type === 'mutation'));
+    };
+
+    loadLocalTelemetry();
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
@@ -104,6 +117,75 @@ export default function AnalyticsScreen() {
     marketing: '/(business)/marketing',
     deals: '/(business)/deals',
     customers: '/(business)/customers',
+  };
+
+  const pendingOrders = Number(orderBreakdown.pending || 0);
+  const cancelledOrders = Number(orderBreakdown.cancelled || 0);
+  const atRiskCustomers = Number(segmentSummary?.at_risk_count || 0);
+
+  const playbookActions = [
+    conversionRate < 2
+      ? {
+        id: 'boost-conversion',
+        title: 'Boost low conversion',
+        description: `Conversion is ${conversionRate}%. Create a targeted deal and refresh product highlights.`,
+        cta: 'Open Deals',
+        route: '/(business)/deals',
+      }
+      : null,
+    pendingOrders > 5
+      ? {
+        id: 'clear-pending',
+        title: 'Clear pending orders',
+        description: `${pendingOrders} orders are pending. Processing these quickly improves ratings and repeat purchases.`,
+        cta: 'Open Orders',
+        route: '/(business)/orders',
+      }
+      : null,
+    reorderAlerts.length > 0
+      ? {
+        id: 'restock-alerts',
+        title: 'Restock critical items',
+        description: `${reorderAlerts.length} products are close to stockout risk. Restock to prevent missed sales.`,
+        cta: 'Open Inventory',
+        route: '/(business)/inventory',
+      }
+      : null,
+    atRiskCustomers > 0
+      ? {
+        id: 'retain-customers',
+        title: 'Retain at-risk customers',
+        description: `${atRiskCustomers} customers are at risk. Send a win-back broadcast with a limited offer.`,
+        cta: 'Open Marketing',
+        route: '/(business)/marketing',
+      }
+      : null,
+    cancelledOrders > 2
+      ? {
+        id: 'reduce-cancel',
+        title: 'Reduce cancellations',
+        description: `${cancelledOrders} cancellations detected. Tighten stock accuracy and order confirmation timings.`,
+        cta: 'Review Orders',
+        route: '/(business)/orders',
+      }
+      : null,
+  ].filter(Boolean).slice(0, 3);
+
+  const mutationSuccessCount = localMutationEvents.filter((event) => event.outcome === 'success').length;
+  const mutationFailureCount = localMutationEvents.filter((event) => event.outcome === 'failure').length;
+  const mutationCancelledCount = localMutationEvents.filter((event) => event.outcome === 'cancelled').length;
+  const mutationSuccessRate = localMutationEvents.length > 0
+    ? Math.round((mutationSuccessCount / localMutationEvents.length) * 100)
+    : null;
+
+  const handlePlaybookAction = async (item) => {
+    await recordLocalTelemetry({
+      type: 'playbook_action',
+      name: item.id,
+      outcome: 'opened',
+      meta: { route: item.route },
+    });
+    router.push(item.route);
   };
 
   if (loading && !stats) {
@@ -262,6 +344,61 @@ export default function AnalyticsScreen() {
                   <Text style={styles.segmentCount}>{count}</Text>
                 </View>
               ))}
+            </View>
+          </>
+        )}
+
+        {playbookActions.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Next Best Actions</Text>
+            <View style={styles.actionsWrap}>
+              {playbookActions.map((item) => (
+                <View key={item.id} style={styles.playbookCard}>
+                  <Text style={styles.playbookTitle}>{item.title}</Text>
+                  <Text style={styles.playbookDescription}>{item.description}</Text>
+                  <TouchableOpacity
+                    style={styles.playbookButton}
+                    onPress={() => handlePlaybookAction(item)}
+                  >
+                    <Text style={styles.playbookButtonText}>{item.cta}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {(localActionEvents.length > 0 || localMutationEvents.length > 0) && (
+          <>
+            <Text style={styles.sectionTitle}>Action Outcome Tracking</Text>
+            <View style={styles.card}>
+              <View style={styles.qualityRow}>
+                <View style={[styles.qualityPill, styles.qualityPillNeutral]}>
+                  <Text style={styles.qualityLabel}>Actions</Text>
+                  <Text style={styles.qualityValue}>{localActionEvents.length}</Text>
+                </View>
+                <View style={[styles.qualityPill, styles.qualityPillNeutral]}>
+                  <Text style={styles.qualityLabel}>Mutation Success</Text>
+                  <Text style={styles.qualityValue}>{mutationSuccessRate == null ? 'N/A' : `${mutationSuccessRate}%`}</Text>
+                </View>
+                <View style={[styles.qualityPill, styles.qualityPillNeutral]}>
+                  <Text style={styles.qualityLabel}>Failures</Text>
+                  <Text style={styles.qualityValue}>{mutationFailureCount + mutationCancelledCount}</Text>
+                </View>
+              </View>
+              <Text style={styles.qualityMeta}>
+                Recent tracked actions: {localActionEvents.slice(0, 3).map((event) => event.name).join(' · ') || 'none'}
+              </Text>
+              <View style={styles.warningList}>
+                {localMutationEvents.slice(0, 4).map((event) => (
+                  <View key={event.id} style={styles.warningRow}>
+                    <Text style={styles.warningIcon}>{event.outcome === 'success' ? '✓' : event.outcome === 'cancelled' ? '!' : '×'}</Text>
+                    <Text style={styles.warningText}>
+                      {event.name.replace(/_/g, ' ')} · {String(event.outcome).toUpperCase()}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </>
         )}
@@ -541,6 +678,24 @@ const styles = StyleSheet.create({
     borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
   },
   actionButtonText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
+  playbookCard: {
+    backgroundColor: '#EEF6FF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#D7E9FF',
+  },
+  playbookTitle: { fontSize: 14, fontWeight: '800', color: '#1E3A5F' },
+  playbookDescription: { fontSize: 12, color: '#375474', marginTop: 6, lineHeight: 18 },
+  playbookButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#2F6DB2',
+  },
+  playbookButtonText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
 
   // Products
   productRow: {
