@@ -111,11 +111,11 @@ export default function FollowersScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (shopId) {
+      if (shopId && followers.length === 0) {
         setLoading(true);
         loadFollowers(true);
       }
-    }, [shopId])
+    }, [shopId, followers.length, loadFollowers])
   );
 
   const onRefresh = () => {

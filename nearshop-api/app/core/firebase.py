@@ -1,5 +1,8 @@
 import logging
 import os
+import json
+import urllib.error
+import urllib.request
 
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth, messaging
@@ -7,6 +10,60 @@ from firebase_admin import credentials, auth as firebase_auth, messaging
 logger = logging.getLogger(__name__)
 
 _firebase_initialized = False
+
+EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
+
+
+def _looks_like_expo_push_token(token: str) -> bool:
+    return bool(token) and (token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken["))
+
+
+def _normalize_data_payload(data: dict | None) -> dict:
+    payload = {}
+    for key, value in (data or {}).items():
+        if value is None:
+            continue
+        payload[str(key)] = value if isinstance(value, str) else json.dumps(value, default=str)
+    return payload
+
+
+def _send_expo_push_notification(
+    token: str,
+    title: str,
+    body: str,
+    data: dict = None,
+    image: str = None,
+) -> str | None:
+    payload = {
+        "to": token,
+        "sound": "default",
+        "title": title,
+        "body": body,
+        "data": _normalize_data_payload(data),
+    }
+    if image:
+        payload["image"] = image
+
+    request = urllib.request.Request(
+        EXPO_PUSH_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            response_body = json.loads(response.read().decode("utf-8"))
+            logger.info("Expo push notification sent: %s", response_body)
+            return response_body.get("data", {}).get("id") or response_body.get("id") or "expo-push-sent"
+    except urllib.error.HTTPError as error:
+        logger.error("Expo push notification failed: %s", error.read().decode("utf-8", errors="ignore"))
+    except Exception as error:
+        logger.error("Expo push notification error: %s", error)
+    return None
 
 
 def get_firebase_app():
@@ -67,10 +124,10 @@ def send_push_notification(
     image: str = None,
 ) -> str | None:
     """
-    Send a push notification to a single device via FCM.
+    Send a push notification to a single device via FCM or Expo push.
     
     Args:
-        token: FCM device token
+        token: FCM device token or Expo push token
         title: Notification title
         body: Notification body text
         data: Optional custom data payload
@@ -82,6 +139,9 @@ def send_push_notification(
     get_firebase_app()
     
     try:
+        if _looks_like_expo_push_token(token):
+            return _send_expo_push_notification(token, title, body, data=data, image=image)
+
         notification = messaging.Notification(
             title=title,
             body=body,
@@ -132,7 +192,7 @@ def send_push_to_multiple(
     Send push notification to multiple devices.
     
     Args:
-        tokens: List of FCM device tokens
+        tokens: List of FCM device tokens or Expo push tokens
         title: Notification title
         body: Notification body text
         data: Optional custom data payload
@@ -145,7 +205,26 @@ def send_push_to_multiple(
     
     if not tokens:
         return {"success_count": 0, "failure_count": 0, "failed_tokens": []}
+
+    expo_tokens = [token for token in tokens if _looks_like_expo_push_token(token)]
+    fcm_tokens = [token for token in tokens if not _looks_like_expo_push_token(token)]
+
+    failed_tokens: list[str] = []
+    success_count = 0
+
+    for token in expo_tokens:
+        if _send_expo_push_notification(token, title, body, data=data, image=image):
+            success_count += 1
+        else:
+            failed_tokens.append(token)
     
+    if not fcm_tokens:
+        return {
+            "success_count": success_count,
+            "failure_count": len(failed_tokens),
+            "failed_tokens": failed_tokens,
+        }
+
     notification = messaging.Notification(
         title=title,
         body=body,
@@ -155,7 +234,7 @@ def send_push_to_multiple(
     message = messaging.MulticastMessage(
         notification=notification,
         data=data or {},
-        tokens=tokens,
+        tokens=fcm_tokens,
         android=messaging.AndroidConfig(
             priority="high",
             notification=messaging.AndroidNotification(
@@ -176,27 +255,28 @@ def send_push_to_multiple(
     try:
         response = messaging.send_each_for_multicast(message)
         
-        failed_tokens = []
         for idx, result in enumerate(response.responses):
             if not result.success:
-                failed_tokens.append(tokens[idx])
+                failed_tokens.append(fcm_tokens[idx])
+            else:
+                success_count += 1
         
         logger.info(
-            f"Multicast push: {response.success_count} succeeded, "
-            f"{response.failure_count} failed"
+            f"Multicast push: {success_count + response.success_count} succeeded, "
+            f"{len(failed_tokens)} failed"
         )
         
         return {
-            "success_count": response.success_count,
-            "failure_count": response.failure_count,
+            "success_count": success_count,
+            "failure_count": len(failed_tokens),
             "failed_tokens": failed_tokens,
         }
     except Exception as e:
         logger.error(f"Error sending multicast push: {e}")
         return {
-            "success_count": 0,
-            "failure_count": len(tokens),
-            "failed_tokens": tokens,
+            "success_count": success_count,
+            "failure_count": len(failed_tokens) + len(fcm_tokens),
+            "failed_tokens": failed_tokens + fcm_tokens,
         }
 
 

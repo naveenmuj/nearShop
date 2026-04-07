@@ -5,6 +5,7 @@ import {
   FlatList,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +17,11 @@ import {
   Keyboard,
   Linking,
   ScrollView,
+  Modal,
+  Share,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,7 +47,7 @@ import useAuthStore from '../../store/authStore';
 
 const PAGE_SIZE = 30;
 const EMOJIS = ['😀', '😂', '😍', '🥳', '🙏', '👍', '🔥', '❤️', '🎉', '🤝', '💯', '👏'];
-const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥'];
+const MESSAGE_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const BUSINESS_QUICK_TEMPLATES = [
   'Thanks for reaching out. Let me check and confirm shortly.',
   'Your order is in progress. We will update you soon.',
@@ -100,6 +105,7 @@ export default function ChatScreenBase({ viewerRole }) {
   const [showEmojiTray, setShowEmojiTray] = useState(false);
   const [showAttachTray, setShowAttachTray] = useState(false);
   const [replyTarget, setReplyTarget] = useState(null);
+  const [activeMessageAction, setActiveMessageAction] = useState(null);
   const [presence, setPresence] = useState({ role_online: { customer: false, business: false }, role_last_seen: {} });
   const [aiReplyLoading, setAiReplyLoading] = useState(false);
   const [aiReplyDrafts, setAiReplyDrafts] = useState([]);
@@ -555,6 +561,61 @@ export default function ChatScreenBase({ viewerRole }) {
     }
   }, [conversationId, upsertServerMessage, user?.id]);
 
+  const closeMessageActionSheet = useCallback(() => {
+    setActiveMessageAction(null);
+  }, []);
+
+  const openMessageActionSheet = useCallback(async (item) => {
+    if (!item) return;
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // no-op
+    }
+    setActiveMessageAction(item);
+  }, []);
+
+  const getMessageShareText = useCallback((item) => {
+    const content = (item?.content || '').trim();
+    const attachments = item?.attachments || [];
+    if (content && attachments.length) {
+      return `${content}\n${attachments[0]}`;
+    }
+    if (content) return content;
+    if (attachments.length) return attachments[0];
+    return 'Shared from NearShop';
+  }, []);
+
+  const handleCopyMessage = useCallback(async (item) => {
+    const text = getMessageShareText(item);
+    await Clipboard.setStringAsync(text);
+    closeMessageActionSheet();
+    Alert.alert('Copied', 'Message copied to clipboard.');
+  }, [closeMessageActionSheet, getMessageShareText]);
+
+  const handleForwardMessage = useCallback(async (item) => {
+    const text = getMessageShareText(item);
+    closeMessageActionSheet();
+    await Share.share({ message: text });
+  }, [closeMessageActionSheet, getMessageShareText]);
+
+  const handleReplyFromSheet = useCallback(() => {
+    if (!activeMessageAction) return;
+    setReplyTarget(activeMessageAction);
+    closeMessageActionSheet();
+    Keyboard.dismiss();
+  }, [activeMessageAction, closeMessageActionSheet]);
+
+  const handleReactFromSheet = useCallback(async (emoji) => {
+    if (!activeMessageAction) return;
+    if (!activeMessageAction.id || activeMessageAction.local_id) {
+      closeMessageActionSheet();
+      return;
+    }
+    await handleToggleReaction(activeMessageAction, emoji);
+    closeMessageActionSheet();
+  }, [activeMessageAction, closeMessageActionSheet, handleToggleReaction]);
+
   const renderReplyPreview = (item, isMe) => {
     const md = item?.message_metadata || {};
     if (!md.reply_to_message_id) return null;
@@ -649,10 +710,16 @@ export default function ChatScreenBase({ viewerRole }) {
           </View>
         )}
         <View style={[styles.messageRow, isMe && styles.messageRowMe]}>
-          <View style={[styles.messageBubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
+          <Pressable
+            style={[styles.messageBubble, isMe ? styles.bubbleMe : styles.bubbleOther]}
+            onLongPress={() => openMessageActionSheet(item)}
+            delayLongPress={260}
+          >
             {renderReplyPreview(item, isMe)}
             {Boolean(item.content) && (
-              <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.content}</Text>
+              <Text style={[styles.messageText, isMe && styles.messageTextMe]} selectable>
+                {item.content}
+              </Text>
             )}
             {renderAttachments(item, isMe)}
             {renderReactions(item)}
@@ -660,17 +727,7 @@ export default function ChatScreenBase({ viewerRole }) {
               <Text style={[styles.messageTime, isMe && styles.messageTimeMe]}>{formatTime(item.created_at)}</Text>
               {renderMessageStatus(item, isMe)}
             </View>
-          </View>
-          <View style={styles.messageActionsRow}>
-            {QUICK_REACTIONS.map((emoji) => (
-              <TouchableOpacity key={`${item.id || item.local_id}-${emoji}`} onPress={() => handleToggleReaction(item, emoji)} style={styles.quickReactionBtn}>
-                <Text style={styles.quickReactionText}>{emoji}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={() => setReplyTarget(item)} style={styles.replyBtn}>
-              <Ionicons name="arrow-undo-outline" size={14} color={COLORS.gray} />
-            </TouchableOpacity>
-          </View>
+          </Pressable>
         </View>
       </>
     );
@@ -925,6 +982,50 @@ export default function ChatScreenBase({ viewerRole }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={Boolean(activeMessageAction)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={closeMessageActionSheet}
+      >
+        <Pressable style={styles.actionSheetBackdrop} onPress={closeMessageActionSheet}>
+          <Pressable style={styles.actionSheetCard} onPress={() => {}}>
+            <View style={styles.actionSheetHandle} />
+            <View style={styles.reactionRail}>
+              {MESSAGE_REACTIONS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.reactionRailBtn}
+                  onPress={() => handleReactFromSheet(emoji)}
+                >
+                  <Text style={styles.reactionRailEmoji}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.actionList}>
+              <TouchableOpacity style={styles.actionItem} onPress={handleReplyFromSheet}>
+                <Ionicons name="arrow-undo-outline" size={20} color={COLORS.text} />
+                <Text style={styles.actionItemText}>Reply</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionItem} onPress={() => handleForwardMessage(activeMessageAction)}>
+                <Ionicons name="arrow-redo-outline" size={20} color={COLORS.text} />
+                <Text style={styles.actionItemText}>Forward</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionItem} onPress={() => handleCopyMessage(activeMessageAction)}>
+                <Ionicons name="copy-outline" size={20} color={COLORS.text} />
+                <Text style={styles.actionItemText}>Copy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionItemCancel} onPress={closeMessageActionSheet}>
+                <Ionicons name="close-circle-outline" size={20} color={COLORS.gray} />
+                <Text style={styles.actionItemText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -953,7 +1054,6 @@ const styles = StyleSheet.create({
   },
   messageRow: { marginBottom: 8, flexDirection: 'row' },
   messageRowMe: { justifyContent: 'flex-end' },
-  messageActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   messageBubble: { maxWidth: '84%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
   bubbleOther: { backgroundColor: COLORS.white, borderBottomLeftRadius: 5, ...SHADOWS.small },
   bubbleMe: { backgroundColor: '#0d7a5f', borderBottomRightRadius: 5 },
@@ -999,23 +1099,6 @@ const styles = StyleSheet.create({
   },
   reactionPillMine: { backgroundColor: '#d4eaff' },
   reactionText: { fontSize: 11, color: '#215c8e' },
-  quickReactionBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
-  quickReactionText: { fontSize: 11 },
-  replyBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-  },
   messageTime: { fontSize: 10, color: COLORS.gray },
   messageTimeMe: { color: 'rgba(255,255,255,0.75)' },
   typingContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 8 },
@@ -1146,4 +1229,66 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginLeft: 8,
   },
   sendBtnDisabled: { backgroundColor: '#9db9af' },
+  actionSheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    justifyContent: 'flex-end',
+  },
+  actionSheetCard: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 10,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+  },
+  actionSheetHandle: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    alignSelf: 'center',
+    backgroundColor: '#d0dae6',
+    marginBottom: 14,
+  },
+  reactionRail: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f6fafc',
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  reactionRailBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2ebf2',
+  },
+  reactionRailEmoji: { fontSize: 22 },
+  actionList: { gap: 8 },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#f8fbfd',
+  },
+  actionItemCancel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: '#f5f7fa',
+  },
+  actionItemText: { fontSize: 14, fontWeight: '600', color: COLORS.text },
 });

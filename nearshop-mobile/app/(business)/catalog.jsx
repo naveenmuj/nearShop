@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -56,6 +56,9 @@ const formatPrice = (p) => '₹' + Number(p).toLocaleString('en-IN');
 
 export default function CatalogScreen() {
   const { shopId } = useMyShop();
+  const listRef = useRef(null);
+  const scrollOffsetRef = useRef(0);
+  const restoreScrollRef = useRef(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -79,9 +82,19 @@ export default function CatalogScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      restoreScrollRef.current = true;
       loadProducts();
     }, [loadProducts])
   );
+
+  useEffect(() => {
+    if (!loading && products.length > 0 && restoreScrollRef.current) {
+      restoreScrollRef.current = false;
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToOffset({ offset: scrollOffsetRef.current, animated: false });
+      });
+    }
+  }, [loading, products.length]);
 
   const filtered = products.filter((p) =>
     p.name?.toLowerCase().includes(search.toLowerCase())
@@ -255,12 +268,17 @@ export default function CatalogScreen() {
         <ErrorState />
       ) : (
         <FlatList
+          ref={listRef}
           data={filtered}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderProduct}
           ListEmptyComponent={ListEmpty}
           contentContainerStyle={filtered.length === 0 ? { flex: 1 } : { paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          onScroll={(event) => {
+            scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
         />
       )}
 
