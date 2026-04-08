@@ -24,6 +24,8 @@ const ProductDetailPage = lazy(() => import('./pages/customer/ProductDetailPage'
 const DealsPage = lazy(() => import('./pages/customer/DealsPage'))
 const WishlistPage = lazy(() => import('./pages/customer/WishlistPage'))
 const OrdersPage = lazy(() => import('./pages/customer/OrdersPage'))
+const CustomerMessagesPage = lazy(() => import('./pages/customer/MessagesPage'))
+const CustomerChatPage = lazy(() => import('./pages/customer/ChatPage'))
 const ProfilePage = lazy(() => import('./pages/customer/ProfilePage'))
 const CommunityPage = lazy(() => import('./pages/customer/CommunityPage'))
 const WalletPage = lazy(() => import('./pages/customer/WalletPage'))
@@ -34,6 +36,11 @@ const NotificationsPage  = lazy(() => import('./pages/customer/NotificationsPage
 const AchievementsPage  = lazy(() => import('./pages/customer/AchievementsPage'))
 const SpinWheelPage     = lazy(() => import('./pages/customer/SpinWheelPage'))
 const CheckoutPage      = lazy(() => import('./pages/customer/CheckoutPage'))
+const CartPage          = lazy(() => import('./pages/customer/CartPage'))
+const CustomerReturnsPage = lazy(() => import('./pages/customer/ReturnsPage'))
+const ReturnRequestPage = lazy(() => import('./pages/customer/ReturnRequestPage'))
+const OrderDetailPage = lazy(() => import('./pages/customer/OrderDetailPage'))
+const OrderTrackingPage = lazy(() => import('./pages/customer/OrderTrackingPage'))
 
 // Admin
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
@@ -41,11 +48,14 @@ const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 // Business pages
 const DashboardPage = lazy(() => import('./pages/business/DashboardPage'))
 const CatalogPage = lazy(() => import('./pages/business/CatalogPage'))
+const BizProductDetailsPage = lazy(() => import('./pages/business/ProductDetailsPage'))
 const SnapListPage = lazy(() => import('./pages/business/SnapListPage'))
 const BizOrdersPage = lazy(() => import('./pages/business/OrdersPage'))
 const DealsCreatorPage = lazy(() => import('./pages/business/DealsCreatorPage'))
 const StoriesPage = lazy(() => import('./pages/business/StoriesPage'))
 const HaggleInboxPage = lazy(() => import('./pages/business/HaggleInboxPage'))
+const BusinessMessagesPage = lazy(() => import('./pages/business/MessagesPage'))
+const BusinessChatPage = lazy(() => import('./pages/business/ChatPage'))
 const AnalyticsPage = lazy(() => import('./pages/business/AnalyticsPage'))
 const SettingsPage = lazy(() => import('./pages/business/SettingsPage'))
 const ReviewsPage = lazy(() => import('./pages/business/ReviewsPage'))
@@ -60,6 +70,11 @@ const BroadcastPage = lazy(() => import('./pages/business/BroadcastPage'))
 const AdvisorPage = lazy(() => import('./pages/business/AdvisorPage'))
 const FestivalCalendarPage = lazy(() => import('./pages/business/FestivalCalendarPage'))
 const BulkUploadPage = lazy(() => import('./pages/business/BulkUploadPage'))
+const BusinessReturnsPage = lazy(() => import('./pages/business/ReturnsPage'))
+const StaffPage = lazy(() => import('./pages/business/StaffPage'))
+const FollowersPage = lazy(() => import('./pages/business/FollowersPage'))
+const SubscriptionPage = lazy(() => import('./pages/business/SubscriptionPage'))
+const ShopProfilePage = lazy(() => import('./pages/business/ShopProfilePage'))
 const ShopWebsite = lazy(() => import('./pages/public/ShopWebsite'))
 
 function ProtectedRoute({ children, requiredRole }) {
@@ -143,6 +158,8 @@ export default function App() {
           <Route path="deals" element={<DealsPage />} />
           <Route path="wishlist" element={<WishlistPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="messages" element={<CustomerMessagesPage />} />
+          <Route path="chat/:conversationId" element={<CustomerChatPage />} />
           <Route path="community" element={<CommunityPage />} />
           <Route path="wallet" element={<WalletPage />} />
           <Route path="profile" element={<ProfilePage />} />
@@ -153,6 +170,11 @@ export default function App() {
           <Route path="achievements"   element={<AchievementsPage />} />
           <Route path="spin"           element={<SpinWheelPage />} />
           <Route path="checkout"       element={<CheckoutPage />} />
+          <Route path="cart"           element={<CartPage />} />
+          <Route path="orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="orders/:orderId/tracking" element={<OrderTrackingPage />} />
+          <Route path="returns"        element={<CustomerReturnsPage />} />
+          <Route path="returns/request" element={<ReturnRequestPage />} />
         </Route>
 
         {/* Business */}
@@ -160,6 +182,7 @@ export default function App() {
           <Route index element={<DashboardPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="catalog" element={<CatalogPage />} />
+          <Route path="catalog/:productId" element={<BizProductDetailsPage />} />
           <Route path="catalog/new" element={<SnapListPage />} />
           <Route path="snap" element={<SnapListPage />} />
           <Route path="orders" element={<BizOrdersPage />} />
@@ -168,6 +191,8 @@ export default function App() {
           <Route path="stories" element={<StoriesPage />} />
           <Route path="stories/new" element={<StoriesPage />} />
           <Route path="haggle" element={<HaggleInboxPage />} />
+          <Route path="messages" element={<BusinessMessagesPage />} />
+          <Route path="chat/:conversationId" element={<BusinessChatPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
@@ -182,6 +207,11 @@ export default function App() {
           <Route path="advisor" element={<AdvisorPage />} />
           <Route path="festivals" element={<FestivalCalendarPage />} />
           <Route path="catalog/bulk" element={<BulkUploadPage />} />
+          <Route path="returns" element={<BusinessReturnsPage />} />
+          <Route path="staff" element={<StaffPage />} />
+          <Route path="followers" element={<FollowersPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
+          <Route path="shop-profile" element={<ShopProfilePage />} />
         </Route>
 
         {/* Admin */}

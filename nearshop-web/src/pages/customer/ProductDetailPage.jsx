@@ -6,6 +6,7 @@ import { useCartStore } from '../../store/cartStore'
 import { getProduct, getSimilarProducts } from '../../api/products'
 import { createReservation } from '../../api/reservations'
 import { startHaggle } from '../../api/haggle'
+import { startConversation } from '../../api/messaging'
 import { trackEvent } from '../../api/analytics'
 import { trackView } from '../../api/engagement'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
@@ -89,6 +90,21 @@ export default function ProductDetailPage() {
     const msg = encodeURIComponent(`Hi, I saw ${product.name} on NearShop — is it available?`)
     window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
     trackEvent({ event_type: 'inquiry', entity_type: 'product', entity_id: product.id, metadata: rankingContext.ranking_surface ? rankingContext : undefined }).catch(() => {})
+  }
+
+  const handleInAppChat = async () => {
+    try {
+      const shopId = product?.shop_id || product?.shop?.id
+      if (!shopId) {
+        toast.error('Shop details unavailable for chat')
+        return
+      }
+      const convo = await startConversation(shopId, product.id, null, `Hi, I saw ${product.name} on NearShop — is it available?`)
+      navigate(`/app/chat/${convo.id}`)
+      trackEvent({ event_type: 'inquiry', entity_type: 'product', entity_id: product.id, metadata: { channel: 'in_app_chat' } }).catch(() => {})
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || 'Unable to open chat right now')
+    }
   }
 
   const handleHold = async () => {
@@ -214,6 +230,9 @@ export default function ProductDetailPage() {
               <AddToCartButton product={product} />
               <button onClick={handleWhatsApp} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition">
                 <MessageSquare className="w-4 h-4" /> Chat on WhatsApp
+              </button>
+              <button onClick={handleInAppChat} className="w-full flex items-center justify-center gap-2 bg-[#7F77DD] text-white py-3 rounded-xl text-sm font-bold hover:bg-[#6b63d2] transition">
+                <MessageSquare className="w-4 h-4" /> Chat In NearShop
               </button>
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={handleHold} disabled={isHeld}

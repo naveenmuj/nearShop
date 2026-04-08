@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Plus, Search, Grid3X3, List, Eye, Heart, MessageSquare, ToggleLeft, Trash2, Tag, Upload } from 'lucide-react'
+import { Plus, Search, Grid3X3, List, Eye, Heart, MessageSquare, ToggleLeft, Trash2, Upload, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getShopProducts } from '../../api/shops'
 import { toggleAvailability, deleteProduct } from '../../api/products'
 import useMyShop from '../../hooks/useMyShop'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 
-const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
+const formatPrice = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`
 
 const SORT_OPTIONS = [
   { key: 'newest', label: 'Newest' },
@@ -17,23 +17,46 @@ const SORT_OPTIONS = [
   { key: 'views', label: 'Most Viewed' },
 ]
 
+const SCROLL_KEY = 'bizCatalogScrollY'
+
 export default function CatalogPage() {
   const navigate = useNavigate()
   const { shopId, loading: shopLoading } = useMyShop()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [viewMode, setViewMode] = useState('list') // 'list' | 'grid'
-  const [sortBy, setSortBy] = useState('newest')
-  const [filterStatus, setFilterStatus] = useState('all') // 'all' | 'active' | 'hidden'
   const [selected, setSelected] = useState(new Set())
   const [acting, setActing] = useState(null)
+
+  const [search, setSearch] = useState(searchParams.get('q') || '')
+  const [viewMode, setViewMode] = useState(searchParams.get('view') || 'list')
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest')
+  const [filterStatus, setFilterStatus] = useState(searchParams.get('status') || 'all')
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+
+    if (search) next.set('q', search)
+    else next.delete('q')
+
+    if (viewMode !== 'list') next.set('view', viewMode)
+    else next.delete('view')
+
+    if (sortBy !== 'newest') next.set('sort', sortBy)
+    else next.delete('sort')
+
+    if (filterStatus !== 'all') next.set('status', filterStatus)
+    else next.delete('status')
+
+    setSearchParams(next, { replace: true })
+  }, [filterStatus, search, searchParams, setSearchParams, sortBy, viewMode])
 
   const load = useCallback(async () => {
     if (!shopId) return
     setLoading(true)
     try {
-      const res = await getShopProducts(shopId, { per_page: 100 })
+      const res = await getShopProducts(shopId, { per_page: 200, include_hidden: true })
       const d = res.data
       setProducts(Array.isArray(d) ? d : d?.items ?? [])
     } catch {
@@ -43,238 +66,283 @@ export default function CatalogPage() {
     }
   }, [shopId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    const savedY = Number(sessionStorage.getItem(SCROLL_KEY) || 0)
+    if (savedY > 0) {
+      requestAnimationFrame(() => window.scrollTo({ top: savedY, behavior: 'auto' }))
+    }
+  }, [])
+
+  const saveScrollPosition = () => {
+    sessionStorage.setItem(SCROLL_KEY, String(window.scrollY || 0))
+  }
 
   const filtered = useMemo(() => {
     let list = [...products]
 
-    // Search filter
     if (search) {
-      const q = search.toLowerCase()
-      list = list.filter(p => p.name?.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q))
+      const query = search.toLowerCase()
+      list = list.filter((p) => p.name?.toLowerCase().includes(query) || p.category?.toLowerCase().includes(query))
     }
 
-    // Status filter
-    if (filterStatus === 'active') list = list.filter(p => p.is_available)
-    else if (filterStatus === 'hidden') list = list.filter(p => !p.is_available)
+    if (filterStatus === 'active') list = list.filter((p) => p.is_available)
+    else if (filterStatus === 'hidden') list = list.filter((p) => !p.is_available)
 
-    // Sort
     if (sortBy === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     else if (sortBy === 'price_asc') list.sort((a, b) => Number(a.price) - Number(b.price))
     else if (sortBy === 'price_desc') list.sort((a, b) => Number(b.price) - Number(a.price))
     else if (sortBy === 'views') list.sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
-    else list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    else list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
 
     return list
   }, [products, search, filterStatus, sortBy])
 
   const toggleSelect = (id) => {
-    setSelected(prev => {
+    setSelected((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
 
   const selectAll = () => {
     if (selected.size === filtered.length) setSelected(new Set())
-    else setSelected(new Set(filtered.map(p => p.id)))
+    else setSelected(new Set(filtered.map((p) => p.id)))
   }
 
-  const handleToggle = async (product) => {
+  const handleToggle = async (event, product) => {
+    event.stopPropagation()
     setActing(product.id)
     try {
       await toggleAvailability(product.id)
-      toast.success(product.is_available ? 'Product hidden' : 'Product visible')
+      toast.success(product.is_available ? 'Product hidden' : 'Product made live')
       await load()
     } catch {
-      toast.error('Failed to update')
+      toast.error('Failed to update product')
     } finally {
       setActing(null)
     }
   }
 
-  const handleDelete = async (product) => {
-    if (!confirm(`Delete "${product.name}"?`)) return
+  const handleDelete = async (event, product) => {
+    event.stopPropagation()
+    const confirmed = window.confirm(`Delete "${product.name}"?`)
+    if (!confirmed) return
+
     setActing(product.id)
     try {
       await deleteProduct(product.id)
       toast.success('Product deleted')
       await load()
     } catch {
-      toast.error('Failed to delete')
+      toast.error('Failed to delete product')
     } finally {
       setActing(null)
     }
   }
 
-  if (shopLoading || loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
+  const openProductDetails = (productId) => {
+    saveScrollPosition()
+    navigate(`/biz/catalog/${productId}`)
+  }
+
+  const activeCount = products.filter((p) => p.is_available).length
+  const hiddenCount = products.length - activeCount
+
+  if (shopLoading || loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-bold text-gray-900">My Products</h1>
-            <p className="text-xs text-gray-400">{products.length} total · {products.filter(p => p.is_available).length} active</p>
+            <h1 className="text-xl font-extrabold text-gray-900">My Products</h1>
+            <p className="text-xs text-gray-500">{products.length} total · {activeCount} active · {hiddenCount} hidden</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => navigate('/biz/catalog/bulk')} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors">
-              <Upload className="w-3.5 h-3.5" /> Bulk
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/biz/catalog/bulk')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700"
+            >
+              <Upload className="h-3.5 w-3.5" /> Bulk
             </button>
-            <button onClick={() => navigate('/biz/snap')} className="flex items-center gap-1.5 bg-[#1D9E75] text-white px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-[#178a65] transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Add
+            <button
+              onClick={() => navigate('/biz/snap')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1D9E75] px-3 py-2 text-xs font-bold text-white hover:bg-[#178a65]"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Product
             </button>
           </div>
         </div>
 
-        {/* Search + filters */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 flex items-center bg-gray-100 rounded-lg px-3 h-9">
-            <Search className="w-3.5 h-3.5 text-gray-400 mr-2" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..."
-              className="flex-1 bg-transparent text-sm outline-none text-gray-800 placeholder-gray-400" />
+        <button
+          onClick={() => navigate('/biz/snap')}
+          className="mb-4 flex w-full items-center gap-3 rounded-xl border border-[#7F77DD]/20 bg-[#EEEDFE] p-3 text-left hover:bg-[#e5e3ff]"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#534AB7]">
+            <Sparkles className="h-4 w-4" />
           </div>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-            className="h-9 bg-gray-100 rounded-lg px-2 text-xs font-medium text-gray-600 border-none outline-none">
-            {SORT_OPTIONS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-[#534AB7]">Analyze product image</p>
+            <p className="text-xs text-[#6b66b7]">Auto-fill product details with AI like mobile snap listing.</p>
+          </div>
+        </button>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex h-10 min-w-[240px] flex-1 items-center rounded-xl bg-gray-100 px-3">
+            <Search className="mr-2 h-4 w-4 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products..."
+              className="w-full bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+            />
+          </div>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="h-10 rounded-xl bg-gray-100 px-3 text-xs font-semibold text-gray-700 outline-none"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.key} value={option.key}>{option.label}</option>
+            ))}
           </select>
-          <div className="flex bg-gray-100 rounded-lg overflow-hidden">
-            <button onClick={() => setViewMode('list')} className={`p-2 ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}>
-              <List className="w-3.5 h-3.5 text-gray-600" />
+
+          <div className="flex overflow-hidden rounded-xl bg-gray-100">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 ${viewMode === 'list' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <List className="h-4 w-4 text-gray-700" />
             </button>
-            <button onClick={() => setViewMode('grid')} className={`p-2 ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}>
-              <Grid3X3 className="w-3.5 h-3.5 text-gray-600" />
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 ${viewMode === 'grid' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Grid3X3 className="h-4 w-4 text-gray-700" />
             </button>
           </div>
         </div>
 
-        {/* Status filter pills */}
-        <div className="flex gap-2 mt-2.5">
-          {['all', 'active', 'hidden'].map(f => (
-            <button key={f} onClick={() => setFilterStatus(f)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                filterStatus === f ? 'bg-[#1D9E75] text-white' : 'bg-gray-100 text-gray-500'
-              }`}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-              {f !== 'all' && ` (${f === 'active' ? products.filter(p => p.is_available).length : products.filter(p => !p.is_available).length})`}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {['all', 'active', 'hidden'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`rounded-lg px-3 py-1 text-xs font-bold ${
+                filterStatus === status ? 'bg-[#1D9E75] text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {status[0].toUpperCase() + status.slice(1)}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="bg-[#1D9E75] px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button onClick={selectAll} className="text-xs text-white/80 hover:text-white font-medium">
-              {selected.size === filtered.length ? 'Deselect All' : 'Select All'}
-            </button>
-            <span className="text-xs text-white font-bold">{selected.size} selected</span>
-          </div>
-          <div className="flex gap-2">
-            <button className="text-xs text-white/80 hover:text-white font-medium flex items-center gap-1">
-              <ToggleLeft className="w-3.5 h-3.5" /> Toggle
-            </button>
-            <button className="text-xs text-white/80 hover:text-white font-medium flex items-center gap-1">
-              <Trash2 className="w-3.5 h-3.5" /> Delete
-            </button>
-          </div>
+      {selected.size > 0 ? (
+        <div className="flex items-center justify-between rounded-xl bg-[#1D9E75] px-4 py-2.5 text-white">
+          <div className="text-xs font-bold">{selected.size} selected</div>
+          <button onClick={selectAll} className="text-xs font-semibold text-white/90 hover:text-white">
+            {selected.size === filtered.length ? 'Deselect All' : 'Select All'}
+          </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Product list/grid */}
-      <div className={`px-4 py-3 ${viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-2'}`}>
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-3'}>
         {filtered.length === 0 ? (
-          <div className="text-center py-16 col-span-2">
-            <div className="text-4xl mb-3">📦</div>
-            <p className="text-gray-600 font-semibold">No products found</p>
-            <button onClick={() => navigate('/biz/snap')} className="mt-3 bg-[#1D9E75] text-white px-5 py-2.5 rounded-xl text-sm font-bold">
-              Add your first product
+          <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+            <div className="mb-3 text-5xl">📦</div>
+            <h3 className="text-lg font-bold text-gray-900">No products found</h3>
+            <p className="mt-1 text-sm text-gray-500">Try changing filters or add a new product.</p>
+            <button
+              onClick={() => navigate('/biz/snap')}
+              className="mt-4 rounded-xl bg-[#1D9E75] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#178a65]"
+            >
+              Add Product
             </button>
           </div>
-        ) : filtered.map(product => {
+        ) : filtered.map((product) => {
           const isSelected = selected.has(product.id)
-          const imageUrl = product.images?.[0]
-          const isLive = product.is_available
+          const imageUrl = product.images?.[0] || product.image_url
+          const isLive = product.is_available ?? true
 
-          if (viewMode === 'grid') {
-            return (
-              <div key={product.id} className={`bg-white rounded-xl border overflow-hidden shadow-sm ${isSelected ? 'border-[#1D9E75] ring-1 ring-[#1D9E75]' : 'border-gray-100'}`}>
-                <div className="relative aspect-square bg-gray-50">
-                  {imageUrl ? <img src={imageUrl} alt="" className="w-full h-full object-cover" /> : (
-                    <div className="w-full h-full flex items-center justify-center text-3xl text-gray-200">📦</div>
-                  )}
-                  <button onClick={() => toggleSelect(product.id)}
-                    className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      isSelected ? 'bg-[#1D9E75] border-[#1D9E75]' : 'bg-white/80 border-gray-300'
-                    }`}>
-                    {isSelected && <span className="text-white text-xs">✓</span>}
-                  </button>
-                  {!isLive && <span className="absolute top-2 right-2 bg-gray-900/60 text-white text-[10px] font-bold px-2 py-0.5 rounded">Hidden</span>}
-                </div>
-                <div className="p-3">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
-                  <div className="flex items-baseline gap-1.5 mt-1">
-                    <span className="text-sm font-bold text-gray-900">{formatPrice(product.price)}</span>
-                    {product.compare_price > product.price && (
-                      <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5 text-[10px] text-gray-400">
-                    <span>{product.view_count || 0} 👁️</span>
-                    <span>{product.wishlist_count || 0} ❤️</span>
-                  </div>
-                </div>
-              </div>
-            )
-          }
-
-          // List view
           return (
-            <div key={product.id} className={`bg-white rounded-xl p-3 border shadow-sm flex items-center gap-3 ${isSelected ? 'border-[#1D9E75] ring-1 ring-[#1D9E75]' : 'border-gray-100'}`}>
-              <button onClick={() => toggleSelect(product.id)}
-                className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center ${
-                  isSelected ? 'bg-[#1D9E75] border-[#1D9E75]' : 'border-gray-300'
-                }`}>
-                {isSelected && <span className="text-white text-[10px]">✓</span>}
-              </button>
-              <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                {imageUrl ? <img src={imageUrl} alt="" className="w-full h-full object-cover" /> : (
-                  <div className="w-full h-full flex items-center justify-center text-lg text-gray-300">📦</div>
+            <button
+              key={product.id}
+              onClick={() => openProductDetails(product.id)}
+              className={`w-full rounded-2xl border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                isSelected ? 'border-[#1D9E75] ring-1 ring-[#1D9E75]' : 'border-gray-100'
+              } ${viewMode === 'grid' ? '' : 'flex items-center gap-3'}`}
+            >
+              <div className={`${viewMode === 'grid' ? 'mb-3 aspect-square w-full' : 'h-14 w-14'} overflow-hidden rounded-xl bg-gray-100`}>
+                {imageUrl ? (
+                  <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-2xl text-gray-300">📦</div>
                 )}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-sm font-bold text-gray-800">{formatPrice(product.price)}</span>
-                  {product.compare_price > product.price && (
-                    <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>
-                  )}
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isLive ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                    {isLive ? 'Active' : 'Hidden'}
+
+              <div className={viewMode === 'grid' ? '' : 'min-w-0 flex-1'}>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-bold text-gray-900">{product.name}</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleSelect(product.id)
+                    }}
+                    className={`h-5 w-5 rounded border text-[10px] font-bold ${
+                      isSelected ? 'border-[#1D9E75] bg-[#1D9E75] text-white' : 'border-gray-300 text-transparent'
+                    }`}
+                  >
+                    ✓
+                  </button>
+                </div>
+
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="text-sm font-extrabold text-gray-900">{formatPrice(product.price)}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isLive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {isLive ? 'Live' : 'Hidden'}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
-                  <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{product.view_count || 0}</span>
-                  <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{product.wishlist_count || 0}</span>
-                  <span className="flex items-center gap-0.5"><MessageSquare className="w-3 h-3" />{product.inquiry_count || 0}</span>
+
+                <div className="mb-2 flex items-center gap-3 text-[11px] text-gray-500">
+                  <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{product.view_count || 0}</span>
+                  <span className="inline-flex items-center gap-1"><Heart className="h-3 w-3" />{product.wishlist_count || 0}</span>
+                  <span className="inline-flex items-center gap-1"><MessageSquare className="h-3 w-3" />{product.inquiry_count || 0}</span>
+                </div>
+
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={(e) => handleToggle(e, product)}
+                    disabled={acting === product.id}
+                    className={`rounded-lg px-2 py-1 text-[10px] font-bold ${
+                      isLive ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-600 text-white hover:bg-green-700'
+                    } disabled:opacity-60`}
+                  >
+                    <span className="inline-flex items-center gap-1"><ToggleLeft className="h-3 w-3" />{isLive ? 'Hide' : 'Make Live'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => handleDelete(e, product)}
+                    disabled={acting === product.id}
+                    className="rounded-lg bg-red-50 px-2 py-1 text-[10px] font-bold text-red-600 hover:bg-red-100 disabled:opacity-60"
+                  >
+                    <span className="inline-flex items-center gap-1"><Trash2 className="h-3 w-3" />Delete</span>
+                  </button>
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <button onClick={() => handleToggle(product)} disabled={acting === product.id}
-                  className={`text-[10px] font-semibold px-2 py-1 rounded transition-colors ${
-                    isLive ? 'text-gray-500 bg-gray-50 hover:bg-gray-100' : 'text-white bg-green-600 hover:bg-green-700'
-                  }`}>
-                  {isLive ? 'Hide' : 'Make Live'}
-                </button>
-                <button onClick={() => handleDelete(product)} disabled={acting === product.id}
-                  className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition-colors">
-                  Delete
-                </button>
-              </div>
-            </div>
+            </button>
           )
         })}
       </div>

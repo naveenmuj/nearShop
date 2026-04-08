@@ -12,6 +12,7 @@ export const getShopProducts = (id, params = {}) => client.get(`/shops/${id}/pro
 export const followShop = (id) => client.post(`/shops/${id}/follow`)
 export const unfollowShop = (id) => client.delete(`/shops/${id}/follow`)
 export const updateShop = (id, data) => client.put(`/shops/${id}`, data)
+export const getShopFollowers = (shopId, params = {}) => client.get(`/shops/${shopId}/followers`, { params })
 
 // Legacy aliases kept for backwards compatibility
 export const getNearby = getNearbyShops

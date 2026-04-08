@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ShoppingBag, ChevronDown, ChevronUp, Download, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getMyOrders, cancelOrder, downloadInvoice } from '../../api/orders'
@@ -16,13 +17,31 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'nu
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
 export default function OrdersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [cancelling, setCancelling] = useState(null)
-  const [activeFilter, setActiveFilter] = useState('all')
+  const [activeFilter, setActiveFilter] = useState(searchParams.get('filter') || 'all')
   const [expandedOrder, setExpandedOrder] = useState(null)
   const { confirm } = useConfirmDialog() || {}
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    if (activeFilter && activeFilter !== 'all') next.set('filter', activeFilter)
+    else next.delete('filter')
+    setSearchParams(next, { replace: true })
+  }, [activeFilter, searchParams, setSearchParams])
+
+  useEffect(() => {
+    const savedY = Number(sessionStorage.getItem('customerOrdersScrollY') || 0)
+    if (savedY > 0) requestAnimationFrame(() => window.scrollTo({ top: savedY, behavior: 'auto' }))
+    const onScroll = () => {
+      sessionStorage.setItem('customerOrdersScrollY', String(window.scrollY || 0))
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const fetchOrders = async () => {
     setLoading(true); setError(null)

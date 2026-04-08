@@ -12,8 +12,10 @@ import client from '../api/client'
 
 const NAV_MAIN = [
   { to: '/biz/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/biz/shop-profile', icon: Home,         label: 'Shop Profile' },
   { to: '/biz/catalog',   icon: Package,         label: 'Products' },
   { to: '/biz/orders',    icon: ShoppingBag,     label: 'Orders' },
+  { to: '/biz/returns',   icon: Receipt,         label: 'Returns' },
   { to: '/biz/billing',   icon: Receipt,         label: 'Billing' },
 ]
 const NAV_MARKETING = [
@@ -32,8 +34,12 @@ const NAV_INSIGHTS = [
 ]
 const NAV_CUSTOMERS = [
   { to: '/biz/customers',  icon: Users,          label: 'Customers' },
+  { to: '/biz/followers',  icon: Users,          label: 'Followers' },
+  { to: '/biz/staff',      icon: Users,          label: 'Staff' },
   { to: '/biz/reviews',    icon: Star,           label: 'Reviews' },
   { to: '/biz/udhaar',     icon: CreditCard,     label: 'Udhaar / Credit' },
+  { to: '/biz/subscription', icon: CreditCard,   label: 'Subscription' },
+  { to: '/biz/messages',   icon: MessageSquare,  label: 'Messages' },
   { to: '/biz/haggle',     icon: MessageSquare,  label: 'Haggles' },
 ]
 
@@ -106,16 +112,16 @@ export default function BusinessLayout() {
 
   return (
     <OnboardingGuard>
-    <div className="min-h-screen bg-gray-50">
+    <div className="app-shell min-h-screen bg-gray-50 text-slate-800">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-gray-100 z-40">
+      <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 bg-white/95 backdrop-blur-sm border-r border-slate-200 z-40">
         <SidebarContent shop={shop} onSwitchCustomer={handleSwitchCustomer} />
       </aside>
 
       {/* Main content */}
       <div className="lg:ml-64 min-h-screen flex flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+        <header className="sticky top-0 z-30 bg-white/88 backdrop-blur-md border-b border-slate-200 shadow-sm">
           <div className="flex items-center h-14 px-4 lg:px-6">
             <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 -ml-2 mr-2 text-gray-500">
               <Menu className="w-5 h-5" />
@@ -140,7 +146,7 @@ export default function BusinessLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
+        <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6 max-w-[1700px] w-full mx-auto">
           <Outlet />
         </main>
       </div>
@@ -165,7 +171,7 @@ export default function BusinessLayout() {
             { to: '/biz/dashboard', icon: Home, label: 'Home' },
             { to: '/biz/catalog', icon: Box, label: 'Products' },
             { to: '/biz/orders', icon: ShoppingBag, label: 'Orders' },
-            { to: '/biz/analytics', icon: BarChart2, label: 'Insights' },
+            { to: '/biz/messages', icon: MessageSquare, label: 'Chats' },
           ].map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to}
               className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl min-w-[48px] transition ${isActive ? 'text-[#1D9E75]' : 'text-gray-400'}`}>

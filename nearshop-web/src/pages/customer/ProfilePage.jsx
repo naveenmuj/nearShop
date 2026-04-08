@@ -81,6 +81,7 @@ export default function ProfilePage() {
       title: 'My Account',
       items: [
         { icon: ShoppingBag, label: 'My Orders', to: '/app/orders' },
+        { icon: MessageSquare, label: 'Messages', to: '/app/messages' },
         { icon: Heart, label: 'Wishlist', to: '/app/wishlist' },
         { icon: Wallet, label: 'Wallet & Coins', to: '/app/wallet', badge: balance > 0 ? `${balance} coins` : null },
         { icon: MessageSquare, label: 'My Haggles', to: '/app/haggle' },

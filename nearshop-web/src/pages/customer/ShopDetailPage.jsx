@@ -4,6 +4,7 @@ import { ShoppingBag, ArrowLeft, MapPin, Phone, Star, Users, Clock, Share2, Hear
 import { useAuthStore } from '../../store/authStore'
 import { useLocationStore } from '../../store/locationStore'
 import { getShop, getShopProducts, followShop, unfollowShop } from '../../api/shops'
+import { startConversation } from '../../api/messaging'
 import { getShopReviews } from '../../api/reviews'
 import { checkDeliveryEligibility } from '../../api/delivery'
 import { trackEvent } from '../../api/analytics'
@@ -104,6 +105,16 @@ export default function ShopDetailPage() {
 
   const avgRating = Number(shop.avg_rating ?? shop.rating ?? 0)
   const hasRating = avgRating > 0
+
+  const handleInAppChat = async () => {
+    try {
+      const convo = await startConversation(shop.id, null, null, 'Hi, I found your shop on NearShop!')
+      navigate(`/app/chat/${convo.id}`)
+      trackEvent({ event_type: 'shop_contact', entity_type: 'shop', entity_id: shop.id, metadata: { channel: 'in_app_chat' } }).catch(() => {})
+    } catch {
+      trackEvent({ event_type: 'shop_contact', entity_type: 'shop', entity_id: shop.id, metadata: { channel: 'in_app_chat_failed' } }).catch(() => {})
+    }
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen pb-24">
@@ -210,7 +221,7 @@ export default function ShopDetailPage() {
         )}
 
         {/* Action buttons */}
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {whatsappUrl ? (
             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
               className="flex flex-col items-center gap-1.5 py-3.5 bg-[#25D366]/10 border border-[#25D366]/20 rounded-2xl text-[#128C7E] hover:bg-[#25D366]/20 transition-colors active:scale-[0.97]">
@@ -229,6 +240,14 @@ export default function ShopDetailPage() {
             <Navigation className="w-5 h-5" />
             <span className="text-xs font-semibold">Directions</span>
           </a>
+
+          <button
+            onClick={handleInAppChat}
+            className="flex flex-col items-center gap-1.5 py-3.5 bg-[#5B2BE7]/10 border border-[#5B2BE7]/20 rounded-2xl text-[#5B2BE7] hover:bg-[#5B2BE7]/20 transition-colors active:scale-[0.97]"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-xs font-semibold">NearShop Chat</span>
+          </button>
 
           <button
             onClick={handleFollowToggle}

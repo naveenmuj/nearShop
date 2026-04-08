@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Check, X, ChevronRight, Phone, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getShopOrders, updateOrderStatus } from '../../api/orders'
@@ -29,12 +30,30 @@ const NEXT_LABEL = { confirmed: 'Start Preparing', preparing: 'Mark Ready', read
 const TABS = ['all', 'pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled']
 
 export default function OrdersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { shopId } = useMyShop()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(null)
-  const [activeTab, setActiveTab] = useState('all')
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'all')
   const pollRef = useRef(null)
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams)
+    if (activeTab && activeTab !== 'all') next.set('tab', activeTab)
+    else next.delete('tab')
+    setSearchParams(next, { replace: true })
+  }, [activeTab, searchParams, setSearchParams])
+
+  useEffect(() => {
+    const savedY = Number(sessionStorage.getItem('bizOrdersScrollY') || 0)
+    if (savedY > 0) requestAnimationFrame(() => window.scrollTo({ top: savedY, behavior: 'auto' }))
+    const onScroll = () => {
+      sessionStorage.setItem('bizOrdersScrollY', String(window.scrollY || 0))
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const load = useCallback(async (silent = false) => {
     if (!shopId) return
@@ -73,6 +92,10 @@ export default function OrdersPage() {
 
   const filtered = activeTab === 'all' ? orders : orders.filter(o => o.status === activeTab)
   const pendingCount = orders.filter(o => o.status === 'pending').length
+  const desktopColumns = COLUMNS.map((column) => ({
+    ...column,
+    orders: filtered.filter((order) => order.status === column.key),
+  }))
 
   if (loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
 
@@ -118,7 +141,74 @@ export default function OrdersPage() {
             <p className="text-gray-500 font-medium">No {activeTab === 'all' ? '' : activeTab} orders</p>
           </div>
         ) : (
-          filtered.map(order => {
+          <>
+          <div className="hidden lg:grid lg:grid-cols-5 lg:gap-3">
+            {desktopColumns.map((column) => (
+              <div key={column.key} className="rounded-xl border border-gray-200 bg-white">
+                <div className="sticky top-0 z-10 border-b border-gray-100 px-3 py-2" style={{ backgroundColor: column.bg }}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-wide" style={{ color: column.color }}>{column.label}</p>
+                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-semibold" style={{ color: column.color }}>{column.orders.length}</span>
+                  </div>
+                </div>
+                <div className="max-h-[70vh] space-y-2 overflow-y-auto p-2">
+                  {column.orders.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">No orders</div>
+                  ) : column.orders.map((order) => {
+                    const next = NEXT_STATUS[order.status]
+                    const isPending = order.status === 'pending'
+                    const isActing = acting === order.id
+                    const items = order.items || []
+
+                    return (
+                      <div key={order.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="mb-1 flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-[11px] font-mono text-gray-400">#{(order.order_number || order.id)?.toString().slice(-8)}</p>
+                            <p className="truncate text-sm font-semibold text-gray-900">{order.customer_name || 'Customer'}</p>
+                          </div>
+                          <span className="text-[11px] text-gray-400">{timeAgo(order.created_at)}</span>
+                        </div>
+                        <p className="mb-1 text-xs text-gray-500">{items.length} items</p>
+                        <p className="mb-2 text-sm font-bold text-gray-900">{formatPrice(order.total_amount ?? order.total)}</p>
+
+                        {isPending ? (
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <button
+                              onClick={() => handleStatus(order.id, 'confirmed')}
+                              disabled={isActing}
+                              className="rounded-md bg-[#1D9E75] px-2 py-1.5 text-xs font-semibold text-white hover:bg-[#178a65] disabled:opacity-50"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => handleStatus(order.id, 'cancelled')}
+                              disabled={isActing}
+                              className="rounded-md bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : next ? (
+                          <button
+                            onClick={() => handleStatus(order.id, next)}
+                            disabled={isActing}
+                            className="w-full rounded-md border px-2 py-1.5 text-xs font-semibold disabled:opacity-50"
+                            style={{ borderColor: column.color, color: column.color, backgroundColor: column.bg }}
+                          >
+                            {NEXT_LABEL[order.status] || `Move to ${next}`}
+                          </button>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3 lg:hidden">
+          {filtered.map(order => {
             const col = COLUMNS.find(c => c.key === order.status) || { color: '#9CA3AF', bg: '#F3F4F6' }
             const next = NEXT_STATUS[order.status]
             const isPending = order.status === 'pending'
@@ -200,7 +290,9 @@ export default function OrdersPage() {
                 </div>
               </div>
             )
-          })
+          })}
+          </div>
+          </>
         )}
       </div>
     </div>

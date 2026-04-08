@@ -46,17 +46,17 @@ export default function CustomerLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0f1117] flex flex-col">
+    <div className="app-shell min-h-screen bg-gray-50 dark:bg-[#0f1117] text-slate-800 flex flex-col">
       {/* ── TOP NAVBAR ───────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-slate-200/90 bg-white/85 backdrop-blur-md dark:bg-gray-900 dark:border-gray-800 shadow-sm">
         <div className="max-w-8xl mx-auto px-4 lg:px-8">
           <div className="flex items-center h-16 gap-4 lg:gap-6">
             {/* Logo */}
             <Link to="/app/home" className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-brand-purple to-brand-purple-dark rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-[#3f5efb] to-[#0ea5e9] rounded-lg flex items-center justify-center shadow-sm">
                 <span className="text-sm">🛍️</span>
               </div>
-              <span className="text-xl font-extrabold text-brand-purple hidden sm:block">NearShop</span>
+              <span className="text-xl font-bold tracking-tight text-slate-900 hidden sm:block">NearShop</span>
             </Link>
 
             {/* Location (desktop) */}
@@ -80,7 +80,7 @@ export default function CustomerLayout() {
                 { to: '/app/community', label: 'Community' },
               ].map(n => (
                 <NavLink key={n.to} to={n.to}
-                  className={({ isActive }) => `px-3 py-2 rounded-lg text-sm font-medium transition ${isActive ? 'text-brand-purple bg-brand-purple-light' : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'}`}>
+                  className={({ isActive }) => `px-3 py-2 rounded-lg text-sm font-semibold transition ${isActive ? 'text-[#2d4cf4] bg-[#eaf0ff]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}>
                   {n.label}
                 </NavLink>
               ))}
@@ -120,7 +120,10 @@ export default function CustomerLayout() {
                       <p className="text-xs text-gray-400">{user?.phone || user?.email}</p>
                     </div>
                     {[
+                      { to: '/app/cart',         icon: ShoppingCart, label: 'Cart' },
                       { to: '/app/orders',       icon: ShoppingBag,  label: 'My Orders' },
+                      { to: '/app/returns',      icon: Repeat,       label: 'Returns' },
+                      { to: '/app/messages',     icon: MessageSquare, label: 'Messages' },
                       { to: '/app/wishlist',      icon: Heart,        label: 'Wishlist' },
                       { to: '/app/wallet',        icon: Wallet,       label: 'Wallet & Coins' },
                       { to: '/app/achievements',  icon: Trophy,       label: 'Achievements' },
@@ -163,7 +166,7 @@ export default function CustomerLayout() {
 
       {/* ── MAIN CONTENT ─────────────────────────────────────── */}
       <main className="flex-1">
-        <div className="max-w-8xl mx-auto px-4 lg:px-8 py-4 lg:py-6">
+        <div className="max-w-[1700px] mx-auto px-4 lg:px-8 py-5 lg:py-7">
           <Outlet />
         </div>
       </main>
@@ -216,7 +219,7 @@ export default function CustomerLayout() {
             { to: '/app/home',    icon: Home,   label: 'Home' },
             { to: '/app/search',  icon: Search, label: 'Search' },
             { to: '/app/deals',   icon: Tag,    label: 'Deals' },
-            { to: '/app/wishlist', icon: Heart, label: 'Wishlist' },
+            { to: '/app/messages', icon: MessageSquare, label: 'Chats' },
             { to: '/app/profile', icon: User,   label: 'Profile' },
           ].map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to}
