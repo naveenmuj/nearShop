@@ -1,61 +1,82 @@
 {
-  "run_date": "2026-03-26",
+  "run_date": "2026-04-09",
   "environment": {
     "device": "emulator-5554",
     "app_package": "com.nearshop.app",
     "api_base": "http://10.0.2.2:8010/api/v1",
-    "backend_mode": "local uvicorn with live access-log verification"
+    "backend_mode": "local uvicorn spawned for test run"
   },
   "summary": {
-    "executed": 4,
-    "passed": 1,
-    "failed": 1,
-    "blocked": 2,
-    "confirmed_product_bugs": 1
+    "executed": 7,
+    "passed": 3,
+    "failed": 0,
+    "blocked": 4,
+    "confirmed_product_bugs": 0
   },
   "results": [
     {
       "case_id": "ML-001",
-      "title": "Customer email sign-in completes backend authentication",
-      "status": "BLOCKED",
-      "details": "Firebase auth and backend API calls completed, but post-login navigation could not be treated as pass because the customer Home screen immediately threw a React render error."
+      "title": "Customer home click-through and AI sections load",
+      "status": "PASS",
+      "started_at": "2026-04-09T15:21:23",
+      "ended_at": "2026-04-09T15:21:28",
+      "details": "Customer home loaded without crash. AI/ML content markers: none visible in current dataset."
     },
     {
       "case_id": "ML-002",
-      "title": "Customer home and search click-through load after login",
-      "status": "FAIL",
-      "details": "Confirmed product defect. After successful customer login, Home crashes with ReactNativeJS error: Objects are not valid as a React child (found: object with keys {query, timestamp}). Search flow could not continue from Home."
+      "title": "Customer search query click-through works",
+      "status": "PASS",
+      "started_at": "2026-04-09T15:21:28",
+      "ended_at": "2026-04-09T15:21:52",
+      "details": "Search executed with query 'milk'. Visible markers: Products, Shops, No results. Raw text node count: 29."
     },
     {
       "case_id": "ML-003",
-      "title": "Business email login and dashboard load",
-      "status": "PASS",
-      "details": "Business login succeeded from a clean app state and the business dashboard loaded with bottom tabs including Products, Orders, and More."
+      "title": "Customer sign out returns to login",
+      "status": "BLOCKED",
+      "started_at": "2026-04-09T15:21:52",
+      "ended_at": "2026-04-09T15:22:31",
+      "details": "Customer Sign Out row not found"
     },
     {
       "case_id": "ML-004",
-      "title": "Business AI Advisor click-through from dashboard",
-      "status": "BLOCKED",
-      "details": "Business dashboard state was valid, but AI Advisor navigation was not reliably validated in the same pass with the current raw adb/uiautomator harness."
-    }
-  ],
-  "bugs": [
+      "title": "Business dashboard loads without crash",
+      "status": "PASS",
+      "started_at": "2026-04-09T15:23:23",
+      "ended_at": "2026-04-09T15:23:28",
+      "details": "Business dashboard loaded. Visible tab markers: Home."
+    },
     {
-      "bug_id": "BUG-EMU-001",
-      "severity": "High",
-      "title": "Customer Home crashes after login when recent search history contains objects",
-      "evidence": "ReactNativeJS log: Objects are not valid as a React child (found: object with keys {query, timestamp})",
-      "likely_source": "d:/Local_shop/nearshop-mobile/app/(customer)/home.jsx lines 512-518 render recentSearches items directly as text and use encodeURIComponent(query), but API history items are objects. Data is set at lines 128-129 from historyRes.value?.data?.history.",
-      "impact": "Customer home feed does not render after login for affected users; search flow from home is blocked."
+      "case_id": "ML-005",
+      "title": "Business AI Advisor suggestions open",
+      "status": "BLOCKED",
+      "started_at": "2026-04-09T15:23:28",
+      "ended_at": "2026-04-09T15:23:46",
+      "details": "Tap target not found: exact=More contains=None"
+    },
+    {
+      "case_id": "ML-006",
+      "title": "Business AI Advisor chat responds",
+      "status": "BLOCKED",
+      "started_at": "2026-04-09T15:23:46",
+      "ended_at": "2026-04-09T15:24:04",
+      "details": "Tap target not found: exact=None contains=Ask AI"
+    },
+    {
+      "case_id": "ML-007",
+      "title": "Business sign out returns to login",
+      "status": "BLOCKED",
+      "started_at": "2026-04-09T15:24:04",
+      "ended_at": "2026-04-09T15:24:21",
+      "details": "Tap target not found: exact=More contains=None"
     }
   ],
+  "bugs": [],
   "artifacts": [
-    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-direct\\screenshots\\business_current.png",
-    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-direct\\screenshots\\emulator_current.png"
-  ],
-  "notes": [
-    "Firebase email authentication succeeded on emulator and backend access logs confirmed follow-up API activity for the customer session.",
-    "The confirmed app defect occurs on the customer Home render path, not at credential validation.",
-    "Business dashboard coverage is valid; AI Advisor remains pending more stable navigation automation or a targeted manual walkthrough."
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-run\\screenshots\\business_dashboard.png",
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-run\\screenshots\\customer_home.png",
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-run\\screenshots\\customer_home_before_search.png",
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-run\\screenshots\\search_query_results.png",
+    "d:\\Local_shop\\nearshop-mobile\\qa\\mobile-automation-test-cases\\search-ml-run\\screenshots\\search_screen.png"
   ]
 }

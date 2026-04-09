@@ -187,10 +187,14 @@ def tap_text(name: str, *, exact: str | None = None, contains: str | None = None
     for idx in range(4):
         root = ui_dump(f"{name}_{idx}")
         if exact:
-            node = find_node(root, text=exact) or find_node(root, desc_contains=exact)
+            node = find_node(root, text=exact)
+            if node is None:
+                node = find_node(root, desc_contains=exact)
         else:
-            node = find_node(root, text_contains=contains) or find_node(root, desc_contains=contains)
-        if node:
+            node = find_node(root, text_contains=contains)
+            if node is None:
+                node = find_node(root, desc_contains=contains)
+        if node is not None:
             tap_node(node)
             return
         last_error = f"Tap target not found: exact={exact} contains={contains}"
@@ -201,7 +205,7 @@ def tap_text(name: str, *, exact: str | None = None, contains: str | None = None
 def tap_desc(name: str, contains: str) -> None:
     root = ui_dump(name)
     node = find_node(root, desc_contains=contains)
-    if not node:
+    if node is None:
         raise RuntimeError(f"Content-desc target not found: {contains}")
     tap_node(node)
 
@@ -243,7 +247,9 @@ def wait_for_any_text(values: list[str], *, timeout_s: int = 25, dump_prefix: st
     while time.time() < deadline:
         root = ui_dump(f"{dump_prefix}_{idx}")
         for value in values:
-            if find_node(root, text=value) or find_node(root, text_contains=value):
+            exact = find_node(root, text=value)
+            partial = find_node(root, text_contains=value)
+            if exact is not None or partial is not None:
                 return root
         idx += 1
         time.sleep(1)
@@ -294,7 +300,7 @@ def sign_out_customer() -> None:
     for _ in range(6):
         root = ui_dump("customer_profile_scroll")
         node = find_node(root, text="Sign Out")
-        if node:
+        if node is not None:
             tap_node(node)
             break
         adb_shell("input", "swipe", "530", "1800", "530", "600")
@@ -311,7 +317,7 @@ def sign_out_business() -> None:
     for _ in range(5):
         root = ui_dump("business_more_scroll")
         node = find_node(root, text="Sign Out")
-        if node:
+        if node is not None:
             tap_node(node)
             break
         adb_shell("input", "swipe", "530", "1800", "530", "600")
@@ -358,7 +364,7 @@ def maybe_capture_home_ml() -> dict:
     root = ui_dump("customer_home")
     markers = []
     for label in ["Trending", "For You", "People near you also bought", "Because you searched"]:
-        if find_node(root, text_contains=label):
+        if find_node(root, text_contains=label) is not None:
             markers.append(label)
     return {"markers": markers}
 
@@ -376,7 +382,7 @@ def run_customer_search_flow() -> str:
     screenshot("search_query_results")
     markers = []
     for label in ["Products", "Shops", "Recent Searches", "No results"]:
-        if find_node(root, text=label) or find_node(root, text_contains=label):
+        if find_node(root, text=label) is not None or find_node(root, text_contains=label) is not None:
             markers.append(label)
     return f"Search executed with query 'milk'. Visible markers: {', '.join(markers) or 'none'}. Raw text node count: {suggestion_count}."
 
@@ -397,7 +403,7 @@ def run_business_dashboard_flow() -> str:
     root = ui_dump("business_dashboard")
     markers = []
     for label in ["Home", "Products", "Orders", "Insights", "More"]:
-        if find_node(root, text=label):
+        if find_node(root, text=label) is not None:
             markers.append(label)
     return f"Business dashboard loaded. Visible tab markers: {', '.join(markers)}."
 
@@ -412,7 +418,7 @@ def run_business_advisor_suggestions_flow() -> str:
     root = ui_dump("advisor_suggestions")
     markers = []
     for label in ["Suggestions", "Ask AI", "Retry", "All clear!"]:
-        if find_node(root, text_contains=label):
+        if find_node(root, text_contains=label) is not None:
             markers.append(label)
     return f"AI Advisor suggestions screen loaded. Visible markers: {', '.join(markers) or 'none'}."
 
@@ -423,7 +429,7 @@ def run_business_advisor_chat_flow() -> str:
     screenshot("business_ai_advisor_chat")
     root = ui_dump("advisor_chat")
     quick = find_node(root, text_contains="How can I get more customers")
-    if quick:
+    if quick is not None:
         tap_node(quick)
     else:
         tap_edit_text(0, "advisor_chat_input")

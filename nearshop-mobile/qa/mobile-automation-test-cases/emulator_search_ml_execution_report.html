@@ -1,1 +1,36 @@
-<!doctype html><html><head><meta charset='utf-8'><title>NearShop Emulator Search and AI/ML Execution Report</title><style>body{font-family:Arial,sans-serif;margin:24px}table{border-collapse:collapse;width:100%;margin-bottom:24px}th,td{border:1px solid #ccc;padding:8px;text-align:left;vertical-align:top}th{background:#f3f3f3}.gallery{display:grid;grid-template-columns:repeat(2,minmax(300px,1fr));gap:20px}.shot img{width:100%;border:1px solid #ccc}</style></head><body><h1>NearShop Emulator Search and AI/ML Execution Report</h1><p>Run time: 2026-03-26T20:28:01</p><p>Executed: 4 | Passed: 1 | Failed: 1 | Blocked: 2 | Confirmed bugs: 1</p><h2>Execution Results</h2><table><thead><tr><th>Case ID</th><th>Title</th><th>Status</th><th>Details</th></tr></thead><tbody><tr><td>ML-001</td><td>Customer email sign-in completes backend authentication</td><td>BLOCKED</td><td>Firebase auth and backend API calls completed, but post-login navigation could not be treated as pass because the customer Home screen immediately threw a React render error.</td></tr><tr><td>ML-002</td><td>Customer home and search click-through load after login</td><td>FAIL</td><td>Confirmed product defect. After successful customer login, Home crashes with ReactNativeJS error: Objects are not valid as a React child (found: object with keys {query, timestamp}). Search flow could not continue from Home.</td></tr><tr><td>ML-003</td><td>Business email login and dashboard load</td><td>PASS</td><td>Business login succeeded from a clean app state and the business dashboard loaded with bottom tabs including Products, Orders, and More.</td></tr><tr><td>ML-004</td><td>Business AI Advisor click-through from dashboard</td><td>BLOCKED</td><td>Business dashboard state was valid, but AI Advisor navigation was not reliably validated in the same pass with the current raw adb/uiautomator harness.</td></tr></tbody></table><h2>Confirmed Bugs</h2><table><thead><tr><th>Bug ID</th><th>Severity</th><th>Title</th><th>Evidence</th><th>Likely Source</th></tr></thead><tbody><tr><td>BUG-EMU-001</td><td>High</td><td>Customer Home crashes after login when recent search history contains objects</td><td>ReactNativeJS log: Objects are not valid as a React child (found: object with keys {query, timestamp})</td><td>d:/Local_shop/nearshop-mobile/app/(customer)/home.jsx lines 512-518 render recentSearches items directly as text and use encodeURIComponent(query), but API history items are objects. Data is set at lines 128-129 from historyRes.value?.data?.history.</td></tr></tbody></table><h2>Screenshots</h2><div class='gallery'><div class='shot'><h3>business_current</h3><img src='search-ml-direct/screenshots/business_current.png' alt='business_current'></div><div class='shot'><h3>emulator_current</h3><img src='search-ml-direct/screenshots/emulator_current.png' alt='emulator_current'></div></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NearShop Emulator Search and ML Execution Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #222; }
+    h1, h2 { margin-bottom: 8px; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0 24px; }
+    th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; text-align: left; }
+    th { background: #f3f3f3; }
+    .summary { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; }
+    .gallery { display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); gap: 20px; }
+    .shot img { width: 100%; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>NearShop Emulator Search and AI/ML Execution Report</h1>
+  <p>Execution date: 2026-04-09T15:24:21</p>
+  <div class="summary">
+    <div class="card"><strong>Executed</strong><br>7</div>
+    <div class="card"><strong>Passed</strong><br>3</div>
+    <div class="card"><strong>Failed</strong><br>0</div>
+    <div class="card"><strong>Blocked</strong><br>4</div>
+    <div class="card"><strong>Confirmed Bugs</strong><br>0</div>
+  </div>
+  <h2>Execution Results</h2>
+  <table>
+    <thead><tr><th>Case ID</th><th>Title</th><th>Status</th><th>Details</th></tr></thead>
+    <tbody><tr><td>ML-001</td><td>Customer home click-through and AI sections load</td><td>PASS</td><td>Customer home loaded without crash. AI/ML content markers: none visible in current dataset.</td></tr><tr><td>ML-002</td><td>Customer search query click-through works</td><td>PASS</td><td>Search executed with query &#x27;milk&#x27;. Visible markers: Products, Shops, No results. Raw text node count: 29.</td></tr><tr><td>ML-003</td><td>Customer sign out returns to login</td><td>BLOCKED</td><td>Customer Sign Out row not found</td></tr><tr><td>ML-004</td><td>Business dashboard loads without crash</td><td>PASS</td><td>Business dashboard loaded. Visible tab markers: Home.</td></tr><tr><td>ML-005</td><td>Business AI Advisor suggestions open</td><td>BLOCKED</td><td>Tap target not found: exact=More contains=None</td></tr><tr><td>ML-006</td><td>Business AI Advisor chat responds</td><td>BLOCKED</td><td>Tap target not found: exact=None contains=Ask AI</td></tr><tr><td>ML-007</td><td>Business sign out returns to login</td><td>BLOCKED</td><td>Tap target not found: exact=More contains=None</td></tr></tbody>
+  </table>
+  <h2>Screenshots</h2>
+  <div class="gallery"><div class='shot'><h3>business_dashboard</h3><img src='search-ml-run/screenshots/business_dashboard.png' alt='business_dashboard'></div><div class='shot'><h3>customer_home</h3><img src='search-ml-run/screenshots/customer_home.png' alt='customer_home'></div><div class='shot'><h3>customer_home_before_search</h3><img src='search-ml-run/screenshots/customer_home_before_search.png' alt='customer_home_before_search'></div><div class='shot'><h3>search_query_results</h3><img src='search-ml-run/screenshots/search_query_results.png' alt='search_query_results'></div><div class='shot'><h3>search_screen</h3><img src='search-ml-run/screenshots/search_screen.png' alt='search_screen'></div></div>
+</body>
+</html>

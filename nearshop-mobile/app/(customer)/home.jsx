@@ -11,7 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
 import useAuthStore from '../../store/authStore';
@@ -38,6 +38,7 @@ import { COLORS, SHADOWS } from '../../constants/theme';
 import { getRankingReasonLabel, getRankingReasonTone } from '../../lib/ranking';
 import { rankingRouteParams, trackRankingClick, trackRankingImpressions } from '../../lib/rankingTracking';
 import { distanceKm, formatDistance } from '../../lib/distance';
+import { getUnreadCount } from '../../lib/notifications';
 
 const CATEGORIES = [
   { label: 'All', value: '' },
@@ -98,6 +99,7 @@ export default function HomeScreen() {
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const combinedRecommendations = useMemo(() => {
     const merged = new Map();
@@ -301,9 +303,33 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
+    await Promise.all([loadData(), (async () => {
+      try {
+        const response = await getUnreadCount();
+        const count = Number(response?.data?.unread_count ?? 0);
+        setUnreadNotificationCount(Number.isFinite(count) ? Math.max(0, count) : 0);
+      } catch {
+        setUnreadNotificationCount(0);
+      }
+    })()]);
     setRefreshing(false);
   }, [loadData]);
+
+  const loadUnreadNotificationCount = useCallback(async () => {
+    try {
+      const response = await getUnreadCount();
+      const count = Number(response?.data?.unread_count ?? 0);
+      setUnreadNotificationCount(Number.isFinite(count) ? Math.max(0, count) : 0);
+    } catch {
+      setUnreadNotificationCount(0);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadNotificationCount();
+    }, [loadUnreadNotificationCount])
+  );
 
   useEffect(() => {
     initializeCart().catch(() => {});
@@ -368,6 +394,13 @@ export default function HomeScreen() {
               accessibilityLabel="Notifications"
             >
               <Text style={styles.notifIcon}>🔔</Text>
+              {unreadNotificationCount > 0 ? (
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -734,6 +767,25 @@ const styles = StyleSheet.create({
   },
   notifIcon: {
     fontSize: 20,
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -1,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: COLORS.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
+  },
+  notifBadgeText: {
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: '800',
   },
   cartBadge: {
     position: 'absolute',

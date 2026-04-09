@@ -61,6 +61,7 @@ export default function CustomerTabs() {
       <Tabs.Screen name="return-request" options={{ href: null }} />
       <Tabs.Screen name="messages" options={{ href: null }} />
       <Tabs.Screen name="chat/[id]" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
       <Tabs.Screen name="shops" options={{ href: null }} />
       <Tabs.Screen name="products" options={{ href: null }} />
     </Tabs>

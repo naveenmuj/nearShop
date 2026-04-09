@@ -1,0 +1,23 @@
+{
+  "run_date": "2026-04-09",
+  "environment": {
+    "device": "emulator-5554",
+    "app_package": "com.nearshop.app",
+    "scenario": "customer notifications"
+  },
+  "summary": {
+    "executed": 1,
+    "passed": 0,
+    "failed": 1,
+    "blocked": 0
+  },
+  "results": [
+    {
+      "case_id": "NTF-000",
+      "title": "Automation run",
+      "status": "FAIL",
+      "details": "timeout waiting for ['Search products, shops', 'Hot Deals', 'Trending', 'Home']"
+    }
+  ],
+  "artifacts": []
+}

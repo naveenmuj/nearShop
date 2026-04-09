@@ -144,7 +144,7 @@ def find_edittexts(root: ET.Element):
 def wait_for(name: str, values: list[str], timeout_s: int = 30):
     for i in range(timeout_s):
         root = dump(f"{name}_{i}")
-        if any(find_contains(root, value) for value in values):
+        if any(find_contains(root, value) is not None for value in values):
             return root
         time.sleep(1)
     raise RuntimeError(f"timeout waiting for {values}")
@@ -161,7 +161,7 @@ def launch_fresh():
     time.sleep(6)
     root = dump("launch_permission")
     allow = find_text(root, "While using the app")
-    if allow:
+    if allow is not None:
         tap(720, 1896)
         time.sleep(4)
     wait_for("launch_ready", ["Continue with Email", "Mobile number"], timeout_s=25)
@@ -179,10 +179,12 @@ def login(email: str):
     tap_node(edits[1])
     input_text(PASSWORD)
     root = dump("signin_ready")
-    btn = find_contains(root, "Sign in")
-    if not btn:
+    btn = find_contains(root, "Sign in →")
+    if btn is None:
+        btn = find_contains(root, "Sign in")
+    if btn is None:
         btn = find_contains(root, "Sign In")
-    if not btn:
+    if btn is None:
         raise RuntimeError("sign in button not found")
     tap_node(btn)
 
@@ -203,7 +205,7 @@ def customer_flow(results: list[dict]):
     time.sleep(4)
     root = dump("search_results")
     shot("customer_search_results")
-    markers = [m for m in ["Products", "Shops", "Recent Searches", "No results"] if find_contains(root, m)]
+    markers = [m for m in ["Products", "Shops", "Recent Searches", "No results"] if find_contains(root, m) is not None]
     results.append({"case_id": "ML-002", "title": "Customer search click-through works", "status": "PASS", "details": f"Search query 'milk' executed. Markers: {', '.join(markers) or 'results area visible'}."})
 
 
@@ -227,7 +229,7 @@ def business_flow(results: list[dict]):
 
     root = dump("advisor_chat_tab")
     tab = find_contains(root, "Ask AI")
-    if not tab:
+    if tab is None:
         raise RuntimeError("Ask AI tab not found")
     tap_node(tab)
     wait_for("advisor_chat_wait", ["QUICK QUESTIONS", "How can I get more customers"], timeout_s=20)
@@ -235,7 +237,7 @@ def business_flow(results: list[dict]):
 
     root = dump("advisor_question")
     q = find_contains(root, "How can I get more customers")
-    if not q:
+    if q is None:
         raise RuntimeError("quick question not found")
     tap_node(q)
     wait_for("advisor_answer_wait", ["customers", "shop", "revenue", "Sorry"], timeout_s=40)
