@@ -37,6 +37,7 @@ import { HomeScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { getRankingReasonLabel, getRankingReasonTone } from '../../lib/ranking';
 import { rankingRouteParams, trackRankingClick, trackRankingImpressions } from '../../lib/rankingTracking';
+import { distanceKm, formatDistance } from '../../lib/distance';
 
 const CATEGORIES = [
   { label: 'All', value: '' },
@@ -74,8 +75,16 @@ function normalizeGridProduct(item = {}, source = 'global') {
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { lat, lng, address, error: locationError, refreshLocation } = useLocationStore();
+  const {
+    lat,
+    lng,
+    address,
+    error: locationError,
+    refreshLocation,
+    preferredRadiusKm,
+  } = useLocationStore();
   const cartCount = useCartStore((state) => state.getItemCount());
+  const initializeCart = useCartStore((state) => state.initialize);
 
   const [stories, setStories] = useState([]);
   const [deals, setDeals] = useState([]);
@@ -134,10 +143,22 @@ export default function HomeScreen() {
       : [];
 
     return filtered
+      .map((shop) => {
+        const liveDistance = distanceKm(lat, lng, shop?.latitude, shop?.longitude);
+        const fallbackDistance = Number(shop?.distance_km);
+        const normalizedDistance = Number.isFinite(liveDistance)
+          ? liveDistance
+          : (Number.isFinite(fallbackDistance) ? fallbackDistance : null);
+        return {
+          ...shop,
+          live_distance_km: normalizedDistance,
+          live_distance_label: formatDistance(normalizedDistance),
+        };
+      })
       .slice()
-      .sort((a, b) => Number(a?.distance_km ?? 9999) - Number(b?.distance_km ?? 9999))
+      .sort((a, b) => Number(a?.live_distance_km ?? 9999) - Number(b?.live_distance_km ?? 9999))
       .slice(0, 12);
-  }, [shops, selectedCategory]);
+  }, [shops, selectedCategory, lat, lng]);
 
   // Hybrid strategy: personalized products first, then trending, then fresh global catalog.
   const homeGridProducts = useMemo(() => {
@@ -180,6 +201,12 @@ export default function HomeScreen() {
     return rows;
   }, [homeGridProducts]);
 
+  const nearbyRadiusKm = useMemo(() => {
+    const parsed = Number(preferredRadiusKm);
+    if (!Number.isFinite(parsed)) return 5;
+    return Math.max(1, Math.min(50, parsed));
+  }, [preferredRadiusKm]);
+
   const loadData = useCallback(async () => {
     setError(null);
 
@@ -194,14 +221,14 @@ export default function HomeScreen() {
     const requests = [
       getStoriesFeed(),
       getNearbyDeals(lat, lng),
-      getNearbyShops(lat, lng, { radius_km: 6 }),
-      searchProducts({ sort: 'newest', per_page: 30, lat, lng }),
-      getTrendingProducts(lat, lng, { limit: 14 }),
+      getNearbyShops(lat, lng, { radius_km: nearbyRadiusKm }),
+      searchProducts({ sort: 'newest', per_page: 30, lat, lng, radius_km: nearbyRadiusKm }),
+      getTrendingProducts(lat, lng, { limit: 14, radius_km: nearbyRadiusKm }),
     ];
 
     if (user) {
-      requests.push(getAIRecommendations({ lat, lng, limit: 12 }));
-      requests.push(getCFRecommendations(lat, lng, { limit: 12 }));
+      requests.push(getAIRecommendations({ lat, lng, limit: 12, radius_km: nearbyRadiusKm }));
+      requests.push(getCFRecommendations(lat, lng, { limit: 12, radius_km: nearbyRadiusKm }));
     }
 
     const results = await Promise.allSettled(requests);
@@ -241,7 +268,7 @@ export default function HomeScreen() {
     if (user && cfRes?.status === 'fulfilled') {
       setCfRecs(cfRes.value?.data?.products ?? []);
     }
-  }, [lat, lng, user]);
+  }, [lat, lng, user, nearbyRadiusKm]);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,6 +304,10 @@ export default function HomeScreen() {
     await loadData();
     setRefreshing(false);
   }, [loadData]);
+
+  useEffect(() => {
+    initializeCart().catch(() => {});
+  }, [initializeCart]);
 
   const handleStoryPress = (story) => {
     router.push(`/(customer)/shop/${story.shop_id}`);
@@ -501,10 +532,15 @@ export default function HomeScreen() {
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Shops near you</Text>
-                <Text style={styles.sectionSubTitle}>Distance, rating, open status, and delivery badges</Text>
+                <Text style={styles.sectionSubTitle}>
+                  Within {nearbyRadiusKm} km: distance, rating, open status, and delivery badges
+                </Text>
               </View>
               <TouchableOpacity
-                onPress={() => router.push('/(customer)/search')}
+                onPress={() => router.push({
+                  pathname: '/(customer)/shops',
+                  params: selectedCategory ? { category: selectedCategory } : {},
+                })}
                 activeOpacity={0.7}
               >
                 <Text style={styles.seeAll}>See all</Text>
@@ -519,7 +555,14 @@ export default function HomeScreen() {
               ItemSeparatorComponent={() => <View style={styles.shopSeparator} />}
               renderItem={({ item }) => (
                 <View style={styles.shopCardWrap}>
-                  <ShopCard shop={item} showDelivery />
+                  <ShopCard
+                    shop={item}
+                    showDelivery
+                    forceEqualHeight
+                    distance={item.live_distance_km}
+                    distanceLabel={item.live_distance_label}
+                    showLocationText
+                  />
                 </View>
               )}
             />
@@ -539,7 +582,10 @@ export default function HomeScreen() {
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => router.push(`/(customer)/search${selectedCategory ? `?category=${encodeURIComponent(selectedCategory)}` : ''}`)}
+              onPress={() => router.push({
+                pathname: '/(customer)/products',
+                params: selectedCategory ? { category: selectedCategory } : {},
+              })}
               activeOpacity={0.7}
             >
               <Text style={styles.seeAll}>See all</Text>

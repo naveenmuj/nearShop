@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NETWORK_LOGGER_ENABLED } from '../constants/debugConfig';
 import useAuthStore from '../store/authStore';
 import useLocationStore from '../store/locationStore';
+import useCartStore from '../store/cartStore';
 import { ToastProvider, useToast } from '../components/ui/Toast';
 import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogProvider';
 import { PremiumAlertProvider, PremiumAlertContext, setAlertRef } from '../components/ui/PremiumAlert';
@@ -212,14 +213,19 @@ function AlertRefSync() {
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const initCart = useCartStore((s) => s.initialize);
   const initLocation = useLocationStore((s) => s.initialize);
   const requestLocation = useLocationStore((s) => s.requestLocation);
+  const startLiveTracking = useLocationStore((s) => s.startLiveTracking);
+  const stopLiveTracking = useLocationStore((s) => s.stopLiveTracking);
 
   useEffect(() => {
     const init = async () => {
       try {
         // Initialize auth first
         await initialize();
+        // Load persisted cart count and items early for all screens.
+        await initCart();
         // Then initialize location
         await initLocation();
         // Finally check if location needs requesting
@@ -227,12 +233,16 @@ export default function RootLayout() {
         if (!lat) {
           await requestLocation();
         }
+        await startLiveTracking();
       } catch (err) {
         console.error('Initialization error:', err);
       }
     };
     init();
-  }, []);
+    return () => {
+      stopLiveTracking().catch(() => {});
+    };
+  }, [initialize, initCart, initLocation, requestLocation, startLiveTracking, stopLiveTracking]);
 
   // Initialize push notifications when user is authenticated
   useEffect(() => {

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SendOTPRequest(BaseModel):
@@ -23,6 +23,11 @@ class UserResponse(BaseModel):
     firebase_uid: Optional[str] = None
     roles: list[str]
     active_role: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_address: Optional[str] = None
+    preferred_shop_radius_km: Optional[float] = None
+    location_updated_at: Optional[datetime] = None
     interests: Optional[list[str]] = None
     referral_code: Optional[str] = None
     created_at: datetime
@@ -42,6 +47,10 @@ class CompleteProfileRequest(BaseModel):
     name: str
     role: Literal["customer", "business"]
     interests: Optional[list[str]] = None
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    location_address: Optional[str] = None
+    preferred_shop_radius_km: Optional[float] = Field(None, ge=1, le=50)
 
 
 class SwitchRoleRequest(BaseModel):
@@ -62,3 +71,7 @@ class UpdateProfileRequest(BaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     interests: Optional[list[str]] = None
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    location_address: Optional[str] = None
+    preferred_shop_radius_km: Optional[float] = Field(None, ge=1, le=50)

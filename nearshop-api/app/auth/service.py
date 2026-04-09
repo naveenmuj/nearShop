@@ -176,6 +176,16 @@ class AuthService:
 
         if data.interests is not None:
             user.interests = data.interests
+        if data.latitude is not None:
+            user.latitude = data.latitude
+            user.location_updated_at = datetime.now(timezone.utc)
+        if data.longitude is not None:
+            user.longitude = data.longitude
+            user.location_updated_at = datetime.now(timezone.utc)
+        if data.location_address is not None:
+            user.location_address = data.location_address.strip() if data.location_address else None
+        if data.preferred_shop_radius_km is not None:
+            user.preferred_shop_radius_km = max(1.0, min(50.0, float(data.preferred_shop_radius_km)))
 
         await db.flush()
         await db.refresh(user)
@@ -240,6 +250,16 @@ class AuthService:
             user.avatar_url = data.avatar_url
         if data.interests is not None:
             user.interests = data.interests
+        if data.latitude is not None:
+            user.latitude = float(data.latitude)
+            user.location_updated_at = datetime.now(timezone.utc)
+        if data.longitude is not None:
+            user.longitude = float(data.longitude)
+            user.location_updated_at = datetime.now(timezone.utc)
+        if data.location_address is not None:
+            user.location_address = data.location_address.strip() if data.location_address else None
+        if data.preferred_shop_radius_km is not None:
+            user.preferred_shop_radius_km = max(1.0, min(50.0, float(data.preferred_shop_radius_km)))
         await db.flush()
         await db.refresh(user)
         return user

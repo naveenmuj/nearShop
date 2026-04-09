@@ -36,11 +36,18 @@ export default function OnboardScreen() {
   const { role } = useLocalSearchParams();
   const router = useRouter();
   const { updateUser } = useAuthStore();
-  const { lat, lng, address: locationAddress } = useLocationStore();
+  const {
+    lat,
+    lng,
+    address: locationAddress,
+    preferredRadiusKm,
+    setPreferredRadiusKm,
+  } = useLocationStore();
 
   // Customer fields
   const [name, setName] = useState('');
   const [interests, setInterests] = useState([]);
+  const [preferredRangeKm, setPreferredRangeKm] = useState(String(Math.round(preferredRadiusKm || 5)));
 
   // Business fields
   const [ownerName, setOwnerName] = useState('');
@@ -145,11 +152,20 @@ export default function OnboardScreen() {
 
     setLoading(true);
     try {
+      const parsedRange = Number(preferredRangeKm);
+      const normalizedRangeKm = Number.isFinite(parsedRange)
+        ? Math.min(50, Math.max(1, parsedRange))
+        : 5;
+
       const profileName = role === 'customer' ? name.trim() : ownerName.trim();
       const { data } = await completeProfile({
         name: profileName,
         role,
         interests: role === 'customer' ? interests : [],
+        preferred_shop_radius_km: role === 'customer' ? normalizedRangeKm : undefined,
+        latitude: role === 'customer' ? (lat ?? undefined) : undefined,
+        longitude: role === 'customer' ? (lng ?? undefined) : undefined,
+        location_address: role === 'customer' ? (locationAddress || undefined) : undefined,
       });
 
       // Handle multiple response formats from backend
@@ -158,6 +174,10 @@ export default function OnboardScreen() {
       // Only update if user object exists and is valid
       if (user && typeof user === 'object' && Object.keys(user).length > 0) {
         await updateUser(user);
+      }
+
+      if (role === 'customer') {
+        await setPreferredRadiusKm(normalizedRangeKm, { sync: false });
       }
 
       if (role === 'business') {
@@ -340,6 +360,17 @@ export default function OnboardScreen() {
                 <Chip key={item} label={item} selected={interests.includes(item)} onPress={() => toggleInterest(item)} />
               ))}
             </View>
+
+            <Text style={styles.label}>Nearby shop range (km) <Text style={{ color: COLORS.red }}>*</Text></Text>
+            <TextInput
+              value={preferredRangeKm}
+              onChangeText={(value) => setPreferredRangeKm(value.replace(/[^0-9.]/g, ''))}
+              placeholder="5"
+              placeholderTextColor={COLORS.gray400}
+              style={styles.input}
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.hint}>Used for Shops near you and local recommendations (1-50 km)</Text>
 
             <TouchableOpacity onPress={handleComplete} disabled={loading || !canSubmit} activeOpacity={0.85}
               style={[styles.btn, { backgroundColor: canSubmit ? COLORS.primary : COLORS.gray200 }]}>

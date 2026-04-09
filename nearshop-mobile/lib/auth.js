@@ -55,6 +55,8 @@ export const completeProfile = async (data) => {
 export const updateProfile = (data) => authPatch('/auth/profile', data);
 export const getMe = () => authGet('/auth/me');
 export const updateUserSettings = (data) => authPatch('/auth/settings', data);
+export const updateLocationProfile = (data) => authPatch('/auth/profile', data);
+export const getLocationProfile = () => authGet('/auth/me');
 
 /**
  * Switch user role - uses centralized auth service for proper token management

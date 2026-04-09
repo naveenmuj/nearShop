@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SHADOWS, CATEGORY_COLORS } from '../constants/theme';
 import { useEffect, useRef } from 'react';
+import { formatDistance, getShopAreaLabel } from '../lib/distance';
 
 const CATEGORY_EMOJI = {
   Electronics: '📱',
@@ -14,7 +15,14 @@ const CATEGORY_EMOJI = {
   Beauty: '💄',
 };
 
-export default function ShopCard({ shop, distance = null, showDelivery = true }) {
+export default function ShopCard({
+  shop,
+  distance = null,
+  showDelivery = true,
+  distanceLabel = null,
+  forceEqualHeight = false,
+  showLocationText = true,
+}) {
   const router = useRouter();
   const catColor = CATEGORY_COLORS[shop.category] || COLORS.primary;
   const emoji = CATEGORY_EMOJI[shop.category] || '🏪';
@@ -32,13 +40,17 @@ export default function ShopCard({ shop, distance = null, showDelivery = true })
   const isOpenNow = shop.is_open_now;
   const rawDist = distance || shop.distance_km;
   const dist = rawDist != null ? Number(rawDist) : null;
+  const computedDistanceLabel = distanceLabel || formatDistance(dist);
+  const shopArea = getShopAreaLabel(shop);
+  const isTopRated = Number(shop.avg_rating || 0) >= 4.5;
+  const hasFastDelivery = Number(shop.delivery_fee || 0) === 0;
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
         onPress={() => router.push(`/(customer)/shop/${shop.id}`)}
         activeOpacity={0.85}
-        style={styles.card}
+        style={[styles.card, forceEqualHeight && styles.cardEqualHeight]}
       >
         {/* Cover Image */}
         {shop.cover_image && (
@@ -103,12 +115,32 @@ export default function ShopCard({ shop, distance = null, showDelivery = true })
               ) : null}
             </View>
 
-            {dist != null && !isNaN(dist) && (
+            {computedDistanceLabel ? (
               <View style={styles.distanceRow}>
                 <MaterialCommunityIcons name="map-marker" size={12} color={COLORS.red} />
-                <Text style={styles.distance}>{dist.toFixed(1)}km</Text>
+                <Text style={styles.distance}>{computedDistanceLabel}</Text>
               </View>
-            )}
+            ) : null}
+          </View>
+
+          {showLocationText && shopArea ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={13} color={COLORS.gray500} />
+              <Text style={styles.locationText} numberOfLines={1}>{shopArea}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.extraBadgesRow}>
+            {isTopRated ? (
+              <View style={styles.topRatedBadge}>
+                <Text style={styles.topRatedBadgeText}>Top rated</Text>
+              </View>
+            ) : null}
+            {hasFastDelivery && showDelivery && deliveryMode === 'delivery' ? (
+              <View style={styles.fastDeliveryBadge}>
+                <Text style={styles.fastDeliveryBadgeText}>Free delivery</Text>
+              </View>
+            ) : null}
           </View>
 
           {/* Delivery Info */}
@@ -142,6 +174,9 @@ const styles = StyleSheet.create({
     ...SHADOWS.card,
     width: '100%',
     marginBottom: 12,
+  },
+  cardEqualHeight: {
+    minHeight: 326,
   },
   cover: {
     width: '100%',
@@ -251,6 +286,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.red,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: -2,
+    marginBottom: 8,
+  },
+  locationText: {
+    flex: 1,
+    color: COLORS.gray500,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  extraBadgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  topRatedBadge: {
+    backgroundColor: COLORS.amberLight,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  topRatedBadgeText: {
+    color: COLORS.amber,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  fastDeliveryBadge: {
+    backgroundColor: COLORS.greenLight,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  fastDeliveryBadgeText: {
+    color: COLORS.green,
+    fontSize: 10,
+    fontWeight: '700',
   },
   deliveryInfo: {
     flexDirection: 'row',

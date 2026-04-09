@@ -36,6 +36,9 @@ class User(Base):
     active_role = Column(String(20), server_default=text("'customer'"), nullable=False)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    location_address = Column(Text, nullable=True)
+    preferred_shop_radius_km = Column(Float, server_default=text("5.0"), nullable=False)
+    location_updated_at = Column(DateTime(timezone=True), nullable=True)
     interests = Column(ARRAY(Text), nullable=True)
     referral_code = Column(String(10), unique=True, nullable=True)
     referred_by = Column(
