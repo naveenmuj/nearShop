@@ -9,7 +9,6 @@ import {
   Keyboard,
   Platform,
   BackHandler,
-  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useEffect, useCallback } from 'react';
@@ -29,6 +28,7 @@ import {
 import ProductCard from '../../components/ProductCard';
 import ShopCard from '../../components/ShopCard';
 import LocationFallbackBanner from '../../components/LocationFallbackBanner';
+import { useToast } from '../../components/ui/Toast';
 import { SearchScreenSkeleton } from '../../components/ui/ScreenSkeletons';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import useLocationStore from '../../store/locationStore';
@@ -108,6 +108,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const { category: initialCategory } = useLocalSearchParams();
   const { lat, lng, error: locationError, refreshLocation } = useLocationStore();
+  const { showToast } = useToast();
 
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState('products');
@@ -127,7 +128,9 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchMeta, setSearchMeta] = useState(EMPTY_SEARCH_META);
+  const [searchError, setSearchError] = useState(null);
   const [visualSearchError, setVisualSearchError] = useState(null);
+  const [visualSearchEnabled, setVisualSearchEnabled] = useState(true);
 
   // Suggestions state
   const [suggestions, setSuggestions] = useState([]);
@@ -217,6 +220,7 @@ export default function SearchScreen() {
           parsedFilters: searchData?.parsed_filters ?? null,
           executedQuery: searchData?.executed_query ?? q.trim(),
         });
+        setSearchError(null);
         return;
       }
       const params = { per_page: 40 };
@@ -229,10 +233,15 @@ export default function SearchScreen() {
       setProducts(res?.data?.items ?? res?.data ?? []);
       setShops([]);
       setSearchMeta(EMPTY_SEARCH_META);
-    } catch {
+      setSearchError(null);
+    } catch (err) {
       setProducts([]);
       setShops([]);
       setSearchMeta(EMPTY_SEARCH_META);
+      setSearchError({
+        type: err?.errorType || 'unknown',
+        message: err?.userMessage || 'Unable to load search results right now.',
+      });
     } finally {
       setLoading(false);
       setHasSearched(true);
@@ -277,6 +286,7 @@ export default function SearchScreen() {
           parsedFilters: searchData?.parsed_filters ?? null,
           executedQuery: searchData?.executed_query ?? q.trim(),
         });
+        setSearchError(null);
         return;
       }
       const params = {};
@@ -287,10 +297,15 @@ export default function SearchScreen() {
       setShops(res?.data?.items ?? []);
       setProducts([]);
       setSearchMeta(EMPTY_SEARCH_META);
-    } catch {
+      setSearchError(null);
+    } catch (err) {
       setShops([]);
       setProducts([]);
       setSearchMeta(EMPTY_SEARCH_META);
+      setSearchError({
+        type: err?.errorType || 'unknown',
+        message: err?.userMessage || 'Unable to load shops right now.',
+      });
     } finally {
       setLoading(false);
       setHasSearched(true);
@@ -350,6 +365,7 @@ export default function SearchScreen() {
   const handleQueryChange = (text) => {
     setQuery(text);
     setHasSearched(false);
+    setSearchError(null);
     if (!text.trim()) {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -457,14 +473,19 @@ export default function SearchScreen() {
   };
 
   const handleVisualSearch = useCallback(async () => {
+    if (!visualSearchEnabled) {
+      showToast({ type: 'warning', message: 'Visual search is currently disabled on this server.' });
+      return;
+    }
+
     if (lat == null || lng == null) {
-      Alert.alert('Location required', 'Enable location to run nearby visual search.');
+      showToast({ type: 'warning', message: 'Enable location to run nearby visual search.' });
       return;
     }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow photo access to run visual search.');
+      showToast({ type: 'warning', message: 'Allow photo access to run visual search.' });
       return;
     }
 
@@ -524,15 +545,28 @@ export default function SearchScreen() {
       }
     } catch (err) {
       const detail = err?.response?.data?.detail;
-      const errorMessage = typeof detail === 'string' ? detail : 'Could not run visual search right now.';
+      const rawDetail = typeof detail === 'string' ? detail : '';
+      const featureDisabled = err?.response?.status === 403 && rawDetail.includes('FEATURE_VISUAL_SEARCH');
+
+      if (featureDisabled) {
+        setVisualSearchEnabled(false);
+        setVisualSearchError('Visual search is not enabled for this environment.');
+        showToast({ type: 'warning', message: 'Visual search is disabled on the backend.' });
+        return;
+      }
+
+      const errorMessage =
+        err?.errorType === 'network'
+          ? 'NearShop backend is unreachable right now. Please try again shortly.'
+          : (rawDetail || err?.userMessage || 'Could not run visual search right now.');
       setVisualSearchError(errorMessage);
-      Alert.alert('Visual search unavailable', errorMessage);
+      showToast({ type: 'error', message: errorMessage });
     } finally {
       setLoading(false);
       setShowSuggestions(false);
       setShowRecentPanel(false);
     }
-  }, [lat, lng]);
+  }, [lat, lng, showToast, visualSearchEnabled]);
 
   const handleSubmitEditing = () => {
     if (query.trim()) {
@@ -580,6 +614,28 @@ export default function SearchScreen() {
     if (loading || !hasSearched) return null;
     const count = activeTab === 'products' ? products.length : shops.length;
     if (count > 0) return null;
+
+    const serviceUnavailable =
+      searchError?.type === 'network' ||
+      searchError?.type === 'server';
+
+    if (serviceUnavailable) {
+      return (
+        <View style={styles.visualEmptyPanel}>
+          <Text style={styles.visualEmptyEmoji}>📡</Text>
+          <Text style={styles.visualEmptyTitle}>Search service unavailable</Text>
+          <Text style={styles.visualEmptyText}>
+            {searchError?.message || 'The backend is not reachable right now. Please retry in a moment.'}
+          </Text>
+          <TouchableOpacity
+            style={styles.visualRetryBtn}
+            onPress={() => scheduleSearch(query, selectedCategory, selectedSort, activeTab, searchMode)}
+          >
+            <Text style={styles.visualRetryBtnText}>Retry Search</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
     if (activeTab === 'products' && searchMeta.executedQuery?.startsWith('Visual match')) {
       return (
@@ -650,8 +706,12 @@ export default function SearchScreen() {
             onBlur={handleInputBlur}
             onSubmitEditing={handleSubmitEditing}
           />
-          <TouchableOpacity onPress={handleVisualSearch} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
-            <Text style={styles.visualBtn}>📷</Text>
+          <TouchableOpacity
+            onPress={handleVisualSearch}
+            disabled={!visualSearchEnabled}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          >
+            <Text style={[styles.visualBtn, !visualSearchEnabled && styles.visualBtnDisabled]}>📷</Text>
           </TouchableOpacity>
           {query.trim().length > 1 && (
             <TouchableOpacity onPress={handleSaveIntent} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
@@ -794,6 +854,10 @@ export default function SearchScreen() {
           </TouchableOpacity>
         ))}
       </View>
+
+      <Text style={styles.searchModeHint}>
+        Smart AI expands your query and can fall back to normal search if needed. Standard searches exactly what you typed.
+      </Text>
 
       {/* ── Filter + Sort chips (products only) ─────────────────────────────── */}
       {(query.trim().length > 0 || searchMeta.visualSummary) && hasSearched && !loading && (
@@ -972,6 +1036,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 2,
   },
+  visualBtnDisabled: {
+    opacity: 0.35,
+  },
   saveIntentBtn: {
     fontSize: 16,
     color: '#c58a00',
@@ -1129,6 +1196,16 @@ const styles = StyleSheet.create({
   searchModeTextActive: {
     color: COLORS.white,
     fontWeight: '700',
+  },
+  searchModeHint: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    fontSize: 12,
+    lineHeight: 18,
+    color: COLORS.gray500,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
   },
 
   aiMetaWrap: {

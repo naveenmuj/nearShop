@@ -1,6 +1,5 @@
 import logging
 import math
-import random
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +10,10 @@ from app.products.models import Product, ProductEmbedding
 from app.shops.models import Shop
 
 logger = logging.getLogger(__name__)
+
+
+class VisualSearchUnavailableError(RuntimeError):
+    """Raised when visual search embedding generation is unavailable."""
 
 
 def _similarity_band(similarity: float) -> str:
@@ -36,16 +39,17 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 async def generate_image_embedding(image_url: str) -> list[float]:
-    """Generate an image embedding via OpenAI CLIP endpoint.
+    """Generate an image embedding for visual search.
 
-    When FEATURE_VISUAL_SEARCH is disabled, returns a random placeholder
-    so the rest of the pipeline can still run (just without real similarity).
+    Raises VisualSearchUnavailableError when OpenAI is not configured or
+    the embedding request fails, so callers can return a clear API error
+    instead of random placeholder results.
     """
     settings = get_settings()
 
-    if not settings.FEATURE_VISUAL_SEARCH or not settings.OPENAI_API_KEY:
-        logger.info("Visual search disabled or no API key — returning placeholder embedding")
-        return [random.uniform(-1, 1) for _ in range(512)]
+    if not settings.OPENAI_API_KEY:
+        logger.warning("Visual search unavailable: OPENAI_API_KEY is not configured")
+        raise VisualSearchUnavailableError("Visual search service is unavailable")
 
     try:
         from app.ai.client import get_openai_client
@@ -63,8 +67,8 @@ async def generate_image_embedding(image_url: str) -> list[float]:
             embedding.extend([0.0] * (512 - len(embedding)))
         return embedding
     except Exception as e:
-        logger.warning("Image embedding generation failed, using placeholder: %s", e)
-        return [random.uniform(-1, 1) for _ in range(512)]
+        logger.warning("Image embedding generation failed: %s", e)
+        raise VisualSearchUnavailableError("Visual search service is unavailable") from e
 
 
 async def search_similar_products(

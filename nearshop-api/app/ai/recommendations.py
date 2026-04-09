@@ -103,8 +103,8 @@ def _prepare_recommendation_profile(profile: UserPreferenceProfile) -> UserPrefe
 
     strong_terms = _strong_profile_tokens(profile)
     for token in strong_terms:
-        tuned.tags[token] += 2
-        tuned.recent_queries[token] += 1
+        tuned.tags[token] = tuned.tags.get(token, 0) + 2
+        tuned.recent_queries[token] = tuned.recent_queries.get(token, 0) + 1
 
     return tuned
 
@@ -307,6 +307,11 @@ async def get_recommendations(
     if profile is None:
         profile = await build_user_preference_profile(db, user_id)
     tuned_profile = _prepare_recommendation_profile(profile)
+    eligible_candidates = [
+        product for product in candidates if str(product.id) not in tuned_profile.ordered_products
+    ]
+    if not eligible_candidates:
+        return []
     selection = resolve_ranking_selection("ai_recommendations", str(user_id) if user_id else None, profile_id)
     resolved_profile_id = selection["profile_id"]
     context = RankingContext(
@@ -318,7 +323,7 @@ async def get_recommendations(
         user_id=str(user_id) if user_id else None,
         expanded_query_terms=_expanded_recommendation_terms(tuned_profile),
     )
-    candidate_pool = _select_candidate_pool(candidates, tuned_profile, limit)
+    candidate_pool = _select_candidate_pool(eligible_candidates, tuned_profile, limit)
     ranked = rank_products(
         candidate_pool,
         tuned_profile,
@@ -326,7 +331,7 @@ async def get_recommendations(
     )
     if not ranked:
         ranked = rank_products(
-            candidates,
+            eligible_candidates,
             tuned_profile,
             context,
         )

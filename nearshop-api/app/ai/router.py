@@ -20,7 +20,11 @@ from app.ai.cataloging import (
     analyze_shelf_image,
     analyze_shelf_image_bytes,
 )
-from app.ai.visual_search import generate_image_embedding, search_similar_products
+from app.ai.visual_search import (
+    VisualSearchUnavailableError,
+    generate_image_embedding,
+    search_similar_products,
+)
 from app.ai.smart_search import build_search_fallback, parse_search_query
 from app.ai.pricing import suggest_price
 from app.ai.recommendations import get_recommendation_payloads, get_recommendations
@@ -104,13 +108,14 @@ async def visual_search(
     db: AsyncSession = Depends(get_db),
 ):
     """Search for visually similar products nearby using an image."""
-    settings = get_settings()
-    if not settings.FEATURE_VISUAL_SEARCH:
+    try:
+        embedding = await generate_image_embedding(body.image_url)
+    except VisualSearchUnavailableError:
         raise HTTPException(
-            status_code=403,
-            detail="Visual search is not enabled. Set FEATURE_VISUAL_SEARCH=true to activate.",
+            status_code=503,
+            detail="Visual search service is temporarily unavailable.",
         )
-    embedding = await generate_image_embedding(body.image_url)
+
     results = await search_similar_products(
         db,
         embedding,

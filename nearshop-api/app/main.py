@@ -136,11 +136,12 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/features")
     async def feature_flags():
         """Return enabled feature flags so clients can conditionally render UI."""
+        visual_search_available = bool(settings.OPENAI_API_KEY)
         return {
             "map_view": settings.FEATURE_MAP_VIEW,
             "map_provider": settings.MAP_PROVIDER if settings.FEATURE_MAP_VIEW else None,
             "cdn_images": settings.FEATURE_CDN_IMAGES,
-            "visual_search": settings.FEATURE_VISUAL_SEARCH,
+            "visual_search": visual_search_available,
             "ai_recommendations": settings.FEATURE_AI_RECOMMENDATIONS,
             "ai_cataloging": settings.FEATURE_AI_CATALOGING,
             "ai_pricing": settings.FEATURE_AI_PRICING,
