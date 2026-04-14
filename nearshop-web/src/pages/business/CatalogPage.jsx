@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getShopProducts } from '../../api/shops'
 import { toggleAvailability, deleteProduct } from '../../api/products'
+import { enableCatalogProducts } from '../../api/catalog'
 import useMyShop from '../../hooks/useMyShop'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 
@@ -28,6 +29,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(new Set())
   const [acting, setActing] = useState(null)
+  const [enabling, setEnabling] = useState(false)
 
   const [search, setSearch] = useState(searchParams.get('q') || '')
   const [viewMode, setViewMode] = useState(searchParams.get('view') || 'list')
@@ -146,6 +148,24 @@ export default function CatalogPage() {
     }
   }
 
+  const handleBulkEnable = async () => {
+    if (!selected.size) return
+    const confirmed = window.confirm(`Make ${selected.size} product${selected.size > 1 ? 's' : ''} live?`)
+    if (!confirmed) return
+
+    setEnabling(true)
+    try {
+      await enableCatalogProducts(shopId, Array.from(selected))
+      toast.success(`${selected.size} product${selected.size > 1 ? 's' : ''} is now live`)
+      setSelected(new Set())
+      await load()
+    } catch {
+      toast.error('Failed to make products live')
+    } finally {
+      setEnabling(false)
+    }
+  }
+
   const openProductDetails = (productId) => {
     saveScrollPosition()
     navigate(`/biz/catalog/${productId}`)
@@ -254,9 +274,20 @@ export default function CatalogPage() {
       {selected.size > 0 ? (
         <div className="flex items-center justify-between rounded-xl bg-[#1D9E75] px-4 py-2.5 text-white">
           <div className="text-xs font-bold">{selected.size} selected</div>
-          <button onClick={selectAll} className="text-xs font-semibold text-white/90 hover:text-white">
-            {selected.size === filtered.length ? 'Deselect All' : 'Select All'}
-          </button>
+          <div className="flex items-center gap-2">
+            {filterStatus === 'hidden' && (
+              <button
+                onClick={handleBulkEnable}
+                disabled={enabling}
+                className="rounded-lg bg-white px-3 py-1 text-xs font-bold text-[#1D9E75] hover:bg-gray-50 disabled:opacity-50"
+              >
+                {enabling ? 'Making live...' : 'Make Live'}
+              </button>
+            )}
+            <button onClick={selectAll} className="text-xs font-semibold text-white/90 hover:text-white">
+              {selected.size === filtered.length ? 'Deselect All' : 'Select All'}
+            </button>
+          </div>
         </div>
       ) : null}
 

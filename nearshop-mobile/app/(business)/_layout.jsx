@@ -45,6 +45,7 @@ export default function BusinessTabs() {
       <Tabs.Screen name="deals" options={{ href: null }} />
       <Tabs.Screen name="shop-profile" options={{ href: null }} />
       <Tabs.Screen name="bulk-upload" options={{ href: null }} />
+      <Tabs.Screen name="catalog-browser" options={{ href: null }} />
       <Tabs.Screen name="branding" options={{ href: null }} />
       <Tabs.Screen name="followers" options={{ href: null }} />
       <Tabs.Screen name="stories" options={{ href: null }} />

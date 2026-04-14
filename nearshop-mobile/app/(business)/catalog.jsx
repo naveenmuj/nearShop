@@ -19,6 +19,7 @@ import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 import useMyShop from '../../hooks/useMyShop';
 import { getShopProducts } from '../../lib/shops';
 import { toggleAvailability, deleteProduct } from '../../lib/products';
+import { enableCatalogProducts } from '../../lib/catalog';
 
 const COLORS = {
   primary: '#7F77DD',
@@ -63,6 +64,9 @@ export default function CatalogScreen() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState(null);
+  const [showOnlyHidden, setShowOnlyHidden] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [enabling, setEnabling] = useState(false);
 
   const loadProducts = useCallback(async () => {
     if (!shopId) return;
@@ -96,9 +100,12 @@ export default function CatalogScreen() {
     }
   }, [loading, products.length]);
 
-  const filtered = products.filter((p) =>
-    p.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = products.filter((p) => {
+    const matchesSearch = p.name?.toLowerCase().includes(search.toLowerCase());
+    const isHidden = !(p.is_available ?? p.available ?? true);
+    if (showOnlyHidden) return matchesSearch && isHidden;
+    return matchesSearch;
+  });
 
   const handleToggle = async (item) => {
     const confirmed = await alert.confirm({
@@ -135,19 +142,83 @@ export default function CatalogScreen() {
     }
   };
 
+  const toggleSelected = (productId) => {
+    const newSelected = new Set(selected);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelected(newSelected);
+  };
+
+  const toggleSelectAllHidden = () => {
+    const hiddenIds = filtered.map((p) => p.id);
+    if (selected.size === hiddenIds.length && hiddenIds.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(hiddenIds));
+    }
+  };
+
+  const handleMakeLiveSelected = async () => {
+    if (!selected.size) return;
+    const confirmed = await alert.confirm({
+      title: 'Make Live',
+      message: `Publish ${selected.size} product${selected.size > 1 ? 's' : ''} to your catalog?`,
+      confirmText: 'Make Live',
+      cancelText: 'Cancel',
+    });
+    if (!confirmed) return;
+
+    setEnabling(true);
+    try {
+      await enableCatalogProducts(shopId, Array.from(selected));
+      alert.success({
+        title: 'Success',
+        message: `${selected.size} product${selected.size > 1 ? 's' : ''} is now live`,
+      });
+      setSelected(new Set());
+      loadProducts();
+    } catch (err) {
+      alert.error({
+        title: 'Error',
+        message: err.response?.data?.detail || 'Failed to make products live',
+      });
+    } finally {
+      setEnabling(false);
+    }
+  };
+
   const renderProduct = ({ item }) => {
     const isLive = item.is_available ?? item.available ?? true;
     const imageUrl = item.images?.[0] ?? item.image_url;
+    const isSelected = selected.has(item.id);
+    const isHidden = !isLive && showOnlyHidden;
+
     return (
       <TouchableOpacity
-        style={styles.productRow}
-        onPress={() => router.push({ pathname: '/(business)/product-details', params: { id: item.id } })}
+        style={[styles.productRow, isSelected && styles.productRowSelected]}
+        onPress={() => isHidden ? toggleSelected(item.id) : router.push({ pathname: '/(business)/product-details', params: { id: item.id } })}
         onLongPress={() => handleToggle(item)}
         activeOpacity={0.7}
       >
+        {isHidden && (
+          <TouchableOpacity
+            style={styles.selectCheckbox}
+            onPress={() => toggleSelected(item.id)}
+            activeOpacity={0.7}
+          >
+            {isSelected ? (
+              <Ionicons name="checkmark" size={18} color={COLORS.blue} />
+            ) : (
+              <View style={styles.uncheckedBox} />
+            )}
+          </TouchableOpacity>
+        )}
         <Image
           source={{ uri: imageUrl || 'https://via.placeholder.com/56' }}
-          style={styles.productImage}
+          style={[styles.productImage, isHidden && { opacity: 0.7 }]}
         />
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
@@ -226,6 +297,12 @@ export default function CatalogScreen() {
             <Ionicons name="documents-outline" size={20} color={COLORS.white} />
           </TouchableOpacity>
           <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: COLORS.blue }]}
+            onPress={() => router.push('/(business)/catalog-browser')}
+          >
+            <Ionicons name="search-outline" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.addBtn}
             onPress={() => router.push('/(business)/snap-list')}
           >
@@ -245,6 +322,68 @@ export default function CatalogScreen() {
           onChangeText={setSearch}
         />
       </View>
+
+      {/* Filter Toggle */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterChip, showOnlyHidden && styles.filterChipActive]}
+          onPress={() => setShowOnlyHidden(!showOnlyHidden)}
+        >
+          <Ionicons name="eye-off-outline" size={16} color={showOnlyHidden ? COLORS.white : COLORS.gray600} />
+          <Text style={[styles.filterText, showOnlyHidden && styles.filterTextActive]}>Hidden</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Bulk Actions for Hidden Products */}
+      {showOnlyHidden && filtered.length > 0 && (
+        <View style={styles.bulkActionsWrap}>
+          <TouchableOpacity
+            style={[styles.bulkSelectBtn, selected.size === filtered.length && selected.size > 0 && styles.bulkSelectBtnActive]}
+            onPress={toggleSelectAllHidden}
+          >
+            <Ionicons
+              name={selected.size === filtered.length && selected.size > 0 ? 'checkbox' : 'square-outline'}
+              size={18}
+              color={selected.size === filtered.length && selected.size > 0 ? COLORS.blue : COLORS.gray500}
+            />
+            <Text style={[styles.bulkSelectBtnText, selected.size === filtered.length && selected.size > 0 && styles.bulkSelectBtnTextActive]}>
+              {selected.size === filtered.length && selected.size > 0 ? 'Unselect All' : 'Select All'}
+            </Text>
+          </TouchableOpacity>
+          {selected.size > 0 && (
+            <TouchableOpacity
+              style={[styles.bulkMakeLiveBtn, enabling && { opacity: 0.6 }]}
+              onPress={handleMakeLiveSelected}
+              disabled={enabling}
+              activeOpacity={0.7}
+            >
+              {enabling ? (
+                <ActivityIndicator size={18} color={COLORS.white} />
+              ) : (
+                <>
+                  <Ionicons name="eye" size={16} color={COLORS.white} />
+                  <Text style={styles.bulkMakeLiveText}>Make Live ({selected.size})</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.catalogCard}
+        activeOpacity={0.85}
+        onPress={() => router.push('/(business)/catalog-browser')}
+      >
+        <View style={styles.catalogIconWrap}>
+          <Ionicons name="grid-outline" size={22} color={COLORS.primary} />
+        </View>
+        <View style={styles.catalogCopy}>
+          <Text style={styles.catalogTitle}>Browse master catalog</Text>
+          <Text style={styles.catalogSub}>Search products from the shared catalog and add them in bulk.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.analyzeCard}
@@ -478,6 +617,42 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200,
     ...SHADOWS.card,
   },
+  catalogCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    ...SHADOWS.card,
+  },
+  catalogIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primaryLight,
+  },
+  catalogCopy: {
+    flex: 1,
+  },
+  catalogTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    marginBottom: 2,
+  },
+  catalogSub: {
+    fontSize: 12,
+    color: COLORS.gray500,
+    lineHeight: 17,
+  },
   analyzeIconWrap: {
     width: 42,
     height: 42,
@@ -521,5 +696,102 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '700',
     fontSize: 15,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: COLORS.gray100,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  filterChipActive: {
+    backgroundColor: COLORS.blue,
+    borderColor: COLORS.blue,
+  },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.gray600,
+  },
+  filterTextActive: {
+    color: COLORS.white,
+  },
+  bulkActionsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  bulkSelectBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: COLORS.gray100,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  bulkSelectBtnActive: {
+    backgroundColor: COLORS.blue,
+    borderColor: COLORS.blue,
+  },
+  bulkSelectBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.gray600,
+  },
+  bulkSelectBtnTextActive: {
+    color: COLORS.white,
+  },
+  bulkMakeLiveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: COLORS.green,
+  },
+  bulkMakeLiveText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.white,
+  },
+  selectCheckbox: {
+    marginRight: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uncheckedBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: COLORS.gray300,
+  },
+  productRowSelected: {
+    backgroundColor: COLORS.primaryLight,
+    borderWidth: 2,
+    borderColor: COLORS.blue,
   },
 });

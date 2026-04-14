@@ -1,0 +1,54 @@
+{
+  "timestamp_utc": "2026-04-14T13:08:33.871483+00:00",
+  "mode": "browser-only-dom-extract",
+  "categories": [
+    {
+      "category": "groceries",
+      "url": "https://www.jiomart.com/c/groceries",
+      "status": "no_products",
+      "product_count": 0,
+      "reason": ""
+    },
+    {
+      "category": "fresh",
+      "url": "https://www.jiomart.com/c/fresh",
+      "status": "no_products",
+      "product_count": 0,
+      "reason": ""
+    },
+    {
+      "category": "electronics",
+      "url": "https://www.jiomart.com/c/electronics",
+      "status": "no_products",
+      "product_count": 0,
+      "reason": ""
+    },
+    {
+      "category": "fashion",
+      "url": "https://www.jiomart.com/c/fashion",
+      "status": "no_products",
+      "product_count": 0,
+      "reason": ""
+    }
+  ],
+  "total_products": 0,
+  "sample_products": [],
+  "page_context": {
+    "groceries": {
+      "title": "JioMart",
+      "current_url": "https://www.jiomart.com/c/groceries"
+    },
+    "fresh": {
+      "title": "JioMart",
+      "current_url": "https://www.jiomart.com/c/fresh"
+    },
+    "electronics": {
+      "title": "JioMart",
+      "current_url": "https://www.jiomart.com/c/electronics"
+    },
+    "fashion": {
+      "title": "JioMart",
+      "current_url": "https://www.jiomart.com/c/fashion"
+    }
+  }
+}

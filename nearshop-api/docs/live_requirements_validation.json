@@ -1,0 +1,45 @@
+{
+  "dedupe_reinsert_test": {
+    "inserted": 0,
+    "duplicates_skipped": 10,
+    "errors": 0
+  },
+  "db_checks": {
+    "bigbasket_live_rows": 48,
+    "distinct_bigbasket_live_skus": 48,
+    "mapped_thumbnail_digitalocean_count": 48,
+    "image_urls_present_count": 48
+  },
+  "latest_examples": [
+    {
+      "sku": "bb-live-40326696",
+      "name": "NS1000 Laptop Stand",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326696/image/4153244a38c44fbca9e180f87487eddc.jpg",
+      "image_url_1": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326696/image/4153244a38c44fbca9e180f87487eddc.jpg"
+    },
+    {
+      "sku": "bb-live-40332752",
+      "name": "Immersion Rod With Bucket Guard 1.5 KW, 16 Amp - Shock Proof",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40332752/image/cabbf2f09bb44811b3186fbc5adbe9a2.jpg",
+      "image_url_1": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40332752/image/cabbf2f09bb44811b3186fbc5adbe9a2.jpg"
+    },
+    {
+      "sku": "bb-live-40357129",
+      "name": "Buzz X11 True Wireless Earbuds - Black",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40357129/image/ddffd2d467824f2a93caa8bba4ce6237.jpg",
+      "image_url_1": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40357129/image/ddffd2d467824f2a93caa8bba4ce6237.jpg"
+    },
+    {
+      "sku": "bb-live-40242121",
+      "name": "4+1 E Book Power Strip - Polycarbonate, 3060, 2 mtr",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40242121/image/77005c19d1174ddb8d5b467f5298ff1f.jpg",
+      "image_url_1": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40242121/image/77005c19d1174ddb8d5b467f5298ff1f.jpg"
+    },
+    {
+      "sku": "bb-live-40326691",
+      "name": "MB10000S4 Power Bank - 10000 mAh, Black",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326691/image/6df1b43afee44b4b8a37c0555f9beb4f.jpg",
+      "image_url_1": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326691/image/6df1b43afee44b4b8a37c0555f9beb4f.jpg"
+    }
+  ]
+}

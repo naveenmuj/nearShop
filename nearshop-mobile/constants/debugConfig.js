@@ -1,2 +1,2 @@
-// Set to false before production release
-export const NETWORK_LOGGER_ENABLED = false;
+// Enabled for current development build workflow.
+export const NETWORK_LOGGER_ENABLED = true;

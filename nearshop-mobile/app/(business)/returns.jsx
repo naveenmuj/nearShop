@@ -205,7 +205,7 @@ export default function ReturnsManagementScreen() {
         
         <Text style={styles.itemName} numberOfLines={2}>{item.item_name}</Text>
         <Text style={styles.itemMeta}>Qty: {item.item_quantity} • ₹{item.item_price}</Text>
-        <Text style={styles.reason}>Reason: {item.reason.replace(/_/g, ' ')}</Text>
+        <Text style={styles.reason}>Reason: {String(item.reason || 'not_specified').replace(/_/g, ' ')}</Text>
 
         {(item.status === 'pending' || item.status === 'processing') && (
           <View style={[styles.agingBadge, { backgroundColor: aging.bg }]}>
@@ -306,7 +306,7 @@ export default function ReturnsManagementScreen() {
                 </Text>
                 <View style={styles.reasonBox}>
                   <Text style={styles.reasonLabel}>Customer's reason:</Text>
-                  <Text style={styles.reasonText}>{selectedReturn.reason.replace(/_/g, ' ')}</Text>
+                  <Text style={styles.reasonText}>{String(selectedReturn.reason || 'not_specified').replace(/_/g, ' ')}</Text>
                   {selectedReturn.description && (
                     <Text style={styles.descriptionText}>{selectedReturn.description}</Text>
                   )}

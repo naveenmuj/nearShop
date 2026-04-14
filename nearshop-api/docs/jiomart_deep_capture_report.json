@@ -1,0 +1,145 @@
+{
+  "start_url": "https://www.jiomart.com/c/groceries",
+  "api_candidates": [
+    {
+      "url": "https://www.google.com/measurement/1p-conversion/?random=2074128850&cv=11&tid=G-XHR9Q2M3VV&fst=1776171015516&fmt=8&en=session_start&gtm=45je64a1h1v868977280z8831088310za20gzb831088310zd831088310xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938465~115938469~117266401&u_w=800&u_h=600&url=https%3A%2F%2Fwww.jiomart.com%2Fc%2Fgroceries&gacid=2084170068.1776171016&frm=0&tiba=JioMart&npa=0&pscdl=noapi&auid=829980022.1776171016&uaa=&uab=&uafvl=&uamb=0&uam=&uap=Windows&uapv=&uaw=0&rcb=0&ct_cookie_present=false&crd=CLTesQII8t-xAgit4bECCKG4sQIIscGxAgiwwbECCLHDsQIIisWxAgjCybECCLTGsQIIk9qxAgjb3LECCIfbsQII08WxAgjrzLECCO3OsQII1c-xAgj02rECCJfUsQIIyduxAgix4bECCLPhsQIIpt2xAgiw3rECCIDbsQI&fsk=ChEI8Mv3zgYQyOyZgLO4kI74ARIsAFsRRk54g374YW0AJD9nm-EFRqom-4bQf2qEBQCV1TAP9LdRtDmLwpKgFN4aAq6W&pscrd=IhMIvvzK07DtkwMVWuiEAB1OMA5iMgwIA2IICAAQABgAIAAyDAgEYggIABAAGAAgADIMCAdiCAgAEAAYACAAMgwICGIICAAQABgAIAAyDAgJYggIABAAGAAgADIMCApiCAgAEAAYACAAMgwIAmIICAAQABgAIAAyDAgLYggIABAAGAAgADIMCBViCAgAEAAYACAAMgwIH2IICAAQABgAIAAyDAgTYggIABAAGAAgADIMCBJiCAgAEAAYACAAOhhodHRwczovL3d3dy5qaW9tYXJ0LmNvbS9CVkNoQUk4TXYzemdZUXpmT2U3cjJtM09WVUVpd0FMUF9fWjIxTTRFRkVhOG1KMlVwck9pbW1BYzIwTExWMlBTQWtZR1dzZ3U4YXVFRUJKVmkwZ1ZlSXpnegwICWIICAAQABgAIAA",
+      "method": "GET",
+      "resourceType": "Fetch",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "text/html"
+    },
+    {
+      "url": "https://www.jiomart.com/assets/ds2web/jds-icons/category-icon.svg",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/svg+xml"
+    },
+    {
+      "url": "https://www.jiomart.com/assets/ds2web/jds-icons/ds-web-search.svg",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/svg+xml"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/2.png?im=Resize=(200,200)",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/webp"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/3.png?im=Resize=(200,200)",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/webp"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/34477.png?im=Resize=(200,200)",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/webp"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/4.png?im=Resize=(200,200)",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/webp"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/8582.png?im=Resize=(200,200)",
+      "method": "GET",
+      "resourceType": "Image",
+      "hasPostData": false,
+      "status": 200,
+      "mimeType": "image/webp"
+    },
+    {
+      "url": "https://www.jiomart.com/platform/logistics/api/v1/get-3p-hyper-local-stores",
+      "method": "POST",
+      "resourceType": "XHR",
+      "hasPostData": true,
+      "status": 200,
+      "mimeType": "application/json"
+    },
+    {
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-XHR9Q2M3VV&gtm=45je64a1h1v868977280z8831088310za20gzb831088310zd831088310&_p=1776171013749&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&ecid=1746915044&_eu=AAAAAGA&_prs=ok&are=1&cid=2084170068.1776171016&frm=0&pscdl=noapi&rcb=0&sr=800x600&uaa=&uab=&uafvl=&uam=&uamb=0&uap=Windows&uapv=&uaw=0&ul=en-us&_s=1&tag_exp=0~115938465~115938469~117266401&uid=&sid=1776171015&sct=1&seg=0&dl=https%3A%2F%2Fwww.jiomart.com%2Fc%2Fgroceries&dt=JioMart&en=page_view&_fv=1&_nsi=1&_ss=2&ep.pincode=400020&ep.platform=website&ep.journey=JM%20REGULAR&ep.login_status=not%20logged%20in&ep.delivery_city=Mumbai&ep.page_type=other%20pages&ep.search_api=web&ep.page_environment=website&tfd=2393",
+      "method": "POST",
+      "resourceType": "Fetch",
+      "hasPostData": false,
+      "status": 204,
+      "mimeType": "text/plain"
+    },
+    {
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-XHR9Q2M3VV&gtm=45je64a1h1v868977280za20gzb831088310zd831088310&_p=1776171013749&gcd=13l3l3l3l1l1&npa=0&dma=0&ecid=1746915044&_eu=AEAAAGQ&ae=a&are=1&cid=2084170068.1776171016&frm=0&pscdl=noapi&rcb=0&sr=800x600&uaa=&uab=&uafvl=&uam=&uamb=0&uap=Windows&uapv=&uaw=0&ul=en-us&_s=2&tag_exp=0~115938465~115938469~117266401&uid=&sid=1776171015&sct=1&seg=0&dl=https%3A%2F%2Fwww.jiomart.com%2Fc%2Fgroceries&dt=JioMart&en=scroll&ep.pincode=400020&ep.platform=website&ep.journey=JM%20REGULAR&ep.login_status=not%20logged%20in&ep.delivery_city=Mumbai&ep.page_type=other%20pages&ep.search_api=web&ep.page_environment=website&epn.percent_scrolled=90&_et=4682&tfd=12087",
+      "method": "POST",
+      "resourceType": "Fetch",
+      "hasPostData": false,
+      "status": 204,
+      "mimeType": "text/plain"
+    }
+  ],
+  "replay_results": [
+    {
+      "url": "https://www.google.com/measurement/1p-conversion/?random=2074128850&cv=11&tid=G-XHR9Q2M3VV&fst=1776171015516&fmt=8&en=session_start&gtm=45je64a1h1v868977280z8831088310za20gzb831088310zd831088310xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938465~115938469~117266401&u_w=800&u_h=600&url=https%3A%2F%2Fwww.jiomart.com%2Fc%2Fgroceries&gacid=2084170068.1776171016&frm=0&tiba=JioMart&npa=0&pscdl=noapi&auid=829980022.1776171016&uaa=&uab=&uafvl=&uamb=0&uam=&uap=Windows&uapv=&uaw=0&rcb=0&ct_cookie_present=false&crd=CLTesQII8t-xAgit4bECCKG4sQIIscGxAgiwwbECCLHDsQIIisWxAgjCybECCLTGsQIIk9qxAgjb3LECCIfbsQII08WxAgjrzLECCO3OsQII1c-xAgj02rECCJfUsQIIyduxAgix4bECCLPhsQIIpt2xAgiw3rECCIDbsQI&fsk=ChEI8Mv3zgYQyOyZgLO4kI74ARIsAFsRRk54g374YW0AJD9nm-EFRqom-4bQf2qEBQCV1TAP9LdRtDmLwpKgFN4aAq6W&pscrd=IhMIvvzK07DtkwMVWuiEAB1OMA5iMgwIA2IICAAQABgAIAAyDAgEYggIABAAGAAgADIMCAdiCAgAEAAYACAAMgwICGIICAAQABgAIAAyDAgJYggIABAAGAAgADIMCApiCAgAEAAYACAAMgwIAmIICAAQABgAIAAyDAgLYggIABAAGAAgADIMCBViCAgAEAAYACAAMgwIH2IICAAQABgAIAAyDAgTYggIABAAGAAgADIMCBJiCAgAEAAYACAAOhhodHRwczovL3d3dy5qaW9tYXJ0LmNvbS9CVkNoQUk4TXYzemdZUXpmT2U3cjJtM09WVUVpd0FMUF9fWjIxTTRFRkVhOG1KMlVwck9pbW1BYzIwTExWMlBTQWtZR1dzZ3U4YXVFRUJKVmkwZ1ZlSXpnegwICWIICAAQABgAIAA",
+      "status": 200,
+      "content_type": "text/html; charset=UTF-8",
+      "body_prefix": ""
+    },
+    {
+      "url": "https://www.jiomart.com/assets/ds2web/jds-icons/category-icon.svg",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;assets&#47;ds2w"
+    },
+    {
+      "url": "https://www.jiomart.com/assets/ds2web/jds-icons/ds-web-search.svg",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;assets&#47;ds2w"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/2.png?im=Resize=(200,200)",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;images&#47;cms&"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/3.png?im=Resize=(200,200)",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;images&#47;cms&"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/34477.png?im=Resize=(200,200)",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;images&#47;cms&"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/4.png?im=Resize=(200,200)",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;images&#47;cms&"
+    },
+    {
+      "url": "https://www.jiomart.com/images/cms/section/category-url/12806/8582.png?im=Resize=(200,200)",
+      "status": 403,
+      "content_type": "text/html",
+      "body_prefix": "<HTML><HEAD>\n<TITLE>Access Denied</TITLE>\n</HEAD><BODY>\n<H1>Access Denied</H1>\n \nYou don't have permission to access \"http&#58;&#47;&#47;www&#46;jiomart&#46;com&#47;images&#47;cms&"
+    }
+  ],
+  "page_title": "JioMart",
+  "page_url": "https://www.jiomart.com/c/groceries"
+}

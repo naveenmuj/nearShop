@@ -30,6 +30,23 @@ function formatDateTime(isoString) {
 }
 
 function resolveNotificationTarget(item) {
+  const customRoute = item?.route || item?.pathname || item?.screen || item?.deep_link || item?.link;
+  if (typeof customRoute === 'string' && customRoute.trim().startsWith('/')) {
+    return customRoute.trim();
+  }
+
+  if (typeof item?.payload === 'string') {
+    try {
+      const parsed = JSON.parse(item.payload);
+      const payloadRoute = parsed?.route || parsed?.pathname || parsed?.screen || parsed?.deep_link || parsed?.link;
+      if (typeof payloadRoute === 'string' && payloadRoute.trim().startsWith('/')) {
+        return payloadRoute.trim();
+      }
+    } catch {
+      // Non-JSON payload; ignore and use standard routing.
+    }
+  }
+
   const type = item?.notification_type || item?.reference_type;
   const referenceId = item?.reference_id;
 
@@ -58,8 +75,16 @@ function resolveNotificationTarget(item) {
     case 'badge_earned':
       return '/(customer)/achievements';
     default:
-      return '/(customer)/notifications';
+      break;
   }
+
+  const title = String(item?.title || '').toLowerCase();
+  const body = String(item?.body || '').toLowerCase();
+  const combined = `${title} ${body}`;
+  if (combined.includes('order')) return '/(customer)/orders';
+  if (combined.includes('deal') || combined.includes('offer') || combined.includes('price')) return '/(customer)/deals';
+  if (combined.includes('message') || combined.includes('chat')) return '/(customer)/messages';
+  return '/(customer)/notifications';
 }
 
 function NotificationCard({ item, onPress, onMarkRead, loadingId }) {
@@ -182,6 +207,22 @@ export default function CustomerNotificationsScreen() {
   }, [markAllPending, unreadCount]);
 
   const hasUnread = useMemo(() => unreadCount > 0, [unreadCount]);
+  const latestNotification = useMemo(() => items[0] || null, [items]);
+  const latestResolvedRoute = useMemo(
+    () => (latestNotification ? resolveNotificationTarget(latestNotification) : null),
+    [latestNotification]
+  );
+  const latestPayloadText = useMemo(() => {
+    if (!latestNotification) return '';
+    const payload = latestNotification?.payload ?? latestNotification?.data ?? null;
+    if (!payload) return '';
+    if (typeof payload === 'string') return payload;
+    try {
+      return JSON.stringify(payload, null, 2);
+    } catch {
+      return String(payload);
+    }
+  }, [latestNotification]);
 
   const sendTestPush = useCallback(async () => {
     await pushService.scheduleLocalNotification(
@@ -217,14 +258,26 @@ export default function CustomerNotificationsScreen() {
       </View>
 
       {__DEV__ ? (
-        <View style={styles.devActions}>
-          <Pressable
-            style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
-            onPress={sendTestPush}
-            accessibilityLabel="Send Test Push"
-          >
-            <Text style={styles.devBtnText}>Send Test Push</Text>
-          </Pressable>
+        <View style={styles.devPanel}>
+          <View style={styles.devActions}>
+            <Pressable
+              style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
+              onPress={sendTestPush}
+              accessibilityLabel="Send Test Push"
+            >
+              <Text style={styles.devBtnText}>Send Test Push</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.devDebugCard}>
+            <Text style={styles.devDebugTitle}>Push Debug</Text>
+            <Text style={styles.devDebugLabel}>Latest route</Text>
+            <Text style={styles.devDebugValue}>{latestResolvedRoute || 'No notification loaded yet'}</Text>
+            <Text style={styles.devDebugLabel}>Latest payload</Text>
+            <Text style={styles.devDebugPayload} numberOfLines={6}>
+              {latestPayloadText || 'No payload data found on latest notification.'}
+            </Text>
+          </View>
         </View>
       ) : null}
 
@@ -344,6 +397,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  devPanel: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray200,
+  },
   devBtn: {
     height: 36,
     borderRadius: 10,
@@ -360,6 +418,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#166534',
+  },
+  devDebugCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    backgroundColor: '#F8FAFC',
+  },
+  devDebugTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: COLORS.gray900,
+    marginBottom: 8,
+  },
+  devDebugLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.gray500,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  devDebugValue: {
+    fontSize: 13,
+    color: COLORS.gray800,
+    fontWeight: '600',
+  },
+  devDebugPayload: {
+    fontSize: 12,
+    color: COLORS.gray700,
+    lineHeight: 17,
+    fontFamily: 'monospace',
   },
   loadingWrap: {
     flex: 1,

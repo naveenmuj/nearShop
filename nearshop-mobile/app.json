@@ -23,13 +23,21 @@
         "backgroundColor": "#7F77DD"
       },
       "package": "com.nearshop.app",
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"]
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA", "POST_NOTIFICATIONS"]
     },
     "plugins": [
       "expo-router",
       "expo-location",
       "expo-image-picker",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#7F77DD",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

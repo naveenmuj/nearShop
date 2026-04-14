@@ -1,27 +1,35 @@
 import { useEffect, useRef } from 'react'
-import { Animated, StyleSheet } from 'react-native'
+import { Animated } from 'react-native'
 
-export default function FadeInItem({ index = 0, children, style }) {
+export default function FadeInItem({
+  index = 0,
+  children,
+  style,
+  reduceMotion = false,
+  duration = 400,
+  delayStep = 80,
+  distance = 20,
+}) {
   const opacity = useRef(new Animated.Value(0)).current
-  const translateY = useRef(new Animated.Value(20)).current
+  const translateY = useRef(new Animated.Value(distance)).current
 
   useEffect(() => {
-    const delay = index * 80
+    const delay = reduceMotion ? 0 : index * delayStep
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 400,
+        duration: reduceMotion ? 160 : duration,
         delay,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 400,
+        duration: reduceMotion ? 160 : duration,
         delay,
         useNativeDriver: true,
       }),
     ]).start()
-  }, [index])
+  }, [index, reduceMotion, duration, delayStep, opacity, translateY])
 
   return (
     <Animated.View

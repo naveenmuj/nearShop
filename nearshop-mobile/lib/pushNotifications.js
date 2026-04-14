@@ -31,6 +31,76 @@ class PushNotificationService {
     this.playSound = true;
   }
 
+  resolveNotificationRoute(notification) {
+    const payload = notification?.request?.content?.data || {};
+    const title = String(notification?.request?.content?.title || '').toLowerCase();
+    const body = String(notification?.request?.content?.body || '').toLowerCase();
+
+    const customRoute = payload.route || payload.pathname || payload.screen || payload.link || payload.deep_link;
+    if (typeof customRoute === 'string' && customRoute.trim().startsWith('/')) {
+      return customRoute.trim();
+    }
+
+    const { type, reference_type, reference_id } = payload;
+    const normalizedType = type || reference_type;
+
+    switch (normalizedType) {
+      case 'new_order':
+      case 'order_confirmed':
+      case 'order_ready':
+      case 'order_delivered':
+      case 'order_cancelled':
+        return reference_id ? `/(customer)/order-detail/${reference_id}` : '/(customer)/orders';
+
+      case 'haggle_offer':
+      case 'haggle_counter_offer':
+      case 'haggle_accepted':
+      case 'haggle_rejected':
+        return reference_id ? `/(customer)/haggle?id=${reference_id}` : '/(customer)/haggle';
+
+      case 'deal_expiring':
+      case 'price_drop':
+        return reference_id ? `/(customer)/product/${reference_id}` : '/(customer)/deals';
+
+      case 'new_review':
+        return '/(business)/reviews';
+
+      case 'new_follower':
+      case 'follow':
+        return '/(business)/followers';
+
+      case 'new_message':
+      case 'chat': {
+        if (reference_id) {
+          const activeRole = useAuthStore.getState()?.user?.active_role;
+          const targetRole = payload.target_role || activeRole || 'customer';
+          return targetRole === 'business'
+            ? `/(business)/chat/${reference_id}`
+            : `/(customer)/chat/${reference_id}`;
+        }
+        return '/(customer)/messages';
+      }
+
+      case 'reservation_confirmed':
+      case 'reservation_expiring':
+        return '/(customer)/orders';
+
+      case 'coins_earned':
+      case 'badge_earned':
+        return '/(customer)/achievements';
+
+      default:
+        break;
+    }
+
+    // Fallback heuristic based on title/body when backend payload is incomplete.
+    const combined = `${title} ${body}`;
+    if (combined.includes('order')) return '/(customer)/orders';
+    if (combined.includes('deal') || combined.includes('offer') || combined.includes('price')) return '/(customer)/deals';
+    if (combined.includes('message') || combined.includes('chat')) return '/(customer)/messages';
+    return '/(customer)/notifications';
+  }
+
   async syncSoundPreference() {
     try {
       await initSound();
@@ -72,6 +142,17 @@ class PushNotificationService {
       // Set up notification listeners
       this.setupListeners();
 
+      // Handle notification tap when app is opened from a killed state.
+      if (typeof Notifications.getLastNotificationResponseAsync === 'function') {
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        if (lastResponse?.notification) {
+          this.handleNotificationTap(lastResponse.notification);
+          if (typeof Notifications.clearLastNotificationResponseAsync === 'function') {
+            await Notifications.clearLastNotificationResponseAsync();
+          }
+        }
+      }
+
       return token;
     } catch (error) {
       console.error('Failed to initialize push notifications:', error);
@@ -101,7 +182,14 @@ class PushNotificationService {
 
     // Request permission if not granted
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+          allowAnnouncements: false,
+        },
+      });
       finalStatus = status;
     }
 
@@ -112,10 +200,17 @@ class PushNotificationService {
 
     // Get Expo push token
     try {
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-      token = (await Notifications.getExpoPushTokenAsync({
-        projectId: projectId,
-      })).data;
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId
+        || Constants?.easConfig?.projectId
+        || Constants?.manifest2?.extra?.expoClient?.extra?.eas?.projectId
+        || Constants?.manifest?.extra?.eas?.projectId;
+
+      const tokenResponse = projectId
+        ? await Notifications.getExpoPushTokenAsync({ projectId })
+        : await Notifications.getExpoPushTokenAsync();
+
+      token = tokenResponse?.data || null;
     } catch (error) {
       console.error('Error getting push token:', error);
       return null;
@@ -223,87 +318,9 @@ class PushNotificationService {
    * Handle notification tap - deep link to appropriate screen
    */
   handleNotificationTap(notification) {
-    const { data } = notification.request.content;
-    
-    if (!data) return;
-
-    const { type, reference_type, reference_id } = data;
-
-    switch (type || reference_type) {
-      // Order-related notifications
-      case 'new_order':
-      case 'order_confirmed':
-      case 'order_ready':
-      case 'order_delivered':
-      case 'order_cancelled':
-        if (reference_id) {
-          router.push(`/(customer)/order-detail/${reference_id}`);
-        } else {
-          router.push('/(customer)/orders');
-        }
-        break;
-
-      // Haggle notifications
-      case 'haggle_offer':
-      case 'haggle_counter_offer':
-      case 'haggle_accepted':
-      case 'haggle_rejected':
-        if (reference_id) {
-          router.push(`/(customer)/haggle?id=${reference_id}`);
-        }
-        break;
-
-      // Deal notifications
-      case 'deal_expiring':
-      case 'price_drop':
-        if (reference_id) {
-          router.push(`/(customer)/product/${reference_id}`);
-        } else {
-          router.push('/(customer)/deals');
-        }
-        break;
-
-      // Review notifications
-      case 'new_review':
-        router.push('/(business)/reviews');
-        break;
-
-      // Follower notifications
-      case 'new_follower':
-      case 'follow':
-        router.push('/(business)/followers');
-        break;
-
-      // Message notifications
-      case 'new_message':
-      case 'chat':
-        if (reference_id) {
-          const activeRole = useAuthStore.getState()?.user?.active_role;
-          const targetRole = data.target_role || activeRole || 'customer';
-          if (targetRole === 'business') {
-            router.push(`/(business)/chat/${reference_id}`);
-          } else {
-            router.push(`/(customer)/chat/${reference_id}`);
-          }
-        }
-        break;
-
-      // Reservation notifications
-      case 'reservation_confirmed':
-      case 'reservation_expiring':
-        router.push('/(customer)/orders');
-        break;
-
-      // Loyalty notifications
-      case 'coins_earned':
-      case 'badge_earned':
-        router.push('/(customer)/achievements');
-        break;
-
-      // Default: go to notifications screen
-      default:
-        router.push('/(customer)/notifications');
-    }
+    const target = this.resolveNotificationRoute(notification);
+    if (!target) return;
+    router.push(target);
   }
 
   /**
@@ -337,12 +354,21 @@ class PushNotificationService {
   cleanup() {
     if (!notificationsAvailable || !Notifications) return;
     
-    if (this.notificationListener) {
-      Notifications.removeNotificationSubscription(this.notificationListener);
-    }
-    if (this.responseListener) {
-      Notifications.removeNotificationSubscription(this.responseListener);
-    }
+    const removeListener = (subscription) => {
+      if (!subscription) return;
+      if (typeof subscription.remove === 'function') {
+        subscription.remove();
+        return;
+      }
+      if (typeof Notifications.removeNotificationSubscription === 'function') {
+        Notifications.removeNotificationSubscription(subscription);
+      }
+    };
+
+    removeListener(this.notificationListener);
+    removeListener(this.responseListener);
+    this.notificationListener = null;
+    this.responseListener = null;
   }
 
   /**
@@ -372,6 +398,7 @@ class PushNotificationService {
         title,
         body,
         data,
+        channelId: Platform.OS === 'android' ? 'default' : undefined,
         sound: this.playSound ? 'default' : null,
       },
       trigger: { seconds },

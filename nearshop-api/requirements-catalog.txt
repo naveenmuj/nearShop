@@ -1,0 +1,29 @@
+# Catalog scraping and management dependencies
+# Add these to your nearshop-api/requirements.txt
+
+# Web scraping
+beautifulsoup4==4.12.2
+requests==2.31.0
+httpx==0.24.1
+aiohttp==3.9.0
+
+# Parser and data processing
+lxml==4.9.3
+html5lib==1.1
+
+# Scheduling
+APScheduler==3.10.4
+
+# Database (should already be installed)
+sqlalchemy==2.0.23
+asyncpg==0.29.0
+
+# API client
+pydantic==2.4.2
+pydantic-settings==2.0.3
+
+# Note: The following should already be in your main requirements.txt:
+# - fastapi
+# - uvicorn
+# - python-dotenv
+# - etc.

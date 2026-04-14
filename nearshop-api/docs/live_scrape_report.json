@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-04-14T05:31:19.075399Z",
+  "database": "postgresql+asyncpg://doadmin:AVNS_CnbiEA4G1nu10PFAkZj@db-postgresql-nearshop-do-user-31264740-0.e.db.ondigitalocean.com:25060/defaultdb?ssl=require",
+  "full_sync": false,
+  "source_counts": {
+    "flipkart": 0,
+    "amazon": 0,
+    "jiomart": 0,
+    "bigbasket": 0
+  },
+  "category_fetch_status": {
+    "jiomart": {
+      "groceries": 0,
+      "fresh": 0,
+      "electronics": 0,
+      "fashion": 0
+    },
+    "bigbasket": {
+      "vegetables": 0,
+      "fruits": 0,
+      "dairy": 0,
+      "pantry": 0
+    }
+  },
+  "db_changes": {
+    "inserted": 0,
+    "updated": 0,
+    "duplicates": 0,
+    "errors": 0
+  }
+}

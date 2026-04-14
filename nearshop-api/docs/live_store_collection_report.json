@@ -1,0 +1,589 @@
+{
+  "timestamp_utc": "2026-04-14T08:21:28.460731+00:00",
+  "source": "bigbasket_live",
+  "max_categories_requested": 0,
+  "max_pages_per_category": 0,
+  "category_results": [
+    {
+      "source": "bigbasket",
+      "category": "Electronics",
+      "status": "partial_rate_limited",
+      "product_count": 336,
+      "reason": "HTTP 429 at page 8"
+    },
+    {
+      "source": "bigbasket",
+      "category": "Audio devices",
+      "status": "rate_limited",
+      "product_count": 0,
+      "reason": "HTTP 429"
+    }
+  ],
+  "total_products_fetched": 336,
+  "jiomart_status": [
+    {
+      "source": "jiomart",
+      "category": "groceries",
+      "status": "blocked",
+      "product_count": 0,
+      "reason": "HTTP 403"
+    },
+    {
+      "source": "jiomart",
+      "category": "fresh",
+      "status": "blocked",
+      "product_count": 0,
+      "reason": "HTTP 403"
+    },
+    {
+      "source": "jiomart",
+      "category": "electronics",
+      "status": "blocked",
+      "product_count": 0,
+      "reason": "HTTP 403"
+    },
+    {
+      "source": "jiomart",
+      "category": "fashion",
+      "status": "blocked",
+      "product_count": 0,
+      "reason": "HTTP 403"
+    }
+  ],
+  "duplicates_dropped_in_run": 0,
+  "products_after_dedupe": 336,
+  "image_upload_result": {
+    "uploaded": 335,
+    "failed": 1,
+    "skipped": 0
+  },
+  "db_result": {
+    "inserted": 206,
+    "duplicates_skipped": 130,
+    "errors": 0
+  },
+  "sample_products": [
+    {
+      "sku": "bb-live-40323112",
+      "name": "Cruise Induction Cooktop - With Crystal Glass, 1800 Watt, 7 Segments LED Display, Auto Switch Off",
+      "brand": "Pigeon by Stovekraft",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Cruise Induction Cooktop - With Crystal Glass, 1800 Watt, 7 Segments LED Display, Auto Switch Off",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40323112/image/4e6aeb92e80745549aa5315d5bea54b2.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40323112/pigeon-by-stovekraft-cruise-induction-cooktop-with-crystal-glass-1800-watt-7-segments-led-display-auto-switch-off-1-pc/",
+      "source_id": "40323112",
+      "data_source": "bigbasket_live",
+      "avg_rating": 2.5,
+      "num_reviews": 2,
+      "base_price_inr": 1849.0,
+      "compare_price_inr": 3195.0,
+      "typical_discount_pct": 42.1283255086072,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40323112/image/4e6aeb92e80745549aa5315d5bea54b2.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40335459",
+      "name": "2100 W Induction Cooktop - LLIC103",
+      "brand": "Lifelong",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "2100 W Induction Cooktop - LLIC103",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40335459/image/ced189cdf384432ba74c6b6f2f1f56eb.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40335459/lifelong-touch-induction-llic103-1-pc/",
+      "source_id": "40335459",
+      "data_source": "bigbasket_live",
+      "avg_rating": 2.8,
+      "num_reviews": 0,
+      "base_price_inr": 2199.0,
+      "compare_price_inr": 3999.0,
+      "typical_discount_pct": 45.0112528132033,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40335459/image/ced189cdf384432ba74c6b6f2f1f56eb.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40323104",
+      "name": "Healthifry Digital Air Fryer - Non-Stick, 1200 W, Green",
+      "brand": "Pigeon by Stovekraft",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Healthifry Digital Air Fryer - Non-Stick, 1200 W, Green",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40323104/image/b9d873118333454aa2454426bd1c158a.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40323104/pigeon-by-stovekraft-healthifry-digital-air-fryer-with-non-stick-1200-w-green-42-l/",
+      "source_id": "40323104",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 2798.0,
+      "compare_price_inr": 5995.0,
+      "typical_discount_pct": 53.32777314428691,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40323104/image/b9d873118333454aa2454426bd1c158a.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40363578",
+      "name": "Nutri Blender Juicer Mixer Grinder 500 W With 2 Jars & 1 Blade - Silver",
+      "brand": "Nutripro",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Nutri Blender Juicer Mixer Grinder 500 W With 2 Jars & 1 Blade - Silver",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40363578/image/3fd17f999efd4d2ea87a894f9954c5d0.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40363578/nutripro-nutri-blender-juicer-mixer-grinder-500-w-with-2-jars-1-blade-silver-1-unit/",
+      "source_id": "40363578",
+      "data_source": "bigbasket_live",
+      "avg_rating": 5.0,
+      "num_reviews": 1,
+      "base_price_inr": 1599.0,
+      "compare_price_inr": 5000.0,
+      "typical_discount_pct": 68.02,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40363578/image/3fd17f999efd4d2ea87a894f9954c5d0.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40344526",
+      "name": "PIRC 1.0 2200W Infrared Cooktop - Stainless Steel & Ceramic, Black",
+      "brand": "Prestige",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "PIRC 1.0 2200W Infrared Cooktop - Stainless Steel & Ceramic, Black",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40344526/image/45cd863bd8f545f9997056ad51cda5ff.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40344526/prestige-pirc-10-2200w-infrared-cooktop-stainless-steel-ceramic-black-1-unit/",
+      "source_id": "40344526",
+      "data_source": "bigbasket_live",
+      "avg_rating": 4.0,
+      "num_reviews": 1,
+      "base_price_inr": 3145.0,
+      "compare_price_inr": 4490.0,
+      "typical_discount_pct": 29.955456570155903,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40344526/image/45cd863bd8f545f9997056ad51cda5ff.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40304654",
+      "name": "Multipurpose Kettle With Steel Body, Boiling Water & Milk, Tea, Coffee, 600 Watt",
+      "brand": "Pigeon by Stovekraft",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Multipurpose Kettle With Steel Body, Boiling Water & Milk, Tea, Coffee, 600 Watt",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40304654/image/61de79afcf384642ad7245973f832aad.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40304654/pigeon-amaze-multipurpose-kettle-black-silver-12-l/",
+      "source_id": "40304654",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 848.0,
+      "compare_price_inr": 1695.0,
+      "typical_discount_pct": 49.97050147492625,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40304654/image/61de79afcf384642ad7245973f832aad.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40322955",
+      "name": "Chef Delite 300 W Electric Chopper - For Kitchen, Twin Blade Technology",
+      "brand": "Borosil",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Chef Delite 300 W Electric Chopper - For Kitchen, Twin Blade Technology",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40322955/image/fae2121d99b54721ac2cafeda9ea9ea0.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40322955/borosil-chef-delite-300-w-electric-chopper-for-kitchen-twin-blade-technology-600-ml/",
+      "source_id": "40322955",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 1499.0,
+      "compare_price_inr": 2490.0,
+      "typical_discount_pct": 39.799196787148595,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40322955/image/fae2121d99b54721ac2cafeda9ea9ea0.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40326440",
+      "name": "Ultra 128GB MicroSDXC Memory Card - UHS-I, 140MB/s R",
+      "brand": "Sandisk",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Ultra 128GB MicroSDXC Memory Card - UHS-I, 140MB/s R",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326440/image/d452a25ccc5849df9128f3a365931d14.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40326440/sandisk-ultra-128gb-microsdxc-memory-card-uhs-i-140mbs-r-1-pc/",
+      "source_id": "40326440",
+      "data_source": "bigbasket_live",
+      "avg_rating": 4.4,
+      "num_reviews": 0,
+      "base_price_inr": 2629.0,
+      "compare_price_inr": 3500.0,
+      "typical_discount_pct": 24.885714285714286,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326440/image/d452a25ccc5849df9128f3a365931d14.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40327680",
+      "name": "Basspods Mojo TWS Earbuds - 34hrs Playtime, Clear Calls, Immersive Sound & Voice Assistant, Black",
+      "brand": "pTron",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Basspods Mojo TWS Earbuds - 34hrs Playtime, Clear Calls, Immersive Sound & Voice Assistant, Black",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40327680/image/c35a3ca90a76465dbed96f8eedd64a99.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40327680/ptron-bassbuds-mojo-tws-earbuds-34hrs-playtime-clear-calls-immersive-sound-voice-assistant-black-1-pc/",
+      "source_id": "40327680",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 408.0,
+      "compare_price_inr": 2899.0,
+      "typical_discount_pct": 85.92618144187651,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40327680/image/c35a3ca90a76465dbed96f8eedd64a99.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40287247",
+      "name": "AAA Batteries - 2X Long Lasting",
+      "brand": "Duracell",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "AAA Batteries - 2X Long Lasting",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40287247/image/dc4ca45f288e4cc89a3c7683e1ac4e77.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40287247/duracell-chhota-power-alkaline-batteries-aaa-long-lasting-10-pcs/",
+      "source_id": "40287247",
+      "data_source": "bigbasket_live",
+      "avg_rating": 4.0,
+      "num_reviews": 4,
+      "base_price_inr": 225.0,
+      "compare_price_inr": 250.0,
+      "typical_discount_pct": 10.0,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40287247/image/dc4ca45f288e4cc89a3c7683e1ac4e77.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40287246",
+      "name": "AA Batteries - 2X Long Lasting",
+      "brand": "Duracell",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "AA Batteries - 2X Long Lasting",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40287246/image/2215cacf5f594013899425162d7a9d5d.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40287246/duracell-chhota-power-alkaline-batteries-aa-long-lasting-10-pcs/",
+      "source_id": "40287246",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 225.0,
+      "compare_price_inr": 250.0,
+      "typical_discount_pct": 10.0,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40287246/image/2215cacf5f594013899425162d7a9d5d.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40304689",
+      "name": "Amaze Plus Electric Kettle - Stainless Steel & Plastic Body",
+      "brand": "Pigeon by Stovekraft",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Amaze Plus Electric Kettle - Stainless Steel & Plastic Body",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40304689/image/003132c4bd484a07b0983e82f40737fb.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40304689/pigeon-amaze-plus-electric-kettle-black-15-l/",
+      "source_id": "40304689",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 548.0,
+      "compare_price_inr": 1245.0,
+      "typical_discount_pct": 55.983935742971894,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40304689/image/003132c4bd484a07b0983e82f40737fb.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-240100",
+      "name": "Ultra AA Batteries",
+      "brand": "Duracell",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Ultra AA Batteries",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/240100/image/537ba4d54d264579973892d592e153c0.jpg",
+      "source_url": "https://www.bigbasket.com/pd/240100/duracell-ultra-alkaline-battery-aa-4-pcs/",
+      "source_id": "240100",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 177.0,
+      "compare_price_inr": 225.0,
+      "typical_discount_pct": 21.333333333333336,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/240100/image/537ba4d54d264579973892d592e153c0.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40329931",
+      "name": "Crompton Surebreeze Hill Briz 1 Star 1200mm 3 Blade Copper Motor Ceiling Fan (Inverter Compatibility, Brown)",
+      "brand": "Crompton",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Crompton Surebreeze Hill Briz 1 Star 1200mm 3 Blade Copper Motor Ceiling Fan (Inverter Compatibility, Brown)",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40329931/image/070499a90f9e4f14bd718ea1f8b809f4.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40329931/i-dew-mega-soft-gelatin-capsule/",
+      "source_id": "40329931",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 1549.0,
+      "compare_price_inr": 2599.0,
+      "typical_discount_pct": 40.40015390534821,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40329931/image/070499a90f9e4f14bd718ea1f8b809f4.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40323108",
+      "name": "Ultra Fast Electric Chopper - 300 Watt, Twin Blade Technology, 'Chop-N-Store' Plastic Bowl With Lid",
+      "brand": "Pigeon by Stovekraft",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Ultra Fast Electric Chopper - 300 Watt, Twin Blade Technology, 'Chop-N-Store' Plastic Bowl With Lid",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40323108/image/d86de14c6b43423cbb9aa473ec7e3757.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40323108/pigeon-by-stovekraft-ultra-fast-electric-chopper-300-watt-twin-blade-technology-chop-n-store-plastic-bowl-with-lid-600-ml/",
+      "source_id": "40323108",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 1499.0,
+      "compare_price_inr": 2595.0,
+      "typical_discount_pct": 42.23506743737958,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40323108/image/d86de14c6b43423cbb9aa473ec7e3757.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40326625",
+      "name": "Induction Cooktop - 1800 W, LLIC101",
+      "brand": "Lifelong",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Induction Cooktop - 1800 W, LLIC101",
+      "thumbnail_url": "https://www.bbassets.com/media/uploads/p/s/40326625_3-lifelong-induction-cooktop-1800-w-llic101.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40326625/lifelong-induction-cooktop-1800-w-llic101-1-pc/",
+      "source_id": "40326625",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 1799.0,
+      "compare_price_inr": 3595.0,
+      "typical_discount_pct": 49.95827538247566,
+      "confidence_score": 0.93
+    },
+    {
+      "sku": "bb-live-40326709",
+      "name": "16050 Hand Blender - 150W, 5 Speed Control, Copper Motor, Multiple Beaters, Overheating Protection, White",
+      "brand": "kent",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "16050 Hand Blender - 150W, 5 Speed Control, Copper Motor, Multiple Beaters, Overheating Protection, White",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326709/image/e8ba6d5ccaba4641834fbb2210572ea0.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40326709/kent-16050-hand-blender-150w-5-speed-control-copper-motor-multiple-beaters-overheating-protection-white-1-pc/",
+      "source_id": "40326709",
+      "data_source": "bigbasket_live",
+      "avg_rating": 4.6,
+      "num_reviews": 0,
+      "base_price_inr": 1098.0,
+      "compare_price_inr": 1850.0,
+      "typical_discount_pct": 40.64864864864865,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326709/image/e8ba6d5ccaba4641834fbb2210572ea0.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40325711",
+      "name": "Luxcell Mini 10K 22.5W Portable Power Bank 10,000 mAh Lithium Polymer Battery",
+      "brand": "Portronics",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Luxcell Mini 10K 22.5W Portable Power Bank 10,000 mAh Lithium Polymer Battery",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40325711/image/9fc8e44db66544118e2a3eee2d525ef0.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40325711/portronics-luxcell-mini-10k-225w-portable-power-bank-10000-mah-lithium-polymer-battery-1-pc/",
+      "source_id": "40325711",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 999.0,
+      "compare_price_inr": 2499.0,
+      "typical_discount_pct": 60.024009603841534,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40325711/image/9fc8e44db66544118e2a3eee2d525ef0.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-273623",
+      "name": "Ultra AAA Alkaline Battery",
+      "brand": "Duracell",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Ultra AAA Alkaline Battery",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/273623/image/a1234ec86a364ed8b9023c87b85e1498.jpg",
+      "source_url": "https://www.bigbasket.com/pd/273623/duracell-ultra-alkaline-battery-aaa-4-pcs/",
+      "source_id": "273623",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 190.0,
+      "compare_price_inr": 190.0,
+      "typical_discount_pct": 0.0,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/273623/image/a1234ec86a364ed8b9023c87b85e1498.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40325601",
+      "name": "H IND Bluetooth Headphones With Mic - Thunder Black",
+      "brand": "Zebronics",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "H IND Bluetooth Headphones With Mic - Thunder Black",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40325601/image/49c8ffa944454ec2ac68a21c9d236f0e.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40325601/zebronics-h-ind-bluetooth-headphones-with-mic-thunder-black-1-pc/",
+      "source_id": "40325601",
+      "data_source": "bigbasket_live",
+      "avg_rating": 3.8,
+      "num_reviews": 0,
+      "base_price_inr": 709.0,
+      "compare_price_inr": 1699.0,
+      "typical_discount_pct": 58.26957033549146,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40325601/image/49c8ffa944454ec2ac68a21c9d236f0e.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40016463",
+      "name": "Carbon Zinc AA Battery - 1015",
+      "brand": "Eveready",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Carbon Zinc AA Battery - 1015",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40016463/image/fd2174c8317e48eda72c3861ed046969.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40016463/eveready-carbon-zinc-battery-red-aa-1015-4-pcs/",
+      "source_id": "40016463",
+      "data_source": "bigbasket_live",
+      "avg_rating": 4.2,
+      "num_reviews": 33,
+      "base_price_inr": 64.0,
+      "compare_price_inr": 72.0,
+      "typical_discount_pct": 11.11111111111111,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40016463/image/fd2174c8317e48eda72c3861ed046969.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40341042",
+      "name": "Bliss Electric Kettle - 1500 W Power, 1.5 L Capacity, Cool Touch Exterior Body & SS 304 Inner Body",
+      "brand": "kent",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Bliss Electric Kettle - 1500 W Power, 1.5 L Capacity, Cool Touch Exterior Body & SS 304 Inner Body",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40341042/image/814fbb31b61b4f1881df226804cf7181.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40341042/kent-bliss-electric-kettle-1500-w-power-15-l-capacity-cool-touch-exterior-body-ss-304-inner-body-1-pc/",
+      "source_id": "40341042",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 1549.0,
+      "compare_price_inr": 2240.0,
+      "typical_discount_pct": 30.84821428571429,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40341042/image/814fbb31b61b4f1881df226804cf7181.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40311158",
+      "name": "6 x 1 High Grade Spike Guard",
+      "brand": "Goldmedal",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "6 x 1 High Grade Spike Guard",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40311158/image/7396b861b57843a688ebdefed79f0470.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40311158/goldmedal-i-strip-6x1-led-spike-guard-1-pc/",
+      "source_id": "40311158",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 677.0,
+      "compare_price_inr": 1371.0,
+      "typical_discount_pct": 50.61998541210795,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40311158/image/7396b861b57843a688ebdefed79f0470.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40326431",
+      "name": "64GB Ultra Flair Pen Drive/Flash Drive - USB 3.0, Metal",
+      "brand": "Sandisk",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "64GB Ultra Flair Pen Drive/Flash Drive - USB 3.0, Metal",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326431/image/6317ebdcf0dd43628497726e5d36d919.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40326431/sandisk-64gb-ultra-flair-flash-drive-usb-30-metal-1-pc/",
+      "source_id": "40326431",
+      "data_source": "bigbasket_live",
+      "avg_rating": 3.7,
+      "num_reviews": 0,
+      "base_price_inr": 732.0,
+      "compare_price_inr": 1400.0,
+      "typical_discount_pct": 47.714285714285715,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40326431/image/6317ebdcf0dd43628497726e5d36d919.jpg"
+      ]
+    },
+    {
+      "sku": "bb-live-40321648",
+      "name": "Power Pro 500-Watt Mixer Grinder - With 3 Jars, Liquidizing, Wet Grinding & Chutney Jar, Stainless Steel Blades, 1 Year Warranty, White/Grey, LLMG45",
+      "brand": "Lifelong",
+      "category": "Electronics",
+      "subcategory": "electronics",
+      "description": "Power Pro 500-Watt Mixer Grinder - With 3 Jars, Liquidizing, Wet Grinding & Chutney Jar, Stainless Steel Blades, 1 Year Warranty, White/Grey, LLMG45",
+      "thumbnail_url": "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40321648/image/966c8ed310a3485fbcc0327eff2edd2b.jpg",
+      "source_url": "https://www.bigbasket.com/pd/40321648/lifelong-power-pro-500-watt-mixer-grinder-with-3-jars-liquidizing-wet-grinding-chutney-jar-stainless-steel-blades-1-year-warranty-whitegrey-llmg45-1-pc/",
+      "source_id": "40321648",
+      "data_source": "bigbasket_live",
+      "avg_rating": null,
+      "num_reviews": 0,
+      "base_price_inr": 1269.0,
+      "compare_price_inr": 2499.0,
+      "typical_discount_pct": 49.21968787515006,
+      "confidence_score": 0.93,
+      "image_urls": [
+        "https://nearshop-bucket.sfo3.digitaloceanspaces.com/dev/shops/draft-shop/products/40321648/image/966c8ed310a3485fbcc0327eff2edd2b.jpg"
+      ]
+    }
+  ]
+}

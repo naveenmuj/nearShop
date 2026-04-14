@@ -1,0 +1,347 @@
+{
+  "generated_at_utc": "2026-04-14T05:31:51.440519+00:00",
+  "real_run_report": {
+    "timestamp": "2026-04-14T05:31:19.075399Z",
+    "database": "postgresql+asyncpg://doadmin:AVNS_CnbiEA4G1nu10PFAkZj@db-postgresql-nearshop-do-user-31264740-0.e.db.ondigitalocean.com:25060/defaultdb?ssl=require",
+    "full_sync": false,
+    "source_counts": {
+      "flipkart": 0,
+      "amazon": 0,
+      "jiomart": 0,
+      "bigbasket": 0
+    },
+    "category_fetch_status": {
+      "jiomart": {
+        "groceries": 0,
+        "fresh": 0,
+        "electronics": 0,
+        "fashion": 0
+      },
+      "bigbasket": {
+        "vegetables": 0,
+        "fruits": 0,
+        "dairy": 0,
+        "pantry": 0
+      }
+    },
+    "db_changes": {
+      "inserted": 0,
+      "updated": 0,
+      "duplicates": 0,
+      "errors": 0
+    }
+  },
+  "db_source_counts": [
+    {
+      "source": "demo",
+      "count": 40
+    },
+    {
+      "source": "store_test",
+      "count": 22
+    }
+  ],
+  "db_category_stats": [
+    {
+      "category": "Beverages",
+      "count": 3,
+      "min_price": 160.0,
+      "max_price": 320.0,
+      "avg_price": 220.0
+    },
+    {
+      "category": "Clothing",
+      "count": 10,
+      "min_price": 399.0,
+      "max_price": 2999.0,
+      "avg_price": 1579.0
+    },
+    {
+      "category": "Electronics",
+      "count": 10,
+      "min_price": 299.0,
+      "max_price": 1699.0,
+      "avg_price": 889.0
+    },
+    {
+      "category": "Fresh Produce",
+      "count": 6,
+      "min_price": 30.0,
+      "max_price": 150.0,
+      "avg_price": 59.17
+    },
+    {
+      "category": "Groceries",
+      "count": 18,
+      "min_price": 20.0,
+      "max_price": 450.0,
+      "avg_price": 147.78
+    },
+    {
+      "category": "Home & Kitchen",
+      "count": 10,
+      "min_price": 299.0,
+      "max_price": 1299.0,
+      "avg_price": 724.0
+    },
+    {
+      "category": "Snacks",
+      "count": 5,
+      "min_price": 10.0,
+      "max_price": 85.0,
+      "avg_price": 43.0
+    }
+  ],
+  "db_sample_products": [
+    {
+      "name": "Sunflower Oil 1L",
+      "brand": "Fortune",
+      "category": "Groceries",
+      "price": 180.0,
+      "compare_price": 216.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 283
+    },
+    {
+      "name": "Wheat Flour 5kg",
+      "brand": "Aashirvaad",
+      "category": "Groceries",
+      "price": 230.0,
+      "compare_price": 276.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 48
+    },
+    {
+      "name": "Sugar 1kg",
+      "brand": "Dalmia",
+      "category": "Groceries",
+      "price": 45.0,
+      "compare_price": 54.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 457
+    },
+    {
+      "name": "Salt 1kg",
+      "brand": "Tata",
+      "category": "Groceries",
+      "price": 20.0,
+      "compare_price": 24.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 268
+    },
+    {
+      "name": "Black Tea 250g",
+      "brand": "Lipton",
+      "category": "Groceries",
+      "price": 150.0,
+      "compare_price": 180.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 184
+    },
+    {
+      "name": "Coffee Powder 100g",
+      "brand": "Nescafe",
+      "category": "Groceries",
+      "price": 120.0,
+      "compare_price": 144.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 435
+    },
+    {
+      "name": "Milk Powder 400g",
+      "brand": "Amul",
+      "category": "Groceries",
+      "price": 180.0,
+      "compare_price": 216.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 234
+    },
+    {
+      "name": "Honey 500ml",
+      "brand": "Dabur",
+      "category": "Groceries",
+      "price": 240.0,
+      "compare_price": 288.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 164
+    },
+    {
+      "name": "Peanut Butter 500g",
+      "brand": "Alpino",
+      "category": "Groceries",
+      "price": 280.0,
+      "compare_price": 336.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 111
+    },
+    {
+      "name": "USB-C Charging Cable 2m",
+      "brand": "Belkin",
+      "category": "Electronics",
+      "price": 599.0,
+      "compare_price": 718.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 237
+    },
+    {
+      "name": "Phone Screen Protector",
+      "brand": "Spigen",
+      "category": "Electronics",
+      "price": 299.0,
+      "compare_price": 358.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 99
+    },
+    {
+      "name": "Wireless Earbuds",
+      "brand": "Boat",
+      "category": "Electronics",
+      "price": 1299.0,
+      "compare_price": 1558.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 226
+    },
+    {
+      "name": "Phone Case TPU",
+      "brand": "Spigen",
+      "category": "Electronics",
+      "price": 399.0,
+      "compare_price": 478.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 327
+    },
+    {
+      "name": "Power Bank 20000mAh",
+      "brand": "Anker",
+      "category": "Electronics",
+      "price": 1699.0,
+      "compare_price": 2038.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 340
+    },
+    {
+      "name": "LED Desk Lamp",
+      "brand": "Philips",
+      "category": "Electronics",
+      "price": 899.0,
+      "compare_price": 1078.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 450
+    },
+    {
+      "name": "USB Hub 4-Port",
+      "brand": "Belkin",
+      "category": "Electronics",
+      "price": 999.0,
+      "compare_price": 1198.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 139
+    },
+    {
+      "name": "HDMI Cable 2m",
+      "brand": "Boat",
+      "category": "Electronics",
+      "price": 299.0,
+      "compare_price": 358.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 85
+    },
+    {
+      "name": "Mouse Optical",
+      "brand": "Logitech",
+      "category": "Electronics",
+      "price": 899.0,
+      "compare_price": 1078.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 46
+    },
+    {
+      "name": "Keyboard USB",
+      "brand": "Dell",
+      "category": "Electronics",
+      "price": 1499.0,
+      "compare_price": 1798.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 154
+    },
+    {
+      "name": "Men's Cotton T-Shirt Blue",
+      "brand": "Levi's",
+      "category": "Clothing",
+      "price": 699.0,
+      "compare_price": 838.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 302
+    },
+    {
+      "name": "Women's Jeans Dark Blue",
+      "brand": "Tommy Hilfiger",
+      "category": "Clothing",
+      "price": 2999.0,
+      "compare_price": 3598.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 496
+    },
+    {
+      "name": "Men's Formal Shirt White",
+      "brand": "Van Heusen",
+      "category": "Clothing",
+      "price": 1499.0,
+      "compare_price": 1798.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 444
+    },
+    {
+      "name": "Women's Pajama Set",
+      "brand": "Clovia",
+      "category": "Clothing",
+      "price": 599.0,
+      "compare_price": 718.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 434
+    },
+    {
+      "name": "Unisex Hoodie Black",
+      "brand": "Nike",
+      "category": "Clothing",
+      "price": 2499.0,
+      "compare_price": 2998.8,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 278
+    },
+    {
+      "name": "Basmati Rice 5kg",
+      "brand": "India Gate",
+      "category": "Groceries",
+      "price": 450.0,
+      "compare_price": 540.0,
+      "source": "demo",
+      "avg_rating": 4.5,
+      "num_reviews": 80
+    }
+  ]
+}

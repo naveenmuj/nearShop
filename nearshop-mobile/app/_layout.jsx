@@ -7,12 +7,11 @@ import { NETWORK_LOGGER_ENABLED } from '../constants/debugConfig';
 import useAuthStore from '../store/authStore';
 import useLocationStore from '../store/locationStore';
 import useCartStore from '../store/cartStore';
-import { ToastProvider, useToast } from '../components/ui/Toast';
+import { ToastProvider } from '../components/ui/Toast';
 import ConfirmDialogProvider from '../components/ui/ConfirmDialog/ConfirmDialogProvider';
 import { PremiumAlertProvider, PremiumAlertContext, setAlertRef } from '../components/ui/PremiumAlert';
 import { useContext } from 'react';
 import pushService from '../lib/pushNotifications';
-import OfflineIndicator from '../components/OfflineIndicator';
 
 // Lazy-load network logger to prevent crash if module has issues
 let NetworkLogger = null;
@@ -182,6 +181,19 @@ const styles = StyleSheet.create({
 
 // Expo Router error boundary — prevents white-screen crash
 export function ErrorBoundary({ error, retry }) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  useEffect(() => {
+    console.error('Root error boundary caught:', error?.message, error?.stack);
+  }, [error]);
+
+  const errorName = error?.name || 'Error';
+  const stackPreview = String(error?.stack || '')
+    .split('\n')
+    .slice(0, 8)
+    .join('\n')
+    .trim();
+
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB', padding: 32 }}>
       <Text style={{ fontSize: 48, marginBottom: 16 }}>😵</Text>
@@ -191,6 +203,37 @@ export function ErrorBoundary({ error, retry }) {
       <Text style={{ fontSize: 13, color: '#6B7280', textAlign: 'center', marginBottom: 24 }}>
         {error?.message || 'An unexpected error occurred'}
       </Text>
+      {!!stackPreview && (
+        <>
+          <TouchableOpacity
+            onPress={() => setShowDetails((prev) => !prev)}
+            style={{ marginBottom: 12, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, backgroundColor: '#E5E7EB' }}
+          >
+            <Text style={{ color: '#111827', fontWeight: '700', fontSize: 12 }}>
+              {showDetails ? 'Hide Crash Details' : 'Show Crash Details'}
+            </Text>
+          </TouchableOpacity>
+          {showDetails && (
+            <View
+              style={{
+                width: '100%',
+                maxHeight: 180,
+                backgroundColor: '#111827',
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 18,
+              }}
+            >
+              <Text selectable style={{ color: '#F9FAFB', fontSize: 11, fontWeight: '700', marginBottom: 6 }}>
+                {errorName}
+              </Text>
+              <Text selectable style={{ color: '#D1D5DB', fontSize: 10, lineHeight: 14 }}>
+                {stackPreview}
+              </Text>
+            </View>
+          )}
+        </>
+      )}
       <TouchableOpacity
         onPress={retry}
         style={{ backgroundColor: '#7F77DD', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
@@ -219,28 +262,36 @@ export default function RootLayout() {
   const startLiveTracking = useLocationStore((s) => s.startLiveTracking);
   const stopLiveTracking = useLocationStore((s) => s.stopLiveTracking);
 
+  const callMaybe = async (fn, label) => {
+    if (typeof fn !== 'function') {
+      console.warn(`${label} is not available`);
+      return undefined;
+    }
+    return await fn();
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
         // Initialize auth first
-        await initialize();
+        await callMaybe(initialize, 'auth.initialize');
         // Load persisted cart count and items early for all screens.
-        await initCart();
+        await callMaybe(initCart, 'cart.initialize');
         // Then initialize location
-        await initLocation();
+        await callMaybe(initLocation, 'location.initialize');
         // Finally check if location needs requesting
         const { lat } = useLocationStore.getState();
         if (!lat) {
-          await requestLocation();
+          await callMaybe(requestLocation, 'location.requestLocation');
         }
-        await startLiveTracking();
+        await callMaybe(startLiveTracking, 'location.startLiveTracking');
       } catch (err) {
         console.error('Initialization error:', err);
       }
     };
     init();
     return () => {
-      stopLiveTracking().catch(() => {});
+      Promise.resolve(callMaybe(stopLiveTracking, 'location.stopLiveTracking')).catch(() => {});
     };
   }, [initialize, initCart, initLocation, requestLocation, startLiveTracking, stopLiveTracking]);
 
@@ -249,7 +300,9 @@ export default function RootLayout() {
     if (isAuthenticated) {
       const initPush = async () => {
         try {
-          await pushService.initialize();
+          if (typeof pushService?.initialize === 'function') {
+            await pushService.initialize();
+          }
         } catch (err) {
           console.error('Push notification init error:', err);
         }
@@ -259,7 +312,9 @@ export default function RootLayout() {
 
     // Cleanup on unmount
     return () => {
-      pushService.cleanup();
+      if (typeof pushService?.cleanup === 'function') {
+        pushService.cleanup();
+      }
     };
   }, [isAuthenticated]);
 
@@ -268,7 +323,6 @@ export default function RootLayout() {
       <PremiumAlertProvider>
         <ConfirmDialogProvider>
           <AlertRefSync />
-          <OfflineIndicator />
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
             <Stack.Screen name="index" />

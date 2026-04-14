@@ -108,7 +108,7 @@ export default function StaffScreen() {
         <View style={styles.roleRow}>
           <View style={[styles.roleBadge, { backgroundColor: (ROLE_COLORS[item.role] || COLORS.gray) + '20' }]}>
             <Text style={[styles.roleText, { color: ROLE_COLORS[item.role] || COLORS.gray }]}>
-              {item.role.toUpperCase()}
+              {String(item.role || 'staff').toUpperCase()}
             </Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: item.status === 'active' ? COLORS.success + '20' : COLORS.warning + '20' }]}>
