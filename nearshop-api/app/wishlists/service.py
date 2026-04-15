@@ -120,12 +120,16 @@ async def get_wishlist(
             "product_id": product.id,
             "product_name": product.name,
             "product_price": display_price,
+            "original_price": product.compare_price,
             "product_images": product.images if product.images and len(product.images) > 0 else [],
             "shop_name": shop.name if shop else "Unknown Shop",
             "shop_id": str(shop.id) if shop else None,
             "price_at_save": wishlist_entry.price_at_save,
             "price_dropped": price_dropped,
             "created_at": wishlist_entry.created_at,
+            "is_available": product.is_available,
+            "stock_quantity": product.stock_quantity,
+            "low_stock_threshold": product.low_stock_threshold or 5,
         })
 
     return items, total
@@ -170,15 +174,21 @@ async def check_price_drops(
                 "product_name": product.name,
                 "image": (product.images or [None])[0],
                 "images": product.images or [],
+                "product_images": product.images or [],
                 "old_price": saved_price,
                 "price": current_price,
-                "product_price": current_price,  # For consistency
+                "product_price": current_price,
+                "original_price": product.compare_price,
                 "drop_amount": round(drop_amount, 2),
                 "drop_percentage": round(drop_percentage, 2),
                 "shop_id": str(product.shop_id),
                 "shop_name": shop.name if shop else "Unknown Shop",
                 "price_at_save": wishlist_entry.price_at_save,
                 "price_dropped": True,
+                "is_available": product.is_available,
+                "stock_quantity": product.stock_quantity,
+                "low_stock_threshold": product.low_stock_threshold or 5,
+                "created_at": wishlist_entry.created_at,
             })
 
     return drops

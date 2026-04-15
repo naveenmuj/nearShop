@@ -11,12 +11,16 @@ class WishlistItemResponse(BaseModel):
     product_id: UUID
     product_name: str
     product_price: Decimal
+    original_price: Optional[Decimal] = None  # compare_price from Product
     product_images: Optional[list[str]] = []
     shop_name: Optional[str] = None
     shop_id: Optional[str] = None
     price_at_save: Optional[Decimal] = None
     price_dropped: bool = False
     created_at: datetime
+    is_available: bool = True
+    stock_quantity: Optional[int] = None
+    low_stock_threshold: int = 5
     
     # Convenience fields for frontend compatibility
     @property

@@ -53,7 +53,7 @@ export default function DealsPage() {
     } catch (err) { setError(err.message || 'Failed to load deals') } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchDeals() }, [latitude, longitude])
+  useEffect(() => { fetchDeals() }, [latitude, longitude, fetchDeals])
   useEffect(() => {
     if (deals.length === 0) return
     const interval = setInterval(() => { const t = {}; deals.forEach(d => { t[d.id] = getTimeLeft(d.expires_at) }); setTimers(t) }, 1000)
@@ -88,7 +88,8 @@ export default function DealsPage() {
           {deals.map(deal => {
             const timeLeft = timers[deal.id] || getTimeLeft(deal.expires_at)
             const expired = timeLeft === 'Expired'
-            const discount = deal.discount_percent || (deal.original_price && deal.price ? Math.round((1 - deal.price / deal.original_price) * 100) : null)
+            // Use savings_pct from API if available, otherwise calculate from prices
+            const discount = deal.savings_pct ?? (deal.original_price && deal.deal_price ? Math.round((1 - deal.deal_price / deal.original_price) * 100) : deal.discount_pct ?? null)
             return (
               <div key={deal.id} className={`bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all ${expired ? 'opacity-50' : ''}`}>
                 {/* Discount header */}
@@ -104,13 +105,13 @@ export default function DealsPage() {
                   <p className="text-sm font-bold text-gray-900 line-clamp-2">{deal.product_name || deal.title || deal.name}</p>
                   <p className="text-xs text-brand-purple font-medium mt-1">{deal.shop_name}</p>
                   <div className="flex items-baseline gap-2 mt-2">
-                    {deal.price && <span className="text-lg font-extrabold text-gray-900">{formatPrice(deal.price)}</span>}
-                    {deal.original_price && deal.original_price > (deal.price || 0) && (
+                    {deal.deal_price && <span className="text-lg font-extrabold text-gray-900">{formatPrice(deal.deal_price)}</span>}
+                    {deal.original_price && deal.original_price > (deal.deal_price || 0) && (
                       <span className="text-sm text-gray-400 line-through">{formatPrice(deal.original_price)}</span>
                     )}
                   </div>
                   {deal.match_reason && <p className="text-xs text-purple-500 mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" />{deal.match_reason}</p>}
-                  {deal.claims_count != null && <p className="text-xs text-gray-400 mt-1">{deal.claims_count} claimed</p>}
+                  {deal.current_claims != null && <p className="text-xs text-gray-400 mt-1">{deal.current_claims} claimed</p>}
                   <button onClick={() => !expired && handleClaim(deal.id)} disabled={expired || claiming === deal.id}
                     className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition ${expired ? 'bg-gray-100 text-gray-400' : 'bg-brand-purple text-white hover:bg-brand-purple-dark'}`}>
                     {expired ? 'Expired' : claiming === deal.id ? 'Claiming...' : 'Claim Deal'}

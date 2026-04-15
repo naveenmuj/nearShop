@@ -130,6 +130,37 @@ function getThemeByCategory(category = '') {
   return CATEGORY_THEMES[category] || CATEGORY_THEMES.all;
 }
 
+function normalizeCategoryValue(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
+function matchesHomeCategory(item = {}, selectedCategory = '') {
+  const category = normalizeCategoryValue(selectedCategory);
+  if (!category) return true;
+
+  const candidates = [
+    item?.category,
+    item?.subcategory,
+    item?.category_name,
+    item?.shop_category,
+    ...(Array.isArray(item?.tags) ? item.tags : []),
+  ]
+    .filter(Boolean)
+    .map(normalizeCategoryValue);
+
+  const aliases = {
+    grocery: ['grocery', 'groceries', 'supermarket', 'daily essentials'],
+    electronics: ['electronics', 'electronic', 'gadgets', 'mobile', 'mobile accessories'],
+    clothing: ['clothing', 'fashion', 'apparel', 'wear', 'wears'],
+    food: ['food', 'restaurant', 'meals', 'snacks', 'snack', 'cafe'],
+    beauty: ['beauty', 'personal care', 'cosmetics', 'makeup', 'skincare'],
+    home: ['home', 'household', 'decor', 'furniture', 'kitchen'],
+  };
+
+  const allowed = aliases[category] || [category];
+  return candidates.some((candidate) => allowed.some((alias) => candidate.includes(alias)));
+}
+
 function getReasonBadgeStyle(reason) {
   const tone = getRankingReasonTone(reason);
   return {
@@ -296,10 +327,7 @@ export default function HomeScreen() {
 
   const nearbyShops = useMemo(() => {
     const filtered = Array.isArray(shops)
-      ? shops.filter((shop) => {
-          if (!selectedCategory) return true;
-          return String(shop?.category || '').toLowerCase() === selectedCategory.toLowerCase();
-        })
+      ? shops.filter((shop) => matchesHomeCategory(shop, selectedCategory))
       : [];
 
     return filtered
@@ -331,10 +359,7 @@ export default function HomeScreen() {
         if (byId.has(key)) return;
 
         const normalized = normalizeGridProduct(item, source);
-        if (
-          selectedCategory
-          && String(normalized?.category || '').toLowerCase() !== selectedCategory.toLowerCase()
-        ) {
+        if (!matchesHomeCategory(normalized, selectedCategory)) {
           return;
         }
         byId.set(key, normalized);
@@ -378,17 +403,18 @@ export default function HomeScreen() {
         reason: item.reason ?? 'ai_match',
       }));
 
+    const categoryFilter = selectedCategory || undefined;
     const requests = [
       getStoriesFeed(),
       getNearbyDeals(lat, lng),
       getNearbyShops(lat, lng, { radius_km: nearbyRadiusKm }),
-      searchProducts({ sort: 'newest', per_page: 30, lat, lng, radius_km: nearbyRadiusKm }),
-      getTrendingProducts(lat, lng, { limit: 14, radius_km: nearbyRadiusKm }),
+      searchProducts({ sort: 'newest', per_page: 30, lat, lng, radius_km: nearbyRadiusKm, category: categoryFilter }),
+      getTrendingProducts(lat, lng, { limit: 14, radius_km: nearbyRadiusKm, category: categoryFilter }),
     ];
 
     if (user) {
-      requests.push(getAIRecommendations({ lat, lng, limit: 12, radius_km: nearbyRadiusKm }));
-      requests.push(getCFRecommendations(lat, lng, { limit: 12, radius_km: nearbyRadiusKm }));
+      requests.push(getAIRecommendations({ lat, lng, limit: 12, radius_km: nearbyRadiusKm, category: categoryFilter }));
+      requests.push(getCFRecommendations(lat, lng, { limit: 12, radius_km: nearbyRadiusKm, category: categoryFilter }));
     }
 
     const results = await Promise.allSettled(requests);
@@ -428,7 +454,7 @@ export default function HomeScreen() {
     if (user && cfRes?.status === 'fulfilled') {
       setCfRecs(cfRes.value?.data?.products ?? []);
     }
-  }, [lat, lng, user, nearbyRadiusKm]);
+  }, [lat, lng, user, nearbyRadiusKm, selectedCategory]);
 
   useEffect(() => {
     let cancelled = false;

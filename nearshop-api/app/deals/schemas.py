@@ -33,6 +33,7 @@ class DealResponse(BaseModel):
     created_at: datetime
     original_price: Optional[Decimal] = None
     deal_price: Optional[Decimal] = None
+    savings_pct: Optional[int] = None  # Calculated: (original - deal) / original * 100
     shop_name: Optional[str] = None
     product_name: Optional[str] = None
     image_url: Optional[str] = None  # Product image URL for display
@@ -68,6 +69,7 @@ class PersonalizedDealResponse(BaseModel):
     category: Optional[str] = None
     original_price: Optional[Decimal] = None
     deal_price: Optional[Decimal] = None
+    savings_pct: Optional[int] = None  # Calculated: (original - deal) / original * 100
     current_claims: int = 0
     max_claims: Optional[int] = None
     personalisation_score: float = 0

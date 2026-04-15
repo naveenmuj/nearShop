@@ -2,9 +2,13 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/theme';
+import useWishlistStore from '../../store/wishlistStore';
 
 export default function CustomerTabs() {
   const insets = useSafeAreaInsets();
+  const savedCount = useWishlistStore((state) => state.savedCount);
+  const followedCount = useWishlistStore((state) => state.followedCount);
+  const totalWishlistCount = savedCount + followedCount;
   return (
     <Tabs
       screenOptions={{
@@ -37,7 +41,11 @@ export default function CustomerTabs() {
       />
       <Tabs.Screen
         name="wishlist"
-        options={{ title: 'Wishlist', tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} /> }}
+        options={{
+          title: 'Wishlist',
+          tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
+          tabBarBadge: totalWishlistCount > 0 ? totalWishlistCount : undefined,
+        }}
       />
       <Tabs.Screen
         name="profile"

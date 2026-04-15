@@ -1,6 +1,7 @@
 """Personalized deal feed powered by shared ranking signals."""
 
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import and_, desc, select
@@ -11,6 +12,17 @@ from app.deals.models import Deal
 from app.products.models import Product
 from app.ranking.service import RankingContext, build_user_preference_profile, rank_deals, score_deal
 from app.shops.models import Shop
+
+
+def _calculate_savings_pct(original_price: Decimal | None, deal_price: Decimal | None) -> int | None:
+    """Calculate savings percentage from original and deal prices."""
+    if not original_price or not deal_price or original_price == 0:
+        return None
+    try:
+        savings = (float(original_price) - float(deal_price)) / float(original_price) * 100
+        return int(round(max(0, savings)))
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
 
 
 async def get_personalized_deals(
@@ -47,6 +59,19 @@ async def get_personalized_deals(
     scored = []
     for deal, shop, product in ranked_rows[:limit]:
         score = score_deal(deal, shop, product, profile, context)
+        
+        # Calculate deal price and savings
+        deal_price = None
+        original_price = None
+        if product:
+            original_price = product.price
+            deal_price = max(
+                Decimal('0'),
+                Decimal(product.price) - (Decimal(product.price) * Decimal(deal.discount_pct or 0) / Decimal('100'))
+                if deal.discount_pct
+                else Decimal(product.price) - Decimal(deal.discount_amount or 0),
+            )
+        
         scored.append(
             {
                 "id": str(deal.id),
@@ -59,6 +84,12 @@ async def get_personalized_deals(
                 "shop_name": shop.name,
                 "shop_rating": round(float(shop.avg_rating or 3.0), 1),
                 "product_id": str(deal.product_id) if deal.product_id else None,
+                "product_name": product.name if product else None,
+                "image_url": product.images[0] if product and product.images else None,
+                "category": product.category if product else None,
+                "original_price": float(original_price) if original_price else None,
+                "deal_price": float(deal_price) if deal_price else None,
+                "savings_pct": _calculate_savings_pct(original_price, deal_price),
                 "current_claims": deal.current_claims,
                 "max_claims": deal.max_claims,
                 "personalisation_score": round(score, 1),

@@ -7,6 +7,8 @@ import {
   StatusBar,
   RefreshControl,
   Animated,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -51,6 +53,13 @@ export default function ProductsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(normalizeCategory(params?.category));
+
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(50000);
+  const [minRating, setMinRating] = useState(0);
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -146,6 +155,15 @@ export default function ProductsScreen() {
           return;
         }
 
+        // Apply filters
+        const price = Number(normalized?.price || 0);
+        if (price < minPrice || price > maxPrice) return;
+
+        const rating = Number(normalized?.rating || 0);
+        if (rating < minRating) return;
+
+        if (inStockOnly && !normalized?.is_available) return;
+
         map.set(key, normalized);
       });
     };
@@ -155,7 +173,7 @@ export default function ProductsScreen() {
     add(globalProducts, 'global');
 
     return Array.from(map.values());
-  }, [user, personalized, trending, globalProducts, selectedCategory]);
+  }, [user, personalized, trending, globalProducts, selectedCategory, minPrice, maxPrice, minRating, inStockOnly]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -174,7 +192,13 @@ export default function ProductsScreen() {
               <Text style={styles.backBtnText}>←</Text>
             </TouchableOpacity>
             <Text style={styles.heroTitle}>All Products</Text>
-            <View style={styles.backBtnGhost} />
+            <TouchableOpacity 
+              style={styles.filterBtn} 
+              onPress={() => setShowFilters(true)} 
+              activeOpacity={0.8}
+            >
+              <Text style={styles.filterBtnText}>🔧</Text>
+            </TouchableOpacity>
           </View>
           <Text style={styles.heroSubtitle} numberOfLines={1}>{address || 'Current location'}</Text>
           <Text style={styles.heroDesc}>
@@ -239,6 +263,102 @@ export default function ProductsScreen() {
           ) : null}
         />
       </Animated.View>
+
+      {/* Filter Modal */}
+      <Modal visible={showFilters} transparent animationType="slide">
+        <View style={styles.filterModalOverlay}>
+          <View style={styles.filterModal}>
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterTitle}>Filters</Text>
+              <Pressable onPress={() => setShowFilters(false)} hitSlop={8}>
+                <Text style={styles.filterClose}>✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Price Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Price Range</Text>
+              <View style={styles.filterPriceRow}>
+                <Text style={styles.filterLabel}>₹{minPrice}</Text>
+                <Text style={styles.filterLabel}>₹{maxPrice}</Text>
+              </View>
+              <View style={styles.filterSliderRow}>
+                <TouchableOpacity 
+                  style={styles.filterPriceBtn}
+                  onPress={() => setMinPrice(Math.max(0, minPrice - 1000))}
+                >
+                  <Text style={styles.filterPriceBtnText}>−</Text>
+                </TouchableOpacity>
+                <View style={styles.filterSlider} />
+                <TouchableOpacity 
+                  style={styles.filterPriceBtn}
+                  onPress={() => setMaxPrice(Math.min(100000, maxPrice + 1000))}
+                >
+                  <Text style={styles.filterPriceBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Rating Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Minimum Rating</Text>
+              <View style={styles.filterRatingRow}>
+                {[0, 2, 3, 4, 4.5].map((rating) => (
+                  <Pressable
+                    key={rating}
+                    style={[
+                      styles.filterRatingChip,
+                      minRating === rating && styles.filterRatingChipActive
+                    ]}
+                    onPress={() => setMinRating(rating)}
+                  >
+                    <Text style={[
+                      styles.filterRatingText,
+                      minRating === rating && styles.filterRatingTextActive
+                    ]}>
+                      {rating === 0 ? 'All' : `${rating}⭐`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Availability Filter */}
+            <View style={styles.filterSection}>
+              <Pressable 
+                style={styles.filterCheckbox}
+                onPress={() => setInStockOnly(!inStockOnly)}
+              >
+                <Text style={styles.filterCheckboxBox}>
+                  {inStockOnly ? '☑' : '☐'}
+                </Text>
+                <Text style={styles.filterCheckboxLabel}>In Stock Only</Text>
+              </Pressable>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.filterActions}>
+              <Pressable 
+                style={styles.filterResetBtn}
+                onPress={() => {
+                  setMinPrice(0);
+                  setMaxPrice(50000);
+                  setMinRating(0);
+                  setInStockOnly(false);
+                }}
+              >
+                <Text style={styles.filterResetBtnText}>Reset</Text>
+              </Pressable>
+              <Pressable 
+                style={styles.filterApplyBtn}
+                onPress={() => setShowFilters(false)}
+              >
+                <Text style={styles.filterApplyBtnText}>Apply Filters</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -277,6 +397,17 @@ const styles = StyleSheet.create({
   backBtnGhost: {
     width: 34,
     height: 34,
+  },
+  filterBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtnText: {
+    fontSize: 18,
   },
   backBtnText: {
     fontSize: 20,
@@ -357,5 +488,150 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 12,
     color: COLORS.gray500,
+  },
+  // Filter Modal Styles
+  filterModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  filterModal: {
+    backgroundColor: COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray200,
+  },
+  filterTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.gray900,
+  },
+  filterClose: {
+    fontSize: 24,
+    color: COLORS.gray600,
+  },
+  filterSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+  },
+  filterSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.gray800,
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  filterPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  filterSliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterPriceBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterPriceBtnText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  filterSlider: {
+    flex: 1,
+    height: 4,
+    backgroundColor: COLORS.gray200,
+    borderRadius: 2,
+  },
+  filterRatingRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  filterRatingChip: {
+    backgroundColor: COLORS.gray100,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  filterRatingChipActive: {
+    backgroundColor: COLORS.primary,
+  },
+  filterRatingText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.gray700,
+  },
+  filterRatingTextActive: {
+    color: COLORS.white,
+  },
+  filterCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  filterCheckboxBox: {
+    fontSize: 20,
+  },
+  filterCheckboxLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.gray800,
+  },
+  filterActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  filterResetBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.gray300,
+    alignItems: 'center',
+  },
+  filterResetBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.gray700,
+  },
+  filterApplyBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+  },
+  filterApplyBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });

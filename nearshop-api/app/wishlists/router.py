@@ -29,21 +29,32 @@ async def add_to_wishlist_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     entry = await add_to_wishlist(db, current_user.id, product_id)
-    # Load product for response
+    # Load product and shop for response
     from app.products.models import Product
+    from app.shops.models import Shop
     from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
 
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product).options(joinedload(Product.shop)).where(Product.id == product_id)
+    )
     product = result.scalar_one_or_none()
+    
     return WishlistItemResponse(
         id=entry.id,
         product_id=entry.product_id,
         product_name=product.name if product else "",
         product_price=product.price if product else entry.price_at_save,
+        original_price=product.compare_price if product else None,
         product_images=product.images if product else [],
+        shop_name=product.shop.name if product and product.shop else "Unknown Shop",
+        shop_id=str(product.shop.id) if product and product.shop else None,
         price_at_save=entry.price_at_save,
         price_dropped=False,
         created_at=entry.created_at,
+        is_available=product.is_available if product else True,
+        stock_quantity=product.stock_quantity if product else None,
+        low_stock_threshold=product.low_stock_threshold if product else 5,
     )
 
 

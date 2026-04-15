@@ -11,6 +11,7 @@ import { getNearbyDeals, getPersonalizedDeals, claimDeal, addToWishlist, removeF
 import { getWishlist } from '../../lib/wishlists';
 import { toast } from '../../components/ui/Toast';
 import useLocationStore from '../../store/locationStore';
+import useWishlistStore from '../../store/wishlistStore';
 import * as Haptics from 'expo-haptics';
 
 // Try to import optional dependencies, fallback gracefully
@@ -18,22 +19,24 @@ let LinearGradient;
 let BlurView;
 try {
   LinearGradient = require('expo-linear-gradient').LinearGradient;
-} catch (e) {
+} catch (_e) {
   // Fallback: Simple View with background color
   LinearGradient = ({ colors, style, children, ...props }) => (
     <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
       {children}
     </View>
   );
+  LinearGradient.displayName = 'LinearGradientFallback';
 }
 try {
   BlurView = require('expo-blur').BlurView;
-} catch (e) {
+} catch (_e) {
   BlurView = ({ style, children, ...props }) => (
     <View style={[style, { backgroundColor: 'rgba(255,255,255,0.9)' }]} {...props}>
       {children}
     </View>
   );
+  BlurView.displayName = 'BlurViewFallback';
 }
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -54,6 +57,13 @@ const getUrgencyColor = (hoursLeft) => {
   if (hoursLeft <= 6) return { bg: '#FEF3C7', text: '#D97706', glow: '#F59E0B' };
   return { bg: '#DCFCE7', text: '#16A34A', glow: '#22C55E' };
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIELD MAPPING HELPERS - Normalize API response field names
+// ─────────────────────────────────────────────────────────────────────────────
+const getDealFinalPrice = (deal) => Number(deal?.deal_price ?? deal?.final_price ?? 0);
+const getDealBasePrice = (deal) => Number(deal?.original_price ?? deal?.base_price ?? 0);
+const getDealSavingsPct = (deal) => Number(deal?.savings_pct ?? 0);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANIMATED COUNTDOWN HOOK (Enhanced)
@@ -335,8 +345,8 @@ function FeaturedDeal({ deal, onClaim, claiming, onSave, isSaved, isSaving }) {
   const glowAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const urgencyColor = getUrgencyColor(hoursLeft);
-  const hasPrice = Number(deal.final_price ?? 0) > 0;
-  const savingsPct = Number(deal.savings_pct ?? 0);
+  const hasPrice = getDealFinalPrice(deal) > 0;
+  const savingsPct = getDealSavingsPct(deal);
 
   useEffect(() => {
     if (critical && !expired) {
@@ -450,9 +460,9 @@ function FeaturedDeal({ deal, onClaim, claiming, onSave, isSaved, isSaving }) {
             )}
             {hasPrice && (
               <View style={styles.featuredPriceRow}>
-                <Text style={styles.featuredFinalPrice}>{formatPrice(deal.final_price)}</Text>
-                {Number(deal.base_price ?? 0) > Number(deal.final_price ?? 0) && (
-                  <Text style={styles.featuredComparePrice}>{formatPrice(deal.base_price)}</Text>
+                <Text style={styles.featuredFinalPrice}>{formatPrice(getDealFinalPrice(deal))}</Text>
+                {getDealBasePrice(deal) > getDealFinalPrice(deal) && (
+                  <Text style={styles.featuredComparePrice}>{formatPrice(getDealBasePrice(deal))}</Text>
                 )}
                 {savingsPct > 0 && (
                   <View style={styles.featuredSavingsChip}>
@@ -552,9 +562,8 @@ function DealCard({ deal, onClaim, claiming, index, onSave, isSaved, isSaving })
   };
 
   const categoryEmoji = CATEGORIES.find(c => c.key === deal.category)?.emoji ?? '🎁';
-  const isLowStock = deal.max_claims && (deal.max_claims - deal.current_claims) <= 3;
-  const hasPrice = Number(deal.final_price ?? 0) > 0;
-  const savingsPct = Number(deal.savings_pct ?? 0);
+  const hasPrice = getDealFinalPrice(deal) > 0;
+  const savingsPct = getDealSavingsPct(deal);
 
   return (
     <Animated.View style={[
@@ -612,13 +621,6 @@ function DealCard({ deal, onClaim, claiming, index, onSave, isSaved, isSaving })
             </View>
           )}
           
-          {/* Low Stock Warning */}
-          {isLowStock && !expired && (
-            <View style={styles.lowStockBadge}>
-              <Text style={styles.lowStockText}>⚡ {deal.max_claims - deal.current_claims} left!</Text>
-            </View>
-          )}
-          
           {/* Expired Overlay */}
           {expired && (
             <View style={styles.expiredOverlay}>
@@ -640,9 +642,9 @@ function DealCard({ deal, onClaim, claiming, index, onSave, isSaved, isSaving })
 
           {hasPrice && (
             <View style={styles.dealPriceRow}>
-              <Text style={styles.dealFinalPrice}>{formatPrice(deal.final_price)}</Text>
-              {Number(deal.base_price ?? 0) > Number(deal.final_price ?? 0) && (
-                <Text style={styles.dealBasePrice}>{formatPrice(deal.base_price)}</Text>
+              <Text style={styles.dealFinalPrice}>{formatPrice(getDealFinalPrice(deal))}</Text>
+              {getDealBasePrice(deal) > getDealFinalPrice(deal) && (
+                <Text style={styles.dealBasePrice}>{formatPrice(getDealBasePrice(deal))}</Text>
               )}
               {savingsPct > 0 && (
                 <View style={styles.dealSavingsChip}>
@@ -734,7 +736,7 @@ function CategoryPill({ cat, isActive, onPress, dealCount }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ANIMATED HERO SECTION
 // ═══════════════════════════════════════════════════════════════════════════════
-function HeroSection({ activeDeals, timeOfDay }) {
+function HeroSection({ activeDeals, timeOfDay, address }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   
   useEffect(() => {
@@ -855,8 +857,16 @@ export default function DealsScreen() {
   const [claimingId, setClaimingId] = useState(null);
   const [scrollY, setScrollY] = useState(0);
   const [savedProductIds, setSavedProductIds] = useState(new Set());
+  const [savedItems, setSavedItems] = useState([]);
   const [savingDealId, setSavingDealId] = useState(null);
   const [dismissedExpiryWarning, setDismissedExpiryWarning] = useState(false);
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const followedCount = useWishlistStore((state) => state.followedCount);
+  const setWishlistSummary = useWishlistStore((state) => state.setWishlistSummary);
 
   // Get time of day for personalized greeting
   const timeOfDay = useMemo(() => {
@@ -867,12 +877,12 @@ export default function DealsScreen() {
     return 'night';
   }, []);
 
-  const loadDeals = useCallback(async () => {
+  const loadDeals = useCallback(async (pageNum = 1, append = false) => {
     try {
       setError(null);
       const baseLat = lat ?? 12.935;
       const baseLng = lng ?? 77.624;
-      const nearbyParams = { limit: 60 };
+      const nearbyParams = { limit: pageNum === 1 ? 60 : pageSize };
       if (activeCategory !== 'All') nearbyParams.category = activeCategory;
       const matchesCategory = (item) => (
         activeCategory === 'All'
@@ -881,54 +891,79 @@ export default function DealsScreen() {
 
       const [nearbyRes, personalizedRes] = await Promise.allSettled([
         getNearbyDeals(baseLat, baseLng, nearbyParams),
-        getPersonalizedDeals(baseLat, baseLng, { limit: 30 }),
+        pageNum === 1 ? getPersonalizedDeals(baseLat, baseLng, { limit: 30 }) : Promise.resolve({ data: { items: [] } }),
       ]);
 
       const nearbyItems = nearbyRes.status === 'fulfilled'
         ? (nearbyRes.value.data?.items ?? nearbyRes.value.data?.deals ?? nearbyRes.value.data ?? [])
         : [];
-      const personalizedItems = personalizedRes.status === 'fulfilled'
+      const personalizedItems = pageNum === 1 ? (personalizedRes.status === 'fulfilled'
         ? (personalizedRes.value.data?.items ?? personalizedRes.value.data?.deals ?? personalizedRes.value.data ?? [])
-        : [];
+        : []) : [];
 
       const merged = [];
       const seen = new Set();
-      [...personalizedItems, ...nearbyItems].forEach((item) => {
-        if (!item?.id || seen.has(item.id)) return;
-        if (!matchesCategory(item)) return;
-        seen.add(item.id);
-        merged.push(item);
-      });
+      
+      // For first page, include personalized items
+      if (pageNum === 1) {
+        [...personalizedItems, ...nearbyItems].forEach((item) => {
+          if (!item?.id || seen.has(item.id)) return;
+          if (!matchesCategory(item)) return;
+          seen.add(item.id);
+          merged.push(item);
+        });
+      } else {
+        // For subsequent pages, just filter nearby
+        nearbyItems.forEach((item) => {
+          if (!item?.id) return;
+          if (!matchesCategory(item)) return;
+          merged.push(item);
+        });
+      }
 
-      if (merged.length === 0 && nearbyRes.status === 'rejected' && personalizedRes.status === 'rejected') {
+      // Check if there are more results
+      const hasMoreResults = nearbyItems.length >= pageSize;
+      setHasMore(hasMoreResults);
+
+      if (merged.length === 0 && pageNum === 1 && nearbyRes.status === 'rejected' && personalizedRes.status === 'rejected') {
         throw new Error('Failed to load deals');
       }
 
-      setDeals(merged);
-    } catch {
-      setError('Could not load deals. Check your connection.');
+      if (append) {
+        setDeals(prev => [...prev, ...merged]);
+      } else {
+        setDeals(merged);
+      }
+      
+      if (pageNum === 1) setPage(1);
+    } catch (err) {
+      if (!append) setError('Could not load deals. Check your connection.');
     }
-  }, [lat, lng, activeCategory]);
+  }, [lat, lng, activeCategory, pageSize]);
 
   useEffect(() => {
     setIsLoading(true);
-    loadDeals().finally(() => setIsLoading(false));
+    setPage(1);
+    setHasMore(true);
+    loadDeals(1, false).finally(() => setIsLoading(false));
   }, [loadDeals]);
 
   const loadSavedDeals = useCallback(async () => {
     try {
       const res = await getWishlist();
       const items = res?.data?.items ?? [];
+      setSavedItems(items);
       const ids = new Set(
         items
           .map((item) => String(item.product_id || ''))
           .filter(Boolean)
       );
       setSavedProductIds(ids);
+      setWishlistSummary({ savedCount: items.length, followedCount });
     } catch {
       // Keep UX resilient even if wishlist fetch fails.
     }
-  }, []);
+  }, [followedCount, setWishlistSummary]);
 
   useEffect(() => {
     loadSavedDeals();
@@ -936,10 +971,21 @@ export default function DealsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setPage(1);
+    setHasMore(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await Promise.all([loadDeals(), loadSavedDeals()]);
+    await Promise.all([loadDeals(1, false), loadSavedDeals()]);
     setRefreshing(false);
   };
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || isLoading) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    await loadDeals(nextPage, true);
+    setPage(nextPage);
+    setLoadingMore(false);
+  }, [page, loadingMore, hasMore, isLoading, loadDeals]);
 
   const handleClaim = async (id) => {
     setClaimingId(id);
@@ -947,7 +993,9 @@ export default function DealsScreen() {
       await claimDeal(id);
       toast.show({ type: 'success', text1: '🎉 Deal claimed! Check your orders.' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await loadDeals();
+      setPage(1);
+      setHasMore(true);
+      await loadDeals(1, false);
     } catch (err) {
       toast.show({ type: 'error', text1: err?.response?.data?.detail || 'Failed to claim deal' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -1124,6 +1172,21 @@ export default function DealsScreen() {
   // Determine if we should show sticky featured deal (scroll past featured section)
   const showStickyFeatured = scrollY > 400 && featuredVisibleDeal;
 
+  const savedDealRailItems = useMemo(() => savedItems.slice(0, 5), [savedItems]);
+  const savedPriceDropCount = useMemo(() => savedItems.filter((item) => {
+    const oldPrice = Number(item.price_at_save ?? item.product_price ?? item.price ?? 0);
+    const currentPrice = Number(item.current_price ?? item.price ?? item.product_price ?? 0);
+    return oldPrice > 0 && currentPrice > 0 && currentPrice < oldPrice;
+  }).length, [savedItems]);
+
+  useEffect(() => {
+    setWishlistSummary({
+      savedCount: savedItems.length,
+      followedCount,
+      priceDropCount: savedPriceDropCount,
+    });
+  }, [followedCount, savedItems.length, savedPriceDropCount, setWishlistSummary]);
+
   useEffect(() => {
     if (expiringDeals.length === 0 && dismissedExpiryWarning) {
       setDismissedExpiryWarning(false);
@@ -1170,6 +1233,9 @@ export default function DealsScreen() {
             isSaving={savingDealId === item.id}
           />
         )}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} /> : null}
         contentContainerStyle={[
           styles.list,
           displayDeals.length === 0 && !isLoading && styles.listEmpty,
@@ -1190,7 +1256,7 @@ export default function DealsScreen() {
         ListHeaderComponent={
           <>
             {/* Animated Hero Header */}
-            <HeroSection activeDeals={activeDeals.length} timeOfDay={timeOfDay} />
+            <HeroSection activeDeals={activeDeals.length} timeOfDay={timeOfDay} address={address} />
 
             <View style={styles.stickyControls}>
               <View style={styles.searchShell}>
@@ -1330,6 +1396,44 @@ export default function DealsScreen() {
                           <Text style={styles.topPickCompare}>{formatPrice(deal.base_price)}</Text>
                         )}
                       </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {savedDealRailItems.length > 0 && (
+              <View style={styles.savedRailSection}>
+                <View style={styles.sectionHeaderCompact}>
+                  <Text style={styles.sectionTitleSmall}>Saved for later</Text>
+                  <Text style={styles.sectionMeta}>
+                    {savedPriceDropCount > 0 ? `${savedPriceDropCount} price drops` : `${savedDealRailItems.length} saved`}
+                  </Text>
+                </View>
+                {savedPriceDropCount > 0 && (
+                  <View style={styles.savedAlertBanner}>
+                    <Text style={styles.savedAlertText}>🔥 {savedPriceDropCount} saved item{savedPriceDropCount === 1 ? '' : 's'} got cheaper</Text>
+                  </View>
+                )}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.savedRailRow}>
+                  {savedDealRailItems.map((item) => (
+                    <Pressable
+                      key={`saved-rail-${item.product_id}`}
+                      style={styles.savedRailCard}
+                      onPress={() => item.product_id && router.push(`/(customer)/product/${item.product_id}`)}
+                    >
+                      <View style={styles.savedRailImageWrap}>
+                        {item.image || item.product_images?.[0] ? (
+                          <Image source={{ uri: item.image || item.product_images?.[0] }} style={styles.savedRailImage} />
+                        ) : (
+                          <LinearGradient colors={['#F3F4F6', '#E5E7EB']} style={styles.savedRailImagePlaceholder}>
+                            <Text style={styles.savedRailEmoji}>💎</Text>
+                          </LinearGradient>
+                        )}
+                      </View>
+                      <Text style={styles.savedRailShop} numberOfLines={1}>{item.shop_name || 'Local Shop'}</Text>
+                      <Text style={styles.savedRailTitle} numberOfLines={2}>{item.product_name || item.name || 'Saved item'}</Text>
+                      <Text style={styles.savedRailPrice}>{formatPrice(Number(item.current_price ?? item.price ?? item.product_price ?? 0))}</Text>
                     </Pressable>
                   ))}
                 </ScrollView>
@@ -2053,21 +2157,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#D97706',
   },
-  lowStockBadge: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
-    backgroundColor: 'rgba(239,68,68,0.95)',
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  lowStockText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#fff',
-  },
   expiredOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -2164,6 +2253,77 @@ const styles = StyleSheet.create({
     fontSize: 13, 
     fontWeight: '800', 
     color: '#fff',
+  },
+
+  savedRailSection: {
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  savedRailRow: {
+    gap: 10,
+    paddingRight: 16,
+  },
+  savedRailCard: {
+    width: 150,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    padding: 10,
+    ...SHADOWS.card,
+  },
+  savedRailImageWrap: {
+    width: '100%',
+    height: 88,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.gray100,
+    marginBottom: 8,
+  },
+  savedRailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  savedRailImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savedRailEmoji: {
+    fontSize: 28,
+  },
+  savedRailShop: {
+    fontSize: 11,
+    color: COLORS.gray500,
+    fontWeight: '600',
+  },
+  savedRailTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.gray900,
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  savedRailPrice: {
+    marginTop: 6,
+    fontSize: 14,
+    fontWeight: '900',
+    color: COLORS.green,
+  },
+  savedAlertBanner: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  savedAlertText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B45309',
   },
 
   // ═══════════════════════════════════════════════════════════════════════════════

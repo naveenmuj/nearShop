@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+from decimal import Decimal
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,17 @@ from app.deals.schemas import DealCreate
 from app.products.models import Product
 from app.ranking.service import RankingContext, build_user_preference_profile, rank_deals, resolve_ranking_profile_id, resolve_ranking_selection
 from app.shops.models import Shop
+
+
+def _calculate_savings_pct(original_price: Decimal | None, deal_price: Decimal | None) -> int | None:
+    """Calculate savings percentage from original and deal prices."""
+    if not original_price or not deal_price or original_price == 0:
+        return None
+    try:
+        savings = (float(original_price) - float(deal_price)) / float(original_price) * 100
+        return int(round(max(0, savings)))
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
 
 
 async def create_deal(
@@ -153,12 +165,14 @@ async def get_nearby_deals(
                     if deal.discount_pct
                     else Decimal(product.price) - Decimal(deal.discount_amount or 0),
                 )  # type: ignore[attr-defined]
+                deal.savings_pct = _calculate_savings_pct(deal.original_price, deal.deal_price)  # type: ignore[attr-defined]
             else:
                 deal.product_name = None  # type: ignore[attr-defined]
                 deal.image_url = None  # type: ignore[attr-defined]
                 deal.category = None  # type: ignore[attr-defined]
                 deal.original_price = None  # type: ignore[attr-defined]
                 deal.deal_price = None  # type: ignore[attr-defined]
+                deal.savings_pct = None  # type: ignore[attr-defined]
             deal.reason = "Recommended for this shopper"  # type: ignore[attr-defined]
             deal.ranking_profile = resolved_profile_id  # type: ignore[attr-defined]
             deal.ranking_experiment = selection["experiment_id"]  # type: ignore[attr-defined]
@@ -183,12 +197,14 @@ async def get_nearby_deals(
                     if deal.discount_pct
                     else Decimal(product.price) - Decimal(deal.discount_amount or 0),
                 )  # type: ignore[attr-defined]
+                deal.savings_pct = _calculate_savings_pct(deal.original_price, deal.deal_price)  # type: ignore[attr-defined]
             else:
                 deal.product_name = None  # type: ignore[attr-defined]
                 deal.image_url = None  # type: ignore[attr-defined]
                 deal.category = None  # type: ignore[attr-defined]
                 deal.original_price = None  # type: ignore[attr-defined]
                 deal.deal_price = None  # type: ignore[attr-defined]
+                deal.savings_pct = None  # type: ignore[attr-defined]
             deals.append(deal)
 
     return deals, total
