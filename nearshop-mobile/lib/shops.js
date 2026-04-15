@@ -13,6 +13,7 @@ export const getShopReviews = (id) => client.get(`/reviews/shop/${id}`);
 // Auth-required shop endpoints
 export const followShop = (id) => authPost(`/shops/${id}/follow`);
 export const unfollowShop = (id) => authDelete(`/shops/${id}/follow`);
+export const getFollowingShops = (params = {}) => authGet('/shops/following', { params });
 export const createShop = (data) => authPost('/shops', data);
 export const updateShop = (id, data) => authPut(`/shops/${id}`, data);
 export const getMyShops = () => authGet('/shops/mine');

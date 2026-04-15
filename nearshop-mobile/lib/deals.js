@@ -2,6 +2,8 @@ import client, { authDelete, authGet, authPost } from './api';
 
 export const getNearbyDeals = (lat, lng, params = {}) =>
   client.get('/deals/nearby', { params: { lat, lng, ...params } });
+export const getPersonalizedDeals = (lat, lng, params = {}) =>
+  client.get('/deals/personalized', { params: { lat, lng, ...params } });
 export const claimDeal = (id) => authPost(`/deals/${id}/claim`);
 export const createDeal = (data, shopId) =>
   authPost(`/deals?shop_id=${shopId}`, data);
@@ -27,3 +29,16 @@ export const useCoupon = (couponId, orderId = null, discountApplied) =>
   });
 
 export const deleteCoupon = (couponId) => authDelete(`/deals/coupons/${couponId}`);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WISHLIST APIs (for saving deals)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const addToWishlist = (productId) =>
+  authPost(`/wishlists/${productId}`);
+
+export const removeFromWishlist = (productId) =>
+  authDelete(`/wishlists/${productId}`);
+
+export const getWishlist = (page = 1, perPage = 100) =>
+  authGet('/wishlists', { params: { page, per_page: perPage } });

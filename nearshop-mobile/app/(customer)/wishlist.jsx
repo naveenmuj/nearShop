@@ -10,7 +10,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getWishlist, removeFromWishlist, getPriceDrops } from '../../lib/wishlists';
+import { getWishlist, removeFromWishlist } from '../../lib/wishlists';
+import { getFollowingShops, unfollowShop } from '../../lib/shops';
 import { WishlistSkeleton } from '../../components/ui/ScreenSkeletons';
 import { alert } from '../../components/ui/PremiumAlert';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
@@ -19,8 +20,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 16 padding each side + 16 gap
 
 const TABS = {
-  SAVED: 'saved',
-  PRICE_DROPS: 'price_drops',
+  PRODUCTS: 'products',
+  SHOPS: 'shops',
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -89,72 +90,90 @@ function SavedItemCard({ item, onRemove, onPress }) {
   );
 }
 
-function PriceDropCard({ item, onRemove, onPress }) {
-  const name = item.product_name || item.name || 'Product';
-  const imageUri = item.image || (item.images && item.images[0]) || (item.product_images && item.product_images[0]) || null;
-  const oldPrice = item.old_price ?? item.saved_price ?? item.price_at_save ?? 0;
-  const newPrice = item.price ?? item.current_price ?? item.product_price ?? 0;
-  const shopName = item.shop_name || '';
-
-  const dropPercent =
-    oldPrice && oldPrice > newPrice
-      ? Math.round(((oldPrice - newPrice) / oldPrice) * 100)
-      : item.drop_percentage ? Math.round(item.drop_percentage) : 0;
+function FollowedShopCard({ item, onPress, onUnfollow }) {
+  const image = item.logo_url || item.cover_image || null;
+  const rating = Number(item.avg_rating || 0);
+  const followedDate = item.followed_at ? new Date(item.followed_at) : null;
+  const followedSince = (() => {
+    if (!followedDate || Number.isNaN(followedDate.getTime())) return null;
+    const diffMs = Date.now() - followedDate.getTime();
+    const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+    if (diffDays < 1) return 'today';
+    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+    if (diffDays < 30) {
+      const weeks = Math.max(1, Math.floor(diffDays / 7));
+      return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+    }
+    const months = Math.max(1, Math.floor(diffDays / 30));
+    return `${months} month${months === 1 ? '' : 's'} ago`;
+  })();
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={styles.shopCard}
       onPress={onPress}
-      activeOpacity={0.85}
+      activeOpacity={0.9}
       accessibilityRole="button"
-      accessibilityLabel={`View ${name}, price dropped ${dropPercent}%`}
+      accessibilityLabel={`View shop ${item.name}`}
     >
-      <ProductImage
-        uri={imageUri}
-        onRemove={() => onRemove(item.product_id)}
-        showRemove
-      />
-      {dropPercent > 0 && (
-        <View style={styles.dropBadge}>
-          <Text style={styles.dropBadgeText}>↓{dropPercent}%</Text>
+      <View style={styles.shopMediaWrap}>
+        <Image
+          source={image ? { uri: image } : require('../../assets/icon.png')}
+          style={styles.shopMedia}
+          resizeMode="cover"
+          defaultSource={require('../../assets/icon.png')}
+        />
+      </View>
+      <View style={styles.shopBody}>
+        <View style={styles.shopTitleRow}>
+          <Text style={styles.shopTitle} numberOfLines={1}>{item.name}</Text>
+          {item.is_verified ? <Text style={styles.verifiedBadge}>✅</Text> : null}
         </View>
-      )}
-      <View style={styles.cardBody}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {name}
+        <Text style={styles.shopMeta} numberOfLines={1}>
+          {item.category || 'Local Shop'}
         </Text>
-        <View style={styles.priceRow}>
-          {oldPrice > newPrice && (
-            <Text style={styles.oldPrice}>{formatPrice(oldPrice)}</Text>
-          )}
-          <Text style={styles.newPrice}>{formatPrice(newPrice)}</Text>
+        <View style={styles.shopStatsRow}>
+          <Text style={styles.shopStatText}>⭐ {rating.toFixed(1)}</Text>
+          <Text style={styles.shopStatDot}>•</Text>
+          <Text style={styles.shopStatText}>{item.total_products || 0} products</Text>
         </View>
-        {shopName ? (
-          <Text style={styles.shopName} numberOfLines={1}>
-            {shopName}
-          </Text>
+        {followedSince ? (
+          <Text style={styles.followedSinceText}>Following since {followedSince}</Text>
         ) : null}
       </View>
+      <TouchableOpacity
+        onPress={() => onUnfollow(item.id)}
+        style={styles.unfollowBtn}
+        accessibilityRole="button"
+        accessibilityLabel={`Unfollow ${item.name}`}
+      >
+        <Text style={styles.unfollowText}>Following</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 }
 
-function EmptyState({ onStartShopping }) {
+function EmptyState({ tab, onStartShopping, onExploreShops }) {
+  const isProductsTab = tab === TABS.PRODUCTS;
   return (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>💔</Text>
-      <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
+      <Text style={styles.emptyIcon}>{isProductsTab ? '💔' : '🏪'}</Text>
+      <Text style={styles.emptyTitle}>
+        {isProductsTab ? 'No saved products yet' : 'No followed shops yet'}
+      </Text>
       <Text style={styles.emptySubtitle}>
-        Save items you love and never lose track of them.
+        {isProductsTab
+          ? 'Save products you love and revisit them quickly.'
+          : 'Follow shops to see them in one place for faster reorders.'}
       </Text>
       <TouchableOpacity
         style={styles.startShoppingButton}
-        onPress={onStartShopping}
+        onPress={isProductsTab ? onStartShopping : onExploreShops}
         activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityLabel="Start Shopping"
+        accessibilityLabel={isProductsTab ? 'Start Shopping' : 'Explore Shops'}
       >
-        <Text style={styles.startShoppingText}>Start Shopping</Text>
+        <Text style={styles.startShoppingText}>{isProductsTab ? 'Start Shopping' : 'Explore Shops'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -165,9 +184,9 @@ function EmptyState({ onStartShopping }) {
 export default function WishlistScreen() {
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState(TABS.SAVED);
+  const [activeTab, setActiveTab] = useState(TABS.PRODUCTS);
   const [savedItems, setSavedItems] = useState([]);
-  const [priceDropItems, setPriceDropItems] = useState([]);
+  const [followedShops, setFollowedShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -178,15 +197,15 @@ export default function WishlistScreen() {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const [wishlistRes, priceDropsRes] = await Promise.allSettled([
+      const [wishlistRes, followingRes] = await Promise.allSettled([
         getWishlist(),
-        getPriceDrops(),
+        getFollowingShops({ page: 1, per_page: 50 }),
       ]);
       if (wishlistRes.status === 'fulfilled') {
         setSavedItems(wishlistRes.value?.data?.items ?? []);
       }
-      if (priceDropsRes.status === 'fulfilled') {
-        setPriceDropItems(priceDropsRes.value?.data?.items ?? priceDropsRes.value?.data ?? []);
+      if (followingRes.status === 'fulfilled') {
+        setFollowedShops(followingRes.value?.data?.items ?? []);
       }
     } catch (err) {
       setError('Failed to load wishlist. Please try again.');
@@ -222,9 +241,6 @@ export default function WishlistScreen() {
         setSavedItems((prev) =>
           prev.filter((i) => i.product_id !== productId)
         );
-        setPriceDropItems((prev) =>
-          prev.filter((i) => i.product_id !== productId)
-        );
         try {
           await removeFromWishlist(productId);
         } catch {
@@ -246,14 +262,25 @@ export default function WishlistScreen() {
     [router]
   );
 
+  const navigateToShop = useCallback(
+    (shopId) => {
+      router.push(`/(customer)/shop/${shopId}`);
+    },
+    [router]
+  );
+
   const navigateToHome = useCallback(() => {
     router.push('/(customer)/home');
   }, [router]);
 
+  const navigateToShops = useCallback(() => {
+    router.push('/(customer)/shops');
+  }, [router]);
+
   // ── Derived state ────────────────────────────────────────────────────────────
 
-  const activeItems = activeTab === TABS.SAVED ? savedItems : priceDropItems;
-  const priceDropCount = priceDropItems.length;
+  const activeItems = activeTab === TABS.PRODUCTS ? savedItems : followedShops;
+  const followedShopsCount = followedShops.length;
   const savedCount = savedItems.length;
 
   // ── Render helpers ───────────────────────────────────────────────────────────
@@ -269,18 +296,45 @@ export default function WishlistScreen() {
     [handleRemove, navigateToProduct]
   );
 
-  const renderPriceDropItem = useCallback(
-    ({ item }) => (
-      <PriceDropCard
-        item={item}
-        onRemove={handleRemove}
-        onPress={() => navigateToProduct(item.product_id)}
-      />
-    ),
-    [handleRemove, navigateToProduct]
+  const handleUnfollowShop = useCallback(
+    async (shopId) => {
+      const confirmed = await alert.confirm({
+        title: 'Unfollow Shop',
+        message: 'Do you want to unfollow this shop?',
+        confirmText: 'Unfollow',
+        cancelText: 'Cancel',
+        type: 'warning',
+      });
+
+      if (!confirmed) return;
+
+      const prevShops = followedShops;
+      setFollowedShops((prev) => prev.filter((s) => String(s.id) !== String(shopId)));
+      try {
+        await unfollowShop(shopId);
+      } catch {
+        setFollowedShops(prevShops);
+        alert.error({ title: 'Error', message: 'Could not unfollow shop. Please try again.' });
+      }
+    },
+    [followedShops]
   );
 
-  const keyExtractor = useCallback((item) => String(item.product_id), []);
+  const renderFollowedShop = useCallback(
+    ({ item }) => (
+      <FollowedShopCard
+        item={item}
+        onUnfollow={handleUnfollowShop}
+        onPress={() => navigateToShop(item.id)}
+      />
+    ),
+    [handleUnfollowShop, navigateToShop]
+  );
+
+  const keyExtractor = useCallback(
+    (item) => String(activeTab === TABS.PRODUCTS ? item.product_id : item.id),
+    [activeTab]
+  );
 
   // ── Loading state ────────────────────────────────────────────────────────────
 
@@ -312,10 +366,12 @@ export default function WishlistScreen() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>My Wishlist ❤️</Text>
-          {savedCount > 0 && (
+          <Text style={styles.headerTitle}>Saved & Following</Text>
+          {(activeTab === TABS.PRODUCTS ? savedCount : followedShopsCount) > 0 && (
             <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{savedCount}</Text>
+              <Text style={styles.countBadgeText}>
+                {activeTab === TABS.PRODUCTS ? savedCount : followedShopsCount}
+              </Text>
             </View>
           )}
         </View>
@@ -324,57 +380,60 @@ export default function WishlistScreen() {
       {/* ── Tab row ────────────────────────────────────────────────────── */}
       <View style={styles.tabRow}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === TABS.SAVED && styles.tabActive]}
-          onPress={() => setActiveTab(TABS.SAVED)}
+          style={[styles.tab, activeTab === TABS.PRODUCTS && styles.tabActive]}
+          onPress={() => setActiveTab(TABS.PRODUCTS)}
           accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === TABS.SAVED }}
-        >
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === TABS.SAVED && styles.tabLabelActive,
-            ]}
-          >
-            Saved Items
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === TABS.PRICE_DROPS && styles.tabActive,
-          ]}
-          onPress={() => setActiveTab(TABS.PRICE_DROPS)}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === TABS.PRICE_DROPS }}
+          accessibilityState={{ selected: activeTab === TABS.PRODUCTS }}
         >
           <View style={styles.tabInner}>
             <Text
               style={[
                 styles.tabLabel,
-                activeTab === TABS.PRICE_DROPS && styles.tabLabelActive,
+                activeTab === TABS.PRODUCTS && styles.tabLabelActive,
               ]}
             >
-              Price Drops
+              Saved Products
             </Text>
-            <Badge count={priceDropCount} />
+            <Badge count={savedCount} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === TABS.SHOPS && styles.tabActive,
+          ]}
+          onPress={() => setActiveTab(TABS.SHOPS)}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === TABS.SHOPS }}
+        >
+          <View style={styles.tabInner}>
+            <Text
+              style={[
+                styles.tabLabel,
+                activeTab === TABS.SHOPS && styles.tabLabelActive,
+              ]}
+            >
+              Followed Shops
+            </Text>
+            <Badge count={followedShopsCount} />
           </View>
         </TouchableOpacity>
       </View>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
       {activeItems.length === 0 ? (
-        <EmptyState onStartShopping={navigateToHome} />
+        <EmptyState tab={activeTab} onStartShopping={navigateToHome} onExploreShops={navigateToShops} />
       ) : (
         <FlatList
           key={activeTab} // forces re-mount on tab switch to reset scroll
           data={activeItems}
           keyExtractor={keyExtractor}
           renderItem={
-            activeTab === TABS.SAVED ? renderSavedItem : renderPriceDropItem
+            activeTab === TABS.PRODUCTS ? renderSavedItem : renderFollowedShop
           }
-          numColumns={2}
-          columnWrapperStyle={styles.row}
+          numColumns={activeTab === TABS.PRODUCTS ? 2 : 1}
+          columnWrapperStyle={activeTab === TABS.PRODUCTS ? styles.row : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -524,6 +583,85 @@ const styles = StyleSheet.create({
   row: {
     gap: 16,
     marginBottom: 16,
+  },
+
+  // ── Followed shop card ───────────────────────────────────────────────────
+  shopCard: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...SHADOWS.card,
+    marginBottom: 12,
+  },
+  shopMediaWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: COLORS.gray100,
+  },
+  shopMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  shopBody: {
+    flex: 1,
+    gap: 4,
+  },
+  shopTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  shopTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.gray900,
+  },
+  verifiedBadge: {
+    fontSize: 13,
+  },
+  shopMeta: {
+    fontSize: 12,
+    color: COLORS.gray500,
+  },
+  shopStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  shopStatText: {
+    fontSize: 12,
+    color: COLORS.gray700,
+    fontWeight: '600',
+  },
+  shopStatDot: {
+    fontSize: 12,
+    color: COLORS.gray400,
+  },
+  followedSinceText: {
+    fontSize: 11,
+    color: COLORS.gray500,
+    marginTop: 2,
+  },
+  unfollowBtn: {
+    backgroundColor: COLORS.redLight,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  unfollowText: {
+    fontSize: 12,
+    color: COLORS.red,
+    fontWeight: '700',
   },
 
   // ── Card ─────────────────────────────────────────────────────────────────

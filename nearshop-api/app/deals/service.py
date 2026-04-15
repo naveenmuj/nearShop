@@ -71,10 +71,19 @@ async def create_deal(
         deal.product_name = product.name  # type: ignore[attr-defined]
         deal.image_url = product.images[0] if product.images else None  # type: ignore[attr-defined]
         deal.category = product.category  # type: ignore[attr-defined]
+        deal.original_price = product.price  # type: ignore[attr-defined]
+        deal.deal_price = max(
+            Decimal('0'),
+            Decimal(product.price) - (Decimal(product.price) * Decimal(data.discount_pct or 0) / Decimal('100'))
+            if data.discount_pct
+            else Decimal(product.price) - Decimal(data.discount_amount or 0),
+        )  # type: ignore[attr-defined]
     else:
         deal.product_name = None  # type: ignore[attr-defined]
         deal.image_url = None  # type: ignore[attr-defined]
         deal.category = None  # type: ignore[attr-defined]
+        deal.original_price = None  # type: ignore[attr-defined]
+        deal.deal_price = None  # type: ignore[attr-defined]
     
     return deal
 
@@ -137,10 +146,19 @@ async def get_nearby_deals(
                 deal.product_name = product.name  # type: ignore[attr-defined]
                 deal.image_url = product.images[0] if product.images else None  # type: ignore[attr-defined]
                 deal.category = product.category  # type: ignore[attr-defined]
+                deal.original_price = product.price  # type: ignore[attr-defined]
+                deal.deal_price = max(
+                    Decimal('0'),
+                    Decimal(product.price) - (Decimal(product.price) * Decimal(deal.discount_pct or 0) / Decimal('100'))
+                    if deal.discount_pct
+                    else Decimal(product.price) - Decimal(deal.discount_amount or 0),
+                )  # type: ignore[attr-defined]
             else:
                 deal.product_name = None  # type: ignore[attr-defined]
                 deal.image_url = None  # type: ignore[attr-defined]
                 deal.category = None  # type: ignore[attr-defined]
+                deal.original_price = None  # type: ignore[attr-defined]
+                deal.deal_price = None  # type: ignore[attr-defined]
             deal.reason = "Recommended for this shopper"  # type: ignore[attr-defined]
             deal.ranking_profile = resolved_profile_id  # type: ignore[attr-defined]
             deal.ranking_experiment = selection["experiment_id"]  # type: ignore[attr-defined]
@@ -158,10 +176,19 @@ async def get_nearby_deals(
                 deal.product_name = product.name  # type: ignore[attr-defined]
                 deal.image_url = product.images[0] if product.images else None  # type: ignore[attr-defined]
                 deal.category = product.category  # type: ignore[attr-defined]
+                deal.original_price = product.price  # type: ignore[attr-defined]
+                deal.deal_price = max(
+                    Decimal('0'),
+                    Decimal(product.price) - (Decimal(product.price) * Decimal(deal.discount_pct or 0) / Decimal('100'))
+                    if deal.discount_pct
+                    else Decimal(product.price) - Decimal(deal.discount_amount or 0),
+                )  # type: ignore[attr-defined]
             else:
                 deal.product_name = None  # type: ignore[attr-defined]
                 deal.image_url = None  # type: ignore[attr-defined]
                 deal.category = None  # type: ignore[attr-defined]
+                deal.original_price = None  # type: ignore[attr-defined]
+                deal.deal_price = None  # type: ignore[attr-defined]
             deals.append(deal)
 
     return deals, total

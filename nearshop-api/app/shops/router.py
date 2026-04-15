@@ -11,8 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.auth.models import User
-from app.auth.permissions import get_current_user, require_business, require_customer
+from app.auth.permissions import get_current_user, get_current_user_optional, require_business, require_customer
 from app.shops.models import Shop
+from app.core.exceptions import NotFoundError
 from app.shops.schemas import (
     ShopCreate,
     ShopUpdate,
@@ -322,9 +323,74 @@ async def get_shop_products_endpoint(
     shop_id: UUID,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
+
+
+    @router.get("/following")
+    async def get_followed_shops_endpoint(
+        page: int = Query(1, ge=1),
+        per_page: int = Query(20, ge=1, le=100),
+        current_user: User = Depends(require_customer),
+        db: AsyncSession = Depends(get_db),
+    ):
+        """Get shops followed by the current customer."""
+        from app.auth.models import Follow
+
+        offset = (page - 1) * per_page
+
+        total_result = await db.execute(
+            select(func.count(Follow.id)).where(Follow.user_id == current_user.id)
+        )
+        total = total_result.scalar() or 0
+
+        followed_rows = await db.execute(
+            select(Follow, Shop)
+            .join(Shop, Follow.shop_id == Shop.id)
+            .where(Follow.user_id == current_user.id)
+            .order_by(Follow.created_at.desc())
+            .offset(offset)
+            .limit(per_page)
+        )
+
+        items = []
+        for follow, shop in followed_rows.all():
+            items.append({
+                "id": str(shop.id),
+                "name": shop.name,
+                "slug": shop.slug,
+                "category": shop.category,
+                "logo_url": shop.logo_url,
+                "cover_image": shop.cover_image,
+                "avg_rating": float(shop.avg_rating or 0),
+                "total_products": int(shop.total_products or 0),
+                "is_verified": bool(shop.is_verified),
+                "followed_at": follow.created_at.isoformat() if follow.created_at else None,
+            })
+
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+        }
+    include_hidden: bool = Query(False),
+    current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    products, total = await get_shop_products(db, shop_id, page, per_page)
+    include_hidden_for_requester = False
+    if include_hidden:
+        owner_result = await db.execute(select(Shop.owner_id).where(Shop.id == shop_id))
+        owner_id = owner_result.scalar_one_or_none()
+        if owner_id is None:
+            raise NotFoundError("Shop not found")
+        include_hidden_for_requester = bool(current_user and current_user.id == owner_id)
+
+    products, total = await get_shop_products(
+        db,
+        shop_id,
+        page,
+        per_page,
+        include_hidden=include_hidden_for_requester,
+    )
     return ProductListResponse(
         items=[ProductResponse.model_validate(p) for p in products],
         total=total,

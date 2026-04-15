@@ -275,14 +275,17 @@ async def get_shop_products(
     shop_id: UUID,
     page: int = 1,
     per_page: int = 20,
+    include_hidden: bool = False,
 ) -> tuple[list[Product], int]:
-    """Get all available products for a shop with pagination."""
-    base_query = select(Product).where(
-        and_(
-            Product.shop_id == shop_id,
-            Product.is_available == True,
-        )
-    )
+    """Get products for a shop with pagination.
+
+    include_hidden=True returns both live and hidden products.
+    """
+    filters = [Product.shop_id == shop_id]
+    if not include_hidden:
+        filters.append(Product.is_available == True)
+
+    base_query = select(Product).where(and_(*filters))
 
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)

@@ -219,7 +219,7 @@ export default function OnboardScreen() {
         type: 'success',
         text1: role === 'customer' ? 'Welcome to NearShop!' : 'Shop created successfully!',
       });
-      router.replace(role === 'business' ? '/(business)/dashboard' : '/(customer)/home');
+      router.replace(role === 'business' ? '/(business)/product-setup?source=onboarding' : '/(customer)/home');
     } catch (err) {
       console.error('Profile completion error:', err);
       // Better error message extraction

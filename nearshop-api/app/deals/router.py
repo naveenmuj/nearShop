@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.auth.models import User
 from app.auth.permissions import require_business, require_customer, get_current_user, get_current_user_optional
 from app.deals.schemas import DealCreate, DealResponse, DealListResponse
+from app.deals.schemas import PersonalizedDealListResponse, PersonalizedDealResponse
 from app.deals.service import (
     create_deal,
     get_nearby_deals,
@@ -21,6 +22,7 @@ from app.deals.service import (
 )
 from app.deals.models import Coupon, CouponUsage
 from app.orders.models import Order
+from app.ai.personalized_deals import get_personalized_deals
 
 router = APIRouter(prefix="/api/v1/deals", tags=["deals"])
 
@@ -55,6 +57,24 @@ async def get_nearby_deals_endpoint(
         total=total,
         page=page,
         per_page=per_page,
+    )
+
+
+@router.get("/personalized", response_model=PersonalizedDealListResponse)
+async def get_personalized_deals_endpoint(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
+    limit: int = Query(20, ge=1, le=50),
+    current_user: User = Depends(require_customer),
+    db: AsyncSession = Depends(get_db),
+):
+    deals = await get_personalized_deals(db, current_user.id, lat, lng, radius_km, limit)
+    return PersonalizedDealListResponse(
+        items=[PersonalizedDealResponse.model_validate(item) for item in deals],
+        total=len(deals),
+        page=1,
+        per_page=limit,
     )
 
 

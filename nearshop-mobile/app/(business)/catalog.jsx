@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
+import ProductAddOptionsPanel from '../../components/ProductAddOptionsPanel';
 
 import useMyShop from '../../hooks/useMyShop';
 import { getShopProducts } from '../../lib/shops';
@@ -334,6 +335,14 @@ export default function CatalogScreen() {
         </TouchableOpacity>
       </View>
 
+      <ProductAddOptionsPanel
+        title="Add Products"
+        subtitle="Use any method: snap, spreadsheet import, or shared product library."
+        onSnap={() => router.push('/(business)/snap-list')}
+        onBulk={() => router.push('/(business)/bulk-upload')}
+        onCatalog={() => router.push('/(business)/catalog-browser')}
+      />
+
       {/* Bulk Actions for Hidden Products */}
       {showOnlyHidden && filtered.length > 0 && (
         <View style={styles.bulkActionsWrap}>
@@ -369,36 +378,6 @@ export default function CatalogScreen() {
           )}
         </View>
       )}
-
-      <TouchableOpacity
-        style={styles.catalogCard}
-        activeOpacity={0.85}
-        onPress={() => router.push('/(business)/catalog-browser')}
-      >
-        <View style={styles.catalogIconWrap}>
-          <Ionicons name="grid-outline" size={22} color={COLORS.primary} />
-        </View>
-        <View style={styles.catalogCopy}>
-          <Text style={styles.catalogTitle}>Browse master catalog</Text>
-          <Text style={styles.catalogSub}>Search products from the shared catalog and add them in bulk.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.analyzeCard}
-        activeOpacity={0.8}
-        onPress={() => router.push('/(business)/snap-list')}
-      >
-        <View style={styles.analyzeIconWrap}>
-          <Ionicons name="sparkles-outline" size={22} color={COLORS.primary} />
-        </View>
-        <View style={styles.analyzeCopy}>
-          <Text style={styles.analyzeTitle}>Analyze product image</Text>
-          <Text style={styles.analyzeSub}>Use camera or gallery to auto-fill product details with AI.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.gray400} />
-      </TouchableOpacity>
 
       {/* List */}
       {loading && products.length === 0 ? (
@@ -603,77 +582,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: '600',
     fontSize: 15,
-  },
-  analyzeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    ...SHADOWS.card,
-  },
-  catalogCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    marginTop: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    ...SHADOWS.card,
-  },
-  catalogIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primaryLight,
-  },
-  catalogCopy: {
-    flex: 1,
-  },
-  catalogTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.gray900,
-    marginBottom: 2,
-  },
-  catalogSub: {
-    fontSize: 12,
-    color: COLORS.gray500,
-    lineHeight: 17,
-  },
-  analyzeIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primaryLight,
-  },
-  analyzeCopy: {
-    flex: 1,
-  },
-  analyzeTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.gray900,
-    marginBottom: 2,
-  },
-  analyzeSub: {
-    fontSize: 12,
-    color: COLORS.gray500,
-    lineHeight: 17,
   },
   fab: {
     position: 'absolute',

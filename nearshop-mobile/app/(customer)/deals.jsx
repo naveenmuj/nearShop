@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, Pressable, ActivityIndicator,
+  View, Text, TextInput, FlatList, StyleSheet, Pressable, ActivityIndicator,
   RefreshControl, ScrollView, StatusBar, Image, Animated, Dimensions,
   Easing, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
-import { getNearbyDeals, claimDeal } from '../../lib/deals';
+import { getNearbyDeals, getPersonalizedDeals, claimDeal, addToWishlist, removeFromWishlist } from '../../lib/deals';
+import { getWishlist } from '../../lib/wishlists';
 import { toast } from '../../components/ui/Toast';
 import useLocationStore from '../../store/locationStore';
 import * as Haptics from 'expo-haptics';
@@ -327,13 +328,15 @@ const progressStyles = StyleSheet.create({
 // ═══════════════════════════════════════════════════════════════════════════════
 // FEATURED DEAL (Redesigned Hero Card)
 // ═══════════════════════════════════════════════════════════════════════════════
-function FeaturedDeal({ deal, onClaim, claiming }) {
+function FeaturedDeal({ deal, onClaim, claiming, onSave, isSaved, isSaving }) {
   const { hours, minutes, seconds, text: countdown, urgent, critical, expired, hoursLeft } = useCountdown(deal.expires_at);
   const discount = deal.discount_pct || (deal.discount_amount ? Math.round(deal.discount_amount) : 0);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const urgencyColor = getUrgencyColor(hoursLeft);
+  const hasPrice = Number(deal.final_price ?? 0) > 0;
+  const savingsPct = Number(deal.savings_pct ?? 0);
 
   useEffect(() => {
     if (critical && !expired) {
@@ -368,6 +371,12 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
     onClaim(deal.id);
   };
 
+  const handleSave = (e) => {
+    e.stopPropagation();
+    if (isSaving) return;
+    onSave(deal.id, deal.product_id);
+  };
+
   return (
     <Animated.View style={[
       styles.featuredCard,
@@ -381,7 +390,7 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
       <Pressable onPress={handlePress} style={styles.featuredPressable}>
         {/* Background Image or Gradient */}
         {deal.image_url ? (
-          <Image source={{ uri: deal.image_url }} style={styles.featuredBgImage} blurRadius={2} />
+          <Image source={{ uri: deal.image_url }} style={styles.featuredBgImage} blurRadius={1.5} />
         ) : (
           <LinearGradient
             colors={['#667EEA', '#764BA2']}
@@ -393,7 +402,7 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
         
         {/* Overlay */}
         <LinearGradient
-          colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']}
+          colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.72)']}
           style={styles.featuredOverlay}
         />
         
@@ -417,12 +426,20 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
               <Text style={styles.featuredShopIcon}>🏪</Text>
               <Text style={styles.featuredShopName}>{deal.shop_name || 'Local Shop'}</Text>
             </View>
+            <Pressable onPress={handleSave} disabled={isSaving} style={styles.featuredSaveBtn}>
+              <Text style={{ fontSize: 20 }}>{isSaved ? '❤️' : '🤍'}</Text>
+            </Pressable>
             {deal.current_claims > 0 && (
               <View style={styles.socialProofBadge}>
                 <Text style={styles.socialProofText}>👥 {deal.current_claims} claimed</Text>
               </View>
             )}
           </View>
+          {(deal.match_reason || deal.reason) && (
+            <View style={styles.featuredReasonBadge}>
+              <Text style={styles.featuredReasonText}>{deal.match_reason || deal.reason}</Text>
+            </View>
+          )}
           
           <View style={styles.featuredMiddle}>
             <Text style={styles.featuredTitle} numberOfLines={2}>
@@ -430,6 +447,19 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
             </Text>
             {deal.description && (
               <Text style={styles.featuredDesc} numberOfLines={2}>{deal.description}</Text>
+            )}
+            {hasPrice && (
+              <View style={styles.featuredPriceRow}>
+                <Text style={styles.featuredFinalPrice}>{formatPrice(deal.final_price)}</Text>
+                {Number(deal.base_price ?? 0) > Number(deal.final_price ?? 0) && (
+                  <Text style={styles.featuredComparePrice}>{formatPrice(deal.base_price)}</Text>
+                )}
+                {savingsPct > 0 && (
+                  <View style={styles.featuredSavingsChip}>
+                    <Text style={styles.featuredSavingsText}>Save {savingsPct}%</Text>
+                  </View>
+                )}
+              </View>
             )}
           </View>
           
@@ -455,7 +485,7 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
         disabled={expired || claiming}
       >
         <LinearGradient
-          colors={expired ? ['#9CA3AF', '#6B7280'] : ['#22C55E', '#16A34A']}
+          colors={expired ? ['#9CA3AF', '#6B7280'] : ['#FF7A18', '#FF5A1F']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.featuredCTAGradient}
@@ -465,7 +495,10 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
           ) : (
             <>
               <Text style={styles.featuredCTAText}>
-                {expired ? 'Deal Ended' : '🎉 Grab This Deal Now'}
+                {expired ? 'Deal Ended' : 'Claim Deal'}
+              </Text>
+              <Text style={styles.featuredCTASubtext}>
+                {expired ? 'This offer is no longer available' : 'Tap to reserve this offer now'}
               </Text>
               {!expired && <ShimmerEffect style={styles.ctaShimmer} />}
             </>
@@ -479,7 +512,7 @@ function FeaturedDeal({ deal, onClaim, claiming }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DEAL CARD (Redesigned Grid Item)
 // ═══════════════════════════════════════════════════════════════════════════════
-function DealCard({ deal, onClaim, claiming, index }) {
+function DealCard({ deal, onClaim, claiming, index, onSave, isSaved, isSaving }) {
   const { text: countdown, urgent, critical, expired, hoursLeft } = useCountdown(deal.expires_at);
   const discount = deal.discount_pct || (deal.discount_amount ? Math.round(deal.discount_amount) : 0);
   const urgencyColor = getUrgencyColor(hoursLeft);
@@ -512,8 +545,16 @@ function DealCard({ deal, onClaim, claiming, index }) {
     onClaim(deal.id);
   };
 
+  const handleSave = (e) => {
+    e.stopPropagation();
+    if (isSaving) return;
+    onSave(deal.id, deal.product_id);
+  };
+
   const categoryEmoji = CATEGORIES.find(c => c.key === deal.category)?.emoji ?? '🎁';
   const isLowStock = deal.max_claims && (deal.max_claims - deal.current_claims) <= 3;
+  const hasPrice = Number(deal.final_price ?? 0) > 0;
+  const savingsPct = Number(deal.savings_pct ?? 0);
 
   return (
     <Animated.View style={[
@@ -545,6 +586,11 @@ function DealCard({ deal, onClaim, claiming, index }) {
               <Text style={{ fontSize: 40 }}>{categoryEmoji}</Text>
             </LinearGradient>
           )}
+          
+          {/* Save Heart Button */}
+          <Pressable onPress={handleSave} disabled={isSaving} style={styles.dealHeartBtn}>
+            <Text style={{ fontSize: 20 }}>{isSaved ? '❤️' : '🤍'}</Text>
+          </Pressable>
           
           {/* Discount Badge */}
           {discount > 0 && !expired && (
@@ -591,6 +637,20 @@ function DealCard({ deal, onClaim, claiming, index }) {
           <Text style={[styles.dealName, expired && { color: COLORS.gray400 }]} numberOfLines={2}>
             {deal.title || deal.product_name || 'Special Deal'}
           </Text>
+
+          {hasPrice && (
+            <View style={styles.dealPriceRow}>
+              <Text style={styles.dealFinalPrice}>{formatPrice(deal.final_price)}</Text>
+              {Number(deal.base_price ?? 0) > Number(deal.final_price ?? 0) && (
+                <Text style={styles.dealBasePrice}>{formatPrice(deal.base_price)}</Text>
+              )}
+              {savingsPct > 0 && (
+                <View style={styles.dealSavingsChip}>
+                  <Text style={styles.dealSavingsText}>Save {savingsPct}%</Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Timer */}
           <View style={[
@@ -687,10 +747,10 @@ function HeroSection({ activeDeals, timeOfDay }) {
   }, []);
   
   const greetings = {
-    morning: { text: 'Good Morning!', sub: 'Start your day with amazing deals' },
-    afternoon: { text: 'Good Afternoon!', sub: 'Grab lunch-time specials' },
-    evening: { text: 'Good Evening!', sub: 'End-of-day deals waiting' },
-    night: { text: 'Night Owl?', sub: 'Exclusive late-night deals' },
+    morning: { text: 'Good Morning', sub: 'Fresh local deals picked for today' },
+    afternoon: { text: 'Good Afternoon', sub: 'Claim a few savings before you head out' },
+    evening: { text: 'Good Evening', sub: 'Last chance deals from nearby shops' },
+    night: { text: 'Night Deals', sub: 'Late-night picks that are still live' },
   };
   
   const greeting = greetings[timeOfDay] || greetings.morning;
@@ -707,7 +767,7 @@ function HeroSection({ activeDeals, timeOfDay }) {
       <View style={styles.heroContent}>
         <Text style={styles.heroGreeting}>{greeting.text}</Text>
         <Text style={styles.heroTitle}>Deals & Offers</Text>
-        <Text style={styles.heroSub}>{greeting.sub}</Text>
+        <Text style={styles.heroSub}>{address ? `${greeting.sub} • ${address}` : greeting.sub}</Text>
         
         {activeDeals > 0 && (
           <Animated.View style={[styles.heroCountBadge, { transform: [{ scale: pulseAnim }] }]}>
@@ -783,13 +843,20 @@ function LoadingState() {
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DealsScreen() {
-  const { lat, lng } = useLocationStore();
+  const { lat, lng, address } = useLocationStore();
   const [deals, setDeals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [activePriceBand, setActivePriceBand] = useState('under-99');
+  const [sortMode, setSortMode] = useState('Best');
   const [error, setError] = useState(null);
   const [claimingId, setClaimingId] = useState(null);
+  const [scrollY, setScrollY] = useState(0);
+  const [savedProductIds, setSavedProductIds] = useState(new Set());
+  const [savingDealId, setSavingDealId] = useState(null);
+  const [dismissedExpiryWarning, setDismissedExpiryWarning] = useState(false);
 
   // Get time of day for personalized greeting
   const timeOfDay = useMemo(() => {
@@ -803,11 +870,41 @@ export default function DealsScreen() {
   const loadDeals = useCallback(async () => {
     try {
       setError(null);
-      const params = { limit: 50 };
-      if (activeCategory !== 'All') params.category = activeCategory;
-      const res = await getNearbyDeals(lat ?? 12.935, lng ?? 77.624, params);
-      const data = res.data?.items ?? res.data?.deals ?? res.data ?? [];
-      setDeals(Array.isArray(data) ? data : []);
+      const baseLat = lat ?? 12.935;
+      const baseLng = lng ?? 77.624;
+      const nearbyParams = { limit: 60 };
+      if (activeCategory !== 'All') nearbyParams.category = activeCategory;
+      const matchesCategory = (item) => (
+        activeCategory === 'All'
+        || String(item?.category || '').toLowerCase() === activeCategory.toLowerCase()
+      );
+
+      const [nearbyRes, personalizedRes] = await Promise.allSettled([
+        getNearbyDeals(baseLat, baseLng, nearbyParams),
+        getPersonalizedDeals(baseLat, baseLng, { limit: 30 }),
+      ]);
+
+      const nearbyItems = nearbyRes.status === 'fulfilled'
+        ? (nearbyRes.value.data?.items ?? nearbyRes.value.data?.deals ?? nearbyRes.value.data ?? [])
+        : [];
+      const personalizedItems = personalizedRes.status === 'fulfilled'
+        ? (personalizedRes.value.data?.items ?? personalizedRes.value.data?.deals ?? personalizedRes.value.data ?? [])
+        : [];
+
+      const merged = [];
+      const seen = new Set();
+      [...personalizedItems, ...nearbyItems].forEach((item) => {
+        if (!item?.id || seen.has(item.id)) return;
+        if (!matchesCategory(item)) return;
+        seen.add(item.id);
+        merged.push(item);
+      });
+
+      if (merged.length === 0 && nearbyRes.status === 'rejected' && personalizedRes.status === 'rejected') {
+        throw new Error('Failed to load deals');
+      }
+
+      setDeals(merged);
     } catch {
       setError('Could not load deals. Check your connection.');
     }
@@ -818,10 +915,29 @@ export default function DealsScreen() {
     loadDeals().finally(() => setIsLoading(false));
   }, [loadDeals]);
 
+  const loadSavedDeals = useCallback(async () => {
+    try {
+      const res = await getWishlist();
+      const items = res?.data?.items ?? [];
+      const ids = new Set(
+        items
+          .map((item) => String(item.product_id || ''))
+          .filter(Boolean)
+      );
+      setSavedProductIds(ids);
+    } catch {
+      // Keep UX resilient even if wishlist fetch fails.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSavedDeals();
+  }, [loadSavedDeals]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await loadDeals();
+    await Promise.all([loadDeals(), loadSavedDeals()]);
     setRefreshing(false);
   };
 
@@ -840,11 +956,186 @@ export default function DealsScreen() {
     }
   };
 
+  const handleSaveDeal = async (dealId, productId) => {
+    if (!productId) {
+      toast.show({ type: 'error', text1: 'This deal cannot be saved right now' });
+      return;
+    }
+    const productKey = String(productId);
+    setSavingDealId(dealId);
+    try {
+      if (savedProductIds.has(productKey)) {
+        await removeFromWishlist(productId);
+        setSavedProductIds(prev => {
+          const updated = new Set(prev);
+          updated.delete(productKey);
+          return updated;
+        });
+        toast.show({ type: 'info', text1: '❤️ Removed from saved' });
+      } else {
+        await addToWishlist(productId);
+        setSavedProductIds(prev => new Set(prev).add(productKey));
+        toast.show({ type: 'success', text1: '❤️ Saved to wishlist!' });
+      }
+      Haptics.selectionAsync();
+    } catch (err) {
+      toast.show({ type: 'error', text1: 'Failed to save deal' });
+    } finally {
+      setSavingDealId(null);
+    }
+  };
+
   const activeDeals = deals.filter(d => new Date(d.expires_at) > Date.now());
   const expiredDeals = deals.filter(d => new Date(d.expires_at) <= Date.now());
-  const featuredDeal = activeDeals.length > 0 ? activeDeals[0] : null;
-  const remainingDeals = activeDeals.slice(1);
-  const allDisplayDeals = [...remainingDeals, ...expiredDeals];
+  const getDealBasePrice = useCallback((deal) => {
+    const original = Number(deal?.original_price ?? 0);
+    if (Number.isFinite(original) && original > 0) return original;
+    if (Number.isFinite(Number(deal?.deal_price)) && Number(deal?.deal_price) > 0) return Number(deal.deal_price);
+    if (Number.isFinite(Number(deal?.discount_amount)) && Number(deal?.discount_amount) > 0) return Number(deal.discount_amount);
+    return 0;
+  }, []);
+
+  const getDealFinalPrice = useCallback((deal) => {
+    const finalPrice = Number(deal?.deal_price ?? 0);
+    if (Number.isFinite(finalPrice) && finalPrice > 0) return finalPrice;
+    const basePrice = Number(deal?.original_price ?? 0);
+    const discountPct = Number(deal?.discount_pct ?? 0);
+    const discountAmount = Number(deal?.discount_amount ?? 0);
+    if (basePrice > 0 && discountPct > 0) return Math.max(0, basePrice * (1 - discountPct / 100));
+    if (basePrice > 0 && discountAmount > 0) return Math.max(0, basePrice - discountAmount);
+    return basePrice || 0;
+  }, []);
+
+  const getDealSavingsPct = useCallback((deal) => {
+    const basePrice = getDealBasePrice(deal);
+    const finalPrice = getDealFinalPrice(deal);
+    if (!basePrice || finalPrice >= basePrice) return 0;
+    return Math.round(((basePrice - finalPrice) / basePrice) * 100);
+  }, [getDealBasePrice, getDealFinalPrice]);
+
+  const normalizedCategory = activeCategory === 'All' ? null : activeCategory.toLowerCase();
+  const filteredActiveDeals = useMemo(() => {
+    return activeDeals.filter((deal) => {
+      if (normalizedCategory && String(deal.category || '').toLowerCase() !== normalizedCategory) {
+        return false;
+      }
+      const finalPrice = getDealFinalPrice(deal);
+      const hoursLeft = (new Date(deal.expires_at) - Date.now()) / 3600000;
+      if (activePriceBand === 'All') return true;
+      if (activePriceBand === 'Hot') return getDealSavingsPct(deal) >= 25;
+      if (activePriceBand === 'EndingSoon') return hoursLeft > 0 && hoursLeft <= 6;
+      const bandMatch = activePriceBand.match(/^under-(\d+)$/);
+      if (!bandMatch) return true;
+      return finalPrice > 0 && finalPrice <= Number(bandMatch[1]);
+    });
+  }, [activeCategory, activePriceBand, activeDeals, getDealFinalPrice, getDealSavingsPct, normalizedCategory]);
+
+  const priceBands = useMemo(() => {
+    const activeList = filteredActiveDeals.length > 0 ? filteredActiveDeals : activeDeals;
+    const under99 = activeList.filter((deal) => getDealFinalPrice(deal) > 0 && getDealFinalPrice(deal) <= 99).length;
+    const under199 = activeList.filter((deal) => getDealFinalPrice(deal) > 0 && getDealFinalPrice(deal) <= 199).length;
+    const under299 = activeList.filter((deal) => getDealFinalPrice(deal) > 0 && getDealFinalPrice(deal) <= 299).length;
+    const hot = activeList.filter((deal) => getDealSavingsPct(deal) >= 25).length;
+    const endingSoon = activeList.filter((deal) => {
+      const hoursLeft = (new Date(deal.expires_at) - Date.now()) / 3600000;
+      return hoursLeft > 0 && hoursLeft <= 6;
+    }).length;
+    return [
+      { key: 'All', label: 'All', count: activeList.length },
+      { key: 'under-99', label: 'Under ₹99', count: under99 },
+      { key: 'under-199', label: 'Under ₹199', count: under199 },
+      { key: 'under-299', label: 'Under ₹299', count: under299 },
+      { key: 'Hot', label: 'Big savings', count: hot },
+      { key: 'EndingSoon', label: 'Ending soon', count: endingSoon },
+    ];
+  }, [activeDeals, filteredActiveDeals, getDealFinalPrice, getDealSavingsPct]);
+
+  const matchesSearch = useCallback((deal) => {
+    const haystack = [
+      deal?.title,
+      deal?.description,
+      deal?.shop_name,
+      deal?.product_name,
+      deal?.category,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return haystack.includes(q);
+  }, [searchQuery]);
+
+  const visibleActiveDeals = useMemo(
+    () => filteredActiveDeals.filter(matchesSearch),
+    [filteredActiveDeals, matchesSearch]
+  );
+
+  const visibleExpiredDeals = useMemo(
+    () => expiredDeals.filter((deal) => (!normalizedCategory || String(deal.category || '').toLowerCase() === normalizedCategory) && matchesSearch(deal)),
+    [expiredDeals, matchesSearch, normalizedCategory]
+  );
+
+  const sortedVisibleActiveDeals = useMemo(() => {
+    const items = [...visibleActiveDeals];
+    items.sort((left, right) => {
+      if (sortMode === 'Cheap') {
+        return getDealFinalPrice(left) - getDealFinalPrice(right);
+      }
+      if (sortMode === 'Fast') {
+        return new Date(left.expires_at) - new Date(right.expires_at);
+      }
+
+      const leftScore = (getDealSavingsPct(left) * 2)
+        + Math.max(0, 24 - ((new Date(left.expires_at) - Date.now()) / 3600000));
+      const rightScore = (getDealSavingsPct(right) * 2)
+        + Math.max(0, 24 - ((new Date(right.expires_at) - Date.now()) / 3600000));
+      return rightScore - leftScore;
+    });
+    return items;
+  }, [getDealFinalPrice, getDealSavingsPct, sortMode, visibleActiveDeals]);
+
+  const displayDeals = useMemo(() => {
+    return [...sortedVisibleActiveDeals.slice(1), ...visibleExpiredDeals].map((deal) => ({
+      ...deal,
+      base_price: getDealBasePrice(deal),
+      final_price: getDealFinalPrice(deal),
+      savings_pct: getDealSavingsPct(deal),
+    }));
+  }, [getDealBasePrice, getDealFinalPrice, getDealSavingsPct, sortedVisibleActiveDeals, visibleExpiredDeals]);
+
+  const featuredVisibleDeal = sortedVisibleActiveDeals.length > 0
+    ? {
+        ...sortedVisibleActiveDeals[0],
+        base_price: getDealBasePrice(sortedVisibleActiveDeals[0]),
+        final_price: getDealFinalPrice(sortedVisibleActiveDeals[0]),
+        savings_pct: getDealSavingsPct(sortedVisibleActiveDeals[0]),
+      }
+    : null;
+
+  // Find deals expiring in next 30 minutes
+  const expiringDeals = useMemo(() => {
+    return visibleActiveDeals.filter(deal => {
+      const hoursLeft = (new Date(deal.expires_at) - Date.now()) / 3600000;
+      return hoursLeft > 0 && hoursLeft < 0.5; // Less than 30 minutes
+    });
+  }, [visibleActiveDeals]);
+
+  // Determine if we should show sticky featured deal (scroll past featured section)
+  const showStickyFeatured = scrollY > 400 && featuredVisibleDeal;
+
+  useEffect(() => {
+    if (expiringDeals.length === 0 && dismissedExpiryWarning) {
+      setDismissedExpiryWarning(false);
+    }
+  }, [dismissedExpiryWarning, expiringDeals.length]);
+
+  const topPicks = sortedVisibleActiveDeals.slice(0, 3).map((deal) => ({
+    ...deal,
+    base_price: getDealBasePrice(deal),
+    final_price: getDealFinalPrice(deal),
+    savings_pct: getDealSavingsPct(deal),
+  }));
 
   // Count deals per category
   const categoryDealCounts = useMemo(() => {
@@ -864,18 +1155,28 @@ export default function DealsScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#4F46E5" />
 
       <FlatList
-        data={isLoading ? [] : allDisplayDeals}
+        data={isLoading ? [] : displayDeals}
         keyExtractor={(item) => String(item.id)}
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         renderItem={({ item, index }) => (
-          <DealCard deal={item} onClaim={handleClaim} claiming={claimingId === item.id} index={index} />
+          <DealCard 
+            deal={item} 
+            onClaim={handleClaim} 
+            claiming={claimingId === item.id} 
+            index={index}
+            onSave={handleSaveDeal}
+            isSaved={savedProductIds.has(String(item.product_id || ''))}
+            isSaving={savingDealId === item.id}
+          />
         )}
         contentContainerStyle={[
           styles.list,
-          allDisplayDeals.length === 0 && !isLoading && styles.listEmpty,
+          displayDeals.length === 0 && !isLoading && styles.listEmpty,
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => setScrollY(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -885,34 +1186,158 @@ export default function DealsScreen() {
             colors={['#fff']}
           />
         }
+        stickyHeaderIndices={[1]}
         ListHeaderComponent={
           <>
             {/* Animated Hero Header */}
             <HeroSection activeDeals={activeDeals.length} timeOfDay={timeOfDay} />
 
-            {/* Category Pills */}
-            <View style={styles.catSection}>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.catRow}
-                snapToInterval={100}
-                decelerationRate="fast"
-              >
-                {CATEGORIES.map((cat) => (
-                  <CategoryPill
-                    key={cat.key}
-                    cat={cat}
-                    isActive={activeCategory === cat.key}
-                    onPress={() => setActiveCategory(cat.key)}
-                    dealCount={categoryDealCounts[cat.key] || 0}
-                  />
-                ))}
-              </ScrollView>
+            <View style={styles.stickyControls}>
+              <View style={styles.searchShell}>
+              <View style={styles.searchBox}>
+                <Text style={styles.searchIcon}>🔎</Text>
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search products, shops, offers"
+                  placeholderTextColor={COLORS.gray400}
+                  style={styles.searchInput}
+                />
+                {searchQuery ? (
+                  <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                    <Text style={styles.searchClear}>✕</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+              <View style={styles.controlStack}>
+                <View style={styles.summaryStrip}>
+                  <View style={styles.summaryStat}>
+                    <Text style={styles.summaryValue}>{visibleActiveDeals.length}</Text>
+                    <Text style={styles.summaryLabel}>Live deals</Text>
+                  </View>
+                  <View style={styles.summaryStat}>
+                    <Text style={styles.summaryValue}>{visibleActiveDeals.filter((deal) => {
+                      const hoursLeft = (new Date(deal.expires_at) - Date.now()) / 3600000;
+                      return hoursLeft > 0 && hoursLeft <= 6;
+                    }).length}</Text>
+                    <Text style={styles.summaryLabel}>Ending soon</Text>
+                  </View>
+                  <View style={styles.summaryStat}>
+                    <Text style={styles.summaryValue}>{visibleActiveDeals.filter((deal) => getDealSavingsPct(deal) >= 25).length}</Text>
+                    <Text style={styles.summaryLabel}>Big savings</Text>
+                  </View>
+                </View>
+
+                {/* Category Pills */}
+                <View style={styles.catSection}>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={styles.catRow}
+                    snapToInterval={100}
+                    decelerationRate="fast"
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <CategoryPill
+                        key={cat.key}
+                        cat={cat}
+                        isActive={activeCategory === cat.key}
+                        onPress={() => setActiveCategory(cat.key)}
+                        dealCount={categoryDealCounts[cat.key] || 0}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.bandSection}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bandRow}>
+                    {priceBands.map((band) => (
+                      <Pressable
+                        key={band.key}
+                        onPress={() => setActivePriceBand(band.key)}
+                        style={[
+                          styles.bandChip,
+                          activePriceBand === band.key && styles.bandChipActive,
+                        ]}
+                      >
+                        <Text style={[
+                          styles.bandLabel,
+                          activePriceBand === band.key && styles.bandLabelActive,
+                        ]}>
+                          {band.label}
+                        </Text>
+                        <Text style={[
+                          styles.bandCount,
+                          activePriceBand === band.key && styles.bandCountActive,
+                        ]}>
+                          {band.count}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.sortSection}>
+                  {['Best', 'Fast', 'Cheap'].map((mode) => (
+                    <Pressable
+                      key={mode}
+                      onPress={() => setSortMode(mode)}
+                      style={[styles.sortChip, sortMode === mode && styles.sortChipActive]}
+                    >
+                      <Text style={[styles.sortChipText, sortMode === mode && styles.sortChipTextActive]}>
+                        {mode === 'Best' ? 'Best value' : mode === 'Fast' ? 'Ending soon' : 'Lowest price'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
             </View>
 
+            {topPicks.length > 0 && (
+              <View style={styles.topPicksSection}>
+                <View style={styles.sectionHeaderCompact}>
+                  <Text style={styles.sectionTitleSmall}>Top picks for you</Text>
+                  <Text style={styles.sectionMeta}>Best value first</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topPicksRow}>
+                  {topPicks.map((deal) => (
+                    <Pressable
+                      key={`top-pick-${deal.id}`}
+                      style={styles.topPickCard}
+                      onPress={() => {
+                        if (new Date(deal.expires_at) <= Date.now() || !deal.product_id) return;
+                        router.push(`/(customer)/product/${deal.product_id}`);
+                      }}
+                    >
+                      <View style={styles.topPickImageWrap}>
+                        {deal.image_url ? (
+                          <Image source={{ uri: deal.image_url }} style={styles.topPickImage} />
+                        ) : (
+                          <LinearGradient colors={['#F3F4F6', '#E5E7EB']} style={styles.topPickImagePlaceholder}>
+                            <Text style={styles.topPickEmoji}>{CATEGORIES.find((c) => c.key === deal.category)?.emoji || '🎁'}</Text>
+                          </LinearGradient>
+                        )}
+                        <View style={styles.topPickBadge}>
+                          <Text style={styles.topPickBadgeText}>{deal.savings_pct > 0 ? `${deal.savings_pct}% off` : 'Top pick'}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.topPickShop} numberOfLines={1}>{deal.shop_name || 'Local Shop'}</Text>
+                      <Text style={styles.topPickName} numberOfLines={2}>{deal.title || deal.product_name || 'Special Deal'}</Text>
+                      <View style={styles.topPickPriceRow}>
+                        <Text style={styles.topPickPrice}>{formatPrice(deal.final_price)}</Text>
+                        {Number(deal.base_price || 0) > Number(deal.final_price || 0) && (
+                          <Text style={styles.topPickCompare}>{formatPrice(deal.base_price)}</Text>
+                        )}
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {/* Featured Deal */}
-            {featuredDeal && !isLoading && (
+            {featuredVisibleDeal && !isLoading && (
               <View style={styles.featuredSection}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>⭐ Top Deal</Text>
@@ -921,7 +1346,14 @@ export default function DealsScreen() {
                     <Text style={styles.liveText}>LIVE</Text>
                   </View>
                 </View>
-                <FeaturedDeal deal={featuredDeal} onClaim={handleClaim} claiming={claimingId === featuredDeal.id} />
+                <FeaturedDeal 
+                  deal={featuredVisibleDeal} 
+                  onClaim={handleClaim} 
+                  claiming={claimingId === featuredVisibleDeal.id}
+                  onSave={handleSaveDeal}
+                  isSaved={savedProductIds.has(String(featuredVisibleDeal.product_id || ''))}
+                  isSaving={savingDealId === featuredVisibleDeal.id}
+                />
               </View>
             )}
 
@@ -929,13 +1361,13 @@ export default function DealsScreen() {
             {isLoading && <LoadingState />}
 
             {/* Grid Section Title */}
-            {!isLoading && allDisplayDeals.length > 0 && (
+            {!isLoading && displayDeals.length > 0 && (
               <View style={styles.sectionHeader2}>
                 <Text style={styles.sectionTitle}>
                   {activeCategory === 'All' ? '🔥 All Deals' : `${CATEGORIES.find(c => c.key === activeCategory)?.emoji ?? ''} ${activeCategory}`}
                 </Text>
                 <View style={[styles.countBadge, { backgroundColor: activeCatColor + '18' }]}>
-                  <Text style={[styles.countText, { color: activeCatColor }]}>{activeDeals.length} active</Text>
+                  <Text style={[styles.countText, { color: activeCatColor }]}>{filteredActiveDeals.length} active</Text>
                 </View>
               </View>
             )}
@@ -968,6 +1400,60 @@ export default function DealsScreen() {
           )
         }
       />
+
+      {/* Expiry Warning Bar - Sticky at Top */}
+      {!dismissedExpiryWarning && expiringDeals.length > 0 && (
+        <View style={styles.expiryWarningBar}>
+          <View style={styles.expiryWarningContent}>
+            <Text style={styles.expiryWarningIcon}>🔥 HURRY!</Text>
+            <Text style={styles.expiryWarningText}>
+              {expiringDeals.length} deal{expiringDeals.length > 1 ? 's' : ''} expiring in &lt;30min
+            </Text>
+          </View>
+          <Pressable onPress={() => setDismissedExpiryWarning(true)} hitSlop={8}>
+            <Text style={styles.expiryWarningClose}>✕</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Sticky Featured Deal - Appears on Scroll */}
+      {showStickyFeatured && (
+        <View style={styles.stickyFeaturedContainer}>
+          <View style={styles.stickyFeaturedHero}>
+            <View style={styles.stickyFeaturedImage}>
+              {featuredVisibleDeal.image_url ? (
+                <Image source={{ uri: featuredVisibleDeal.image_url }} style={{ width: 60, height: 60, borderRadius: 6 }} />
+              ) : (
+                <LinearGradient colors={['#667EEA', '#764BA2']} style={{ width: 60, height: 60, borderRadius: 6, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 28 }}>📦</Text>
+                </LinearGradient>
+              )}
+            </View>
+            <View style={styles.stickyFeaturedInfo}>
+              <Text style={styles.stickyFeaturedTitle} numberOfLines={1}>
+                {featuredVisibleDeal.title || featuredVisibleDeal.product_name}
+              </Text>
+              <Text style={styles.stickyFeaturedPrice}>
+                {formatPrice(featuredVisibleDeal.final_price)}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.stickyFeaturedCTA}
+              onPress={() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                handleClaim(featuredVisibleDeal.id);
+              }}
+            >
+              <LinearGradient
+                colors={['#FF7A18', '#FF5A1F']}
+                style={styles.stickyFeaturedCTAGradient}
+              >
+                <Text style={styles.stickyFeaturedCTAText}>Claim</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1034,6 +1520,182 @@ const styles = StyleSheet.create({
   },
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // STICKY CONTROLS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  stickyControls: {
+    backgroundColor: COLORS.bg,
+    paddingTop: 8,
+    paddingBottom: 8,
+    zIndex: 20,
+    elevation: 8,
+  },
+  controlStack: {
+    backgroundColor: COLORS.bg,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // SEARCH
+  // ═══════════════════════════════════════════════════════════════════════════════
+  searchShell: {
+    marginTop: -2,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    height: 50,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    ...SHADOWS.card,
+  },
+  searchIcon: {
+    fontSize: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.gray900,
+    paddingVertical: 0,
+  },
+  searchClear: {
+    fontSize: 16,
+    color: COLORS.gray400,
+    fontWeight: '700',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // TOP PICKS / SORT
+  // ═══════════════════════════════════════════════════════════════════════════════
+  topPicksSection: {
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  topPicksRow: {
+    gap: 12,
+    paddingRight: 16,
+  },
+  topPickCard: {
+    width: 170,
+    backgroundColor: COLORS.white,
+    borderRadius: 18,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: COLORS.gray100,
+    ...SHADOWS.card,
+  },
+  topPickImageWrap: {
+    height: 110,
+    borderRadius: 14,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  topPickImage: {
+    width: '100%',
+    height: '100%',
+  },
+  topPickImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topPickEmoji: {
+    fontSize: 30,
+  },
+  topPickBadge: {
+    position: 'absolute',
+    left: 8,
+    top: 8,
+    backgroundColor: 'rgba(17,24,39,0.78)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  topPickBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  topPickShop: {
+    marginTop: 10,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  topPickName: {
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: COLORS.gray900,
+  },
+  topPickPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  topPickPrice: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: COLORS.green,
+  },
+  topPickCompare: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.gray400,
+    textDecorationLine: 'line-through',
+  },
+  sectionHeaderCompact: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sectionTitleSmall: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: COLORS.gray900,
+  },
+  sectionMeta: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.gray500,
+  },
+  sortSection: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  sortChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+  },
+  sortChipActive: {
+    backgroundColor: COLORS.gray900,
+    borderColor: COLORS.gray900,
+  },
+  sortChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.gray700,
+  },
+  sortChipTextActive: {
+    color: '#fff',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // CATEGORIES
   // ═══════════════════════════════════════════════════════════════════════════════
   catSection: { 
@@ -1083,7 +1745,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.cardHover,
   },
   featuredPressable: {
-    height: 280,
+    minHeight: 340,
     position: 'relative',
   },
   featuredBgImage: {
@@ -1121,7 +1783,7 @@ const styles = StyleSheet.create({
   },
   featuredContent: {
     flex: 1,
-    padding: 16,
+    padding: 18,
     justifyContent: 'space-between',
   },
   featuredTopRow: {
@@ -1155,27 +1817,74 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.gray600,
   },
+  featuredReasonBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  featuredReasonText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   featuredMiddle: {
     marginTop: 'auto',
   },
   featuredTitle: {
-    fontSize: 22,
+    fontSize: 23,
     fontWeight: '900',
     color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: 'rgba(0,0,0,0.55)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 5,
   },
   featuredDesc: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.84)',
     marginTop: 4,
+    maxWidth: '90%',
+  },
+  featuredPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  featuredFinalPrice: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  featuredComparePrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.72)',
+    textDecorationLine: 'line-through',
+  },
+  featuredSavingsChip: {
+    backgroundColor: 'rgba(34,197,94,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.32)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  featuredSavingsText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#D1FAE5',
   },
   featuredBottom: {
-    marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    marginTop: 14,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 18,
   },
   featuredTimerSection: {
     alignItems: 'center',
@@ -1196,16 +1905,22 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   featuredCTAGradient: {
-    paddingVertical: 16,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   featuredCTAText: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#fff',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+  },
+  featuredCTASubtext: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
   },
   ctaShimmer: {
     ...StyleSheet.absoluteFillObject,
@@ -1388,6 +2103,35 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 2,
   },
+  dealPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  dealFinalPrice: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: COLORS.green,
+  },
+  dealBasePrice: {
+    fontSize: 12,
+    color: COLORS.gray400,
+    textDecorationLine: 'line-through',
+    fontWeight: '600',
+  },
+  dealSavingsChip: {
+    backgroundColor: COLORS.greenLight,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  dealSavingsText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.green,
+  },
   dealTimer: {
     borderRadius: 10,
     paddingHorizontal: 10,
@@ -1520,5 +2264,118 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.gray400,
     marginTop: 8,
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HEART BUTTONS & WISHLIST
+  // ═══════════════════════════════════════════════════════════════════════════════
+  dealHeartBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.md,
+    zIndex: 5,
+  },
+  featuredSaveBtn: {
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EXPIRY WARNING BAR
+  // ═══════════════════════════════════════════════════════════════════════════════
+  expiryWarningBar: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  expiryWarningContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  expiryWarningIcon: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  expiryWarningText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    flex: 1,
+  },
+  expiryWarningClose: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '800',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STICKY FEATURED DEAL
+  // ═══════════════════════════════════════════════════════════════════════════════
+  stickyFeaturedContainer: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.gray200,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  stickyFeaturedHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stickyFeaturedImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 6,
+    overflow: 'hidden',
+    ...SHADOWS.sm,
+  },
+  stickyFeaturedInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  stickyFeaturedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.gray900,
+  },
+  stickyFeaturedPrice: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: COLORS.green,
+  },
+  stickyFeaturedCTA: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  stickyFeaturedCTAGradient: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stickyFeaturedCTAText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#fff',
   },
 });

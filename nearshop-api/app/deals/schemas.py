@@ -31,6 +31,8 @@ class DealResponse(BaseModel):
     current_claims: int = 0
     views: int = 0
     created_at: datetime
+    original_price: Optional[Decimal] = None
+    deal_price: Optional[Decimal] = None
     shop_name: Optional[str] = None
     product_name: Optional[str] = None
     image_url: Optional[str] = None  # Product image URL for display
@@ -45,6 +47,37 @@ class DealResponse(BaseModel):
 
 class DealListResponse(BaseModel):
     items: list[DealResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class PersonalizedDealResponse(BaseModel):
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    discount_pct: int = 0
+    discount_amount: float = 0
+    expires_at: Optional[datetime] = None
+    shop_id: UUID
+    shop_name: Optional[str] = None
+    shop_rating: float = 3.0
+    product_id: Optional[UUID] = None
+    product_name: Optional[str] = None
+    image_url: Optional[str] = None
+    category: Optional[str] = None
+    original_price: Optional[Decimal] = None
+    deal_price: Optional[Decimal] = None
+    current_claims: int = 0
+    max_claims: Optional[int] = None
+    personalisation_score: float = 0
+    match_reason: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PersonalizedDealListResponse(BaseModel):
+    items: list[PersonalizedDealResponse]
     total: int
     page: int
     per_page: int

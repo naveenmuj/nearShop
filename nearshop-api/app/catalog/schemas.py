@@ -82,3 +82,46 @@ class CatalogEnableProductsResponse(BaseModel):
     already_enabled_count: int
     not_found_count: int
     message: str
+
+
+class ShopCatalogSelectionResponse(BaseModel):
+    catalog_id: UUID
+    name: str
+    brand: Optional[str] = None
+    category: str
+    subcategory: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    data_source: Optional[str] = None
+    local_price: Optional[Decimal] = None
+    compare_price: Optional[Decimal] = None
+    local_description: Optional[str] = None
+    stock_quantity: Optional[int] = None
+    is_active: bool
+    is_published: bool = False
+    product_id: Optional[UUID] = None
+
+
+class ShopCatalogSelectionListResponse(BaseModel):
+    items: list[ShopCatalogSelectionResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class CatalogPublishProductsRequest(BaseModel):
+    catalog_ids: list[UUID] = Field(default_factory=list)
+
+
+class CatalogPublishResultItem(BaseModel):
+    catalog_id: UUID
+    product_id: Optional[UUID] = None
+    name: str
+    status: str
+    message: Optional[str] = None
+
+
+class CatalogPublishProductsResponse(BaseModel):
+    created_count: int
+    updated_count: int
+    skipped_count: int
+    items: list[CatalogPublishResultItem]
