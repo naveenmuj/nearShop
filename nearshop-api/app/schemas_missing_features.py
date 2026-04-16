@@ -70,7 +70,7 @@ class AddressListResponse(BaseModel):
 # ============================================================================
 
 class PaymentMethodBase(BaseModel):
-    payment_type: str = Field(..., regex="^(razorpay_card|upi|wallet)$")
+    payment_type: str = Field(..., pattern="^(razorpay_card|upi|wallet)$")
     display_name: Optional[str] = None
     is_active: bool = True
 
@@ -85,7 +85,7 @@ class CardPaymentCreate(PaymentMethodBase):
 
 class UPIPaymentCreate(PaymentMethodBase):
     payment_type: str = "upi"
-    upi_id: str = Field(..., regex=r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$')
+    upi_id: str = Field(..., pattern=r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9]+$')
 
 
 class WalletPaymentCreate(PaymentMethodBase):
@@ -162,7 +162,7 @@ class PublicProfileResponse(BaseModel):
 
 class SearchHistoryCreate(BaseModel):
     search_query: str = Field(..., min_length=1, max_length=500)
-    search_type: str = Field(..., regex="^(product|shop|combined)$")
+    search_type: str = Field(..., pattern="^(product|shop|combined)$")
     filters: Optional[Dict[str, Any]] = None
     result_count: Optional[int] = None
     clicked_result_id: Optional[uuid.UUID] = None

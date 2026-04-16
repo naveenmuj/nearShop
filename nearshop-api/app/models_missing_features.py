@@ -10,50 +10,13 @@ from sqlalchemy.orm import relationship
 import uuid
 
 from app.core.database import Base
+from app.auth.models import UserAddress
+from app.notifications.models import Notification
 
 
 # ============================================================================
 # PHASE 1: CORE DATA MODELS
 # ============================================================================
-
-class UserAddress(Base):
-    """User's saved delivery/billing addresses"""
-    __tablename__ = "user_addresses"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    
-    # Address Details
-    label = Column(String(50))  # "Home", "Office", "Other"
-    street = Column(String(255), nullable=False)
-    city = Column(String(100), nullable=False)
-    state = Column(String(100), nullable=False)
-    postal_code = Column(String(20), nullable=False)
-    country = Column(String(100), default="India")
-    
-    # Location
-    latitude = Column(Numeric(precision=10, scale=8))
-    longitude = Column(Numeric(precision=11, scale=8))
-    
-    # Contact
-    phone = Column(String(20), nullable=False)
-    alternate_phone = Column(String(20))
-    
-    # Flags
-    is_default = Column(Boolean, default=False)
-    is_billing = Column(Boolean, default=False)
-    
-    # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    deleted_at = Column(DateTime)  # Soft delete
-    
-    # Relationships
-    user = relationship("User", backref="addresses")
-    
-    def soft_delete(self):
-        self.deleted_at = datetime.utcnow()
-
 
 class SavedPaymentMethod(Base):
     """User's saved payment methods (cards, UPI, wallets)"""
@@ -222,46 +185,6 @@ class NotificationPreference(Base):
     
     # Push Notifications
     push_orders = Column(Boolean, default=True)
-    push_deals = Column(Boolean, default=True)
-    push_messages = Column(Boolean, default=True)
-    push_news = Column(Boolean, default=False)
-    
-    # Email Notifications
-    email_orders = Column(Boolean, default=True)
-    email_deals = Column(Boolean, default=True)
-    email_weekly_digest = Column(Boolean, default=False)
-    email_news = Column(Boolean, default=False)
-    
-    # SMS Notifications
-    sms_orders = Column(Boolean, default=True)
-    sms_deals = Column(Boolean, default=False)
-    
-    # Quiet Hours
-    quiet_hours_enabled = Column(Boolean, default=False)
-    quiet_hours_start = Column(Time)  # e.g., "22:00"
-    quiet_hours_end = Column(Time)    # e.g., "08:00"
-    
-    # Metadata
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Relationships
-    user = relationship("User", backref="notification_preferences", uselist=False)
-
-
-class Notification(Base):
-    """Main notification log for audit and engagement tracking"""
-    __tablename__ = "notifications"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    
-    # Notification Content
-    type = Column(String(50), nullable=False)  # "order_status", "price_drop", "message", "deal"
-    title = Column(String(255), nullable=False)
-    body = Column(Text, nullable=False)
-    data = Column(JSON)  # Contextual data: {orderId, productId, actionUrl, etc}
-    
-    # Delivery Channels
     push_sent = Column(Boolean, default=False)
     push_sent_at = Column(DateTime)
     email_sent = Column(Boolean, default=False)

@@ -10,9 +10,29 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from app.models_missing_features import UserAddress
+from app.auth.models import UserAddress
 from app.schemas_missing_features import AddressCreate, AddressUpdate, AddressResponse
 from app.core.exceptions import AppException
+
+
+def _to_address_response(address: UserAddress) -> AddressResponse:
+    return AddressResponse(
+        id=address.id,
+        label=address.label,
+        street=address.address_line1,
+        city=address.city,
+        state=address.state or "",
+        postal_code=address.pincode,
+        country="India",
+        phone=address.phone or "",
+        alternate_phone=address.address_line2,
+        latitude=address.latitude,
+        longitude=address.longitude,
+        is_default=bool(address.is_default),
+        is_billing=False,
+        created_at=address.created_at,
+        updated_at=address.updated_at or address.created_at,
+    )
 
 
 class AddressService:
@@ -27,47 +47,38 @@ class AddressService:
         """Create a new address for user"""
         try:
             # If this is the first address, make it default
-            existing_count = db.query(UserAddress).filter(
-                and_(
-                    UserAddress.user_id == user_id,
-                    UserAddress.deleted_at == None
-                )
-            ).count()
+            existing_count = db.query(UserAddress).filter(UserAddress.user_id == user_id).count()
             
             is_default = address_data.is_default or (existing_count == 0)
             
             # If setting as default, unset previous defaults
             if is_default:
                 db.query(UserAddress).filter(
-                    and_(
-                        UserAddress.user_id == user_id,
-                        UserAddress.is_default == True,
-                        UserAddress.deleted_at == None
-                    )
+                    and_(UserAddress.user_id == user_id, UserAddress.is_default == True)
                 ).update({UserAddress.is_default: False})
             
             # Create new address
             address = UserAddress(
                 user_id=user_id,
                 label=address_data.label,
-                street=address_data.street,
+                full_name=address_data.label,
+                phone=address_data.phone,
+                address_line1=address_data.street,
+                address_line2=address_data.alternate_phone,
                 city=address_data.city,
                 state=address_data.state,
-                postal_code=address_data.postal_code,
-                country=address_data.country,
+                pincode=address_data.postal_code,
+                landmark=None,
                 latitude=address_data.latitude,
                 longitude=address_data.longitude,
-                phone=address_data.phone,
-                alternate_phone=address_data.alternate_phone,
                 is_default=is_default,
-                is_billing=address_data.is_billing,
             )
             
             db.add(address)
             db.commit()
             db.refresh(address)
             
-            return AddressResponse.from_orm(address)
+            return _to_address_response(address)
         
         except IntegrityError as e:
             db.rollback()
@@ -85,16 +96,13 @@ class AddressService:
     ) -> tuple[List[AddressResponse], int]:
         """Get all non-deleted addresses for user"""
         query = db.query(UserAddress).filter(
-            and_(
-                UserAddress.user_id == user_id,
-                UserAddress.deleted_at == None
-            )
+            UserAddress.user_id == user_id
         )
         
         total = query.count()
         addresses = query.offset(skip).limit(limit).all()
         
-        return [AddressResponse.from_orm(addr) for addr in addresses], total
+        return [_to_address_response(addr) for addr in addresses], total
     
     @staticmethod
     async def get_address(
@@ -104,11 +112,7 @@ class AddressService:
     ) -> Optional[AddressResponse]:
         """Get single address by ID (owner verification)"""
         address = db.query(UserAddress).filter(
-            and_(
-                UserAddress.id == address_id,
-                UserAddress.user_id == user_id,
-                UserAddress.deleted_at == None
-            )
+            and_(UserAddress.id == address_id, UserAddress.user_id == user_id)
         ).first()
         
         if not address:
@@ -118,7 +122,7 @@ class AddressService:
                 status_code=404
             )
         
-        return AddressResponse.from_orm(address)
+        return _to_address_response(address)
     
     @staticmethod
     async def update_address(
@@ -129,11 +133,7 @@ class AddressService:
     ) -> AddressResponse:
         """Update address (owner verification)"""
         address = db.query(UserAddress).filter(
-            and_(
-                UserAddress.id == address_id,
-                UserAddress.user_id == user_id,
-                UserAddress.deleted_at == None
-            )
+            and_(UserAddress.id == address_id, UserAddress.user_id == user_id)
         ).first()
         
         if not address:
@@ -147,14 +147,21 @@ class AddressService:
         update_dict = update_data.dict(exclude_unset=True)
         for key, value in update_dict.items():
             if value is not None:
-                setattr(address, key, value)
+                if key == "street":
+                    address.address_line1 = value
+                elif key == "postal_code":
+                    address.pincode = value
+                elif key == "alternate_phone":
+                    address.address_line2 = value
+                else:
+                    setattr(address, key, value)
         
         address.updated_at = datetime.utcnow()
         
         db.commit()
         db.refresh(address)
         
-        return AddressResponse.from_orm(address)
+        return _to_address_response(address)
     
     @staticmethod
     async def delete_address(
@@ -164,11 +171,7 @@ class AddressService:
     ) -> bool:
         """Soft delete address"""
         address = db.query(UserAddress).filter(
-            and_(
-                UserAddress.id == address_id,
-                UserAddress.user_id == user_id,
-                UserAddress.deleted_at == None
-            )
+            and_(UserAddress.id == address_id, UserAddress.user_id == user_id)
         ).first()
         
         if not address:
@@ -181,17 +184,13 @@ class AddressService:
         # If this was the default, unset it
         if address.is_default:
             next_address = db.query(UserAddress).filter(
-                and_(
-                    UserAddress.user_id == user_id,
-                    UserAddress.id != address_id,
-                    UserAddress.deleted_at == None
-                )
+                and_(UserAddress.user_id == user_id, UserAddress.id != address_id)
             ).first()
             
             if next_address:
                 next_address.is_default = True
         
-        address.soft_delete()
+        db.delete(address)
         db.commit()
         
         return True
@@ -204,11 +203,7 @@ class AddressService:
     ) -> AddressResponse:
         """Set address as default shipping address"""
         address = db.query(UserAddress).filter(
-            and_(
-                UserAddress.id == address_id,
-                UserAddress.user_id == user_id,
-                UserAddress.deleted_at == None
-            )
+            and_(UserAddress.id == address_id, UserAddress.user_id == user_id)
         ).first()
         
         if not address:
@@ -220,12 +215,7 @@ class AddressService:
         
         # Unset previous defaults
         db.query(UserAddress).filter(
-            and_(
-                UserAddress.user_id == user_id,
-                UserAddress.is_default == True,
-                UserAddress.id != address_id,
-                UserAddress.deleted_at == None
-            )
+            and_(UserAddress.user_id == user_id, UserAddress.is_default == True, UserAddress.id != address_id)
         ).update({UserAddress.is_default: False})
         
         # Set as default
@@ -235,7 +225,7 @@ class AddressService:
         db.commit()
         db.refresh(address)
         
-        return AddressResponse.from_orm(address)
+        return _to_address_response(address)
     
     @staticmethod
     async def set_billing_address(
@@ -245,11 +235,7 @@ class AddressService:
     ) -> AddressResponse:
         """Set address as billing address"""
         address = db.query(UserAddress).filter(
-            and_(
-                UserAddress.id == address_id,
-                UserAddress.user_id == user_id,
-                UserAddress.deleted_at == None
-            )
+            and_(UserAddress.id == address_id, UserAddress.user_id == user_id)
         ).first()
         
         if not address:
@@ -295,7 +281,7 @@ class AddressService:
         if not address:
             return None
         
-        return AddressResponse.from_orm(address)
+        return _to_address_response(address)
     
     @staticmethod
     async def get_billing_address(
@@ -304,14 +290,10 @@ class AddressService:
     ) -> Optional[AddressResponse]:
         """Get user's billing address"""
         address = db.query(UserAddress).filter(
-            and_(
-                UserAddress.user_id == user_id,
-                UserAddress.is_billing == True,
-                UserAddress.deleted_at == None
-            )
+            UserAddress.user_id == user_id
         ).first()
         
         if not address:
             return None
         
-        return AddressResponse.from_orm(address)
+        return _to_address_response(address)

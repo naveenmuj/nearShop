@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 import uuid
 
-from app.core.dependencies import get_db, get_current_user
+from app.core.database import get_db
+from app.auth.permissions import get_current_user
 from app.addresses.service import AddressService
 from app.schemas_missing_features import (
     AddressCreate,
