@@ -8,6 +8,7 @@ import {
   Image,
   Switch,
   StatusBar,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -86,15 +87,23 @@ function Chevron() {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, switchRole } = useAuthStore();
-  const { address, refreshLocation } = useLocationStore();
+  const { address, refreshLocation, preferredRadiusKm, setPreferredRadiusKm } = useLocationStore();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [soundOn, setSoundOn] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
+  const [radiusInput, setRadiusInput] = useState('5');
+  const [isSavingRadius, setIsSavingRadius] = useState(false);
 
   const locality = address || 'Location not set';
+  const currentRadiusKm = Math.max(1, Math.min(50, Math.round(Number(preferredRadiusKm || 5))));
+  const trimmedRadiusInput = String(radiusInput || '').trim();
+  const parsedRadiusInput = Number(trimmedRadiusInput);
+  const isRadiusInputValid = /^\d+$/.test(trimmedRadiusInput) && parsedRadiusInput >= 1 && parsedRadiusInput <= 50;
+  const hasRadiusChanged = isRadiusInputValid && parsedRadiusInput !== currentRadiusKm;
+  const canSaveRadius = !isSavingRadius && hasRadiusChanged;
 
   useEffect(() => {
     const loadSoundSettings = async () => {
@@ -117,6 +126,10 @@ export default function ProfileScreen() {
 
     loadSoundSettings();
   }, []);
+
+  useEffect(() => {
+    setRadiusInput(String(Math.round(Number(preferredRadiusKm || 5))));
+  }, [preferredRadiusKm]);
 
   // Fetch counts whenever screen is focused
   useFocusEffect(
@@ -166,6 +179,31 @@ export default function ProfileScreen() {
       toast.error('Location refresh failed');
     } finally {
       setIsRefreshingLocation(false);
+    }
+  };
+
+  const handleSaveRadius = async () => {
+    const trimmed = String(radiusInput || '').trim();
+    if (!/^\d+$/.test(trimmed)) {
+      toast.error('Enter radius as an integer in km');
+      return;
+    }
+
+    const value = Number(trimmed);
+    if (value < 1 || value > 50) {
+      toast.error('Radius must be between 1 and 50 km');
+      return;
+    }
+
+    setIsSavingRadius(true);
+    try {
+      const normalized = await setPreferredRadiusKm(value, { sync: true });
+      setRadiusInput(String(normalized));
+      toast.success(`Search radius saved: ${normalized} km`);
+    } catch (err) {
+      toast.error(err?.message || 'Could not save radius right now');
+    } finally {
+      setIsSavingRadius(false);
     }
   };
 
@@ -428,6 +466,33 @@ export default function ProfileScreen() {
               </View>
             }
           />
+          <View style={styles.radiusRow}>
+            <View style={styles.radiusLabelWrap}>
+              <Text style={styles.menuIcon}>📏</Text>
+              <Text style={styles.menuLabel}>Search Radius (km)</Text>
+            </View>
+            <View style={styles.radiusControlWrap}>
+              <TextInput
+                value={radiusInput}
+                onChangeText={(t) => setRadiusInput(t.replace(/\D/g, '').slice(0, 2))}
+                keyboardType="number-pad"
+                placeholder="5"
+                placeholderTextColor={COLORS.gray300}
+                style={styles.radiusInput}
+              />
+              <TouchableOpacity
+                onPress={handleSaveRadius}
+                disabled={!canSaveRadius}
+                style={[styles.radiusSaveBtn, !canSaveRadius && styles.radiusSaveBtnDisabled]}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.radiusSaveBtnText}>{isSavingRadius ? 'Saving...' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.radiusHelperText}>
+              Enter an integer from 1 to 50 km. Save is enabled only after a valid change.
+            </Text>
+          </View>
           <MenuRow
             icon="ℹ️"
             label="About NearShop"
@@ -631,6 +696,59 @@ const styles = StyleSheet.create({
     color: COLORS.gray400,
     fontWeight: '500',
     maxWidth: 140,
+    textAlign: 'right',
+  },
+  radiusRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.gray200,
+  },
+  radiusLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  radiusControlWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  radiusInput: {
+    width: 74,
+    height: 36,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray900,
+    textAlign: 'center',
+    backgroundColor: COLORS.white,
+  },
+  radiusSaveBtn: {
+    height: 36,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+  },
+  radiusSaveBtnDisabled: {
+    opacity: 0.65,
+  },
+  radiusSaveBtnText: {
+    color: COLORS.white,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  radiusHelperText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: COLORS.gray400,
+    fontWeight: '500',
     textAlign: 'right',
   },
   chevron: {

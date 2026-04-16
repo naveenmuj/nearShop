@@ -246,7 +246,7 @@ const useLocationStore = create((set, get) => ({
   setPreferredRadiusKm: async (radiusKm, options = {}) => {
     const { sync = true } = options;
     const parsed = Number(radiusKm);
-    const normalized = Number.isFinite(parsed) ? Math.max(1, Math.min(50, parsed)) : 5;
+    const normalized = Number.isFinite(parsed) ? Math.max(1, Math.min(50, Math.round(parsed))) : 5;
 
     const state = get();
     const payload = {

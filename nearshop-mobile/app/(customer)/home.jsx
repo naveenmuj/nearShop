@@ -389,7 +389,7 @@ export default function HomeScreen() {
   const nearbyRadiusKm = useMemo(() => {
     const parsed = Number(preferredRadiusKm);
     if (!Number.isFinite(parsed)) return 5;
-    return Math.max(1, Math.min(50, parsed));
+    return Math.max(1, Math.min(50, Math.round(parsed)));
   }, [preferredRadiusKm]);
 
   const loadData = useCallback(async () => {
@@ -406,7 +406,7 @@ export default function HomeScreen() {
     const categoryFilter = selectedCategory || undefined;
     const requests = [
       getStoriesFeed(),
-      getNearbyDeals(lat, lng),
+      getNearbyDeals(lat, lng, { radius_km: nearbyRadiusKm }),
       getNearbyShops(lat, lng, { radius_km: nearbyRadiusKm }),
       searchProducts({ sort: 'newest', per_page: 30, lat, lng, radius_km: nearbyRadiusKm, category: categoryFilter }),
       getTrendingProducts(lat, lng, { limit: 14, radius_km: nearbyRadiusKm, category: categoryFilter }),

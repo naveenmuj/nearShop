@@ -845,7 +845,7 @@ function LoadingState() {
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DealsScreen() {
-  const { lat, lng, address } = useLocationStore();
+  const { lat, lng, address, preferredShopRadiusKm } = useLocationStore();
   const [deals, setDeals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -868,6 +868,12 @@ export default function DealsScreen() {
   const followedCount = useWishlistStore((state) => state.followedCount);
   const setWishlistSummary = useWishlistStore((state) => state.setWishlistSummary);
 
+  const nearbyRadiusKm = useMemo(() => {
+    const parsed = Number(preferredShopRadiusKm);
+    if (!Number.isFinite(parsed)) return 5;
+    return Math.max(1, Math.min(50, Math.round(parsed)));
+  }, [preferredShopRadiusKm]);
+
   // Get time of day for personalized greeting
   const timeOfDay = useMemo(() => {
     const hour = new Date().getHours();
@@ -882,7 +888,7 @@ export default function DealsScreen() {
       setError(null);
       const baseLat = lat ?? 12.935;
       const baseLng = lng ?? 77.624;
-      const nearbyParams = { limit: pageNum === 1 ? 60 : pageSize };
+      const nearbyParams = { limit: pageNum === 1 ? 60 : pageSize, radius_km: nearbyRadiusKm };
       if (activeCategory !== 'All') nearbyParams.category = activeCategory;
       const matchesCategory = (item) => (
         activeCategory === 'All'
@@ -891,7 +897,7 @@ export default function DealsScreen() {
 
       const [nearbyRes, personalizedRes] = await Promise.allSettled([
         getNearbyDeals(baseLat, baseLng, nearbyParams),
-        pageNum === 1 ? getPersonalizedDeals(baseLat, baseLng, { limit: 30 }) : Promise.resolve({ data: { items: [] } }),
+        pageNum === 1 ? getPersonalizedDeals(baseLat, baseLng, { limit: 30, radius_km: nearbyRadiusKm }) : Promise.resolve({ data: { items: [] } }),
       ]);
 
       const nearbyItems = nearbyRes.status === 'fulfilled'
@@ -913,9 +919,10 @@ export default function DealsScreen() {
           merged.push(item);
         });
       } else {
-        // For subsequent pages, just filter nearby
+        // For subsequent pages, filter nearby AND deduplicate against existing deals
+        const existingIds = new Set(deals.map(d => d.id));
         nearbyItems.forEach((item) => {
-          if (!item?.id) return;
+          if (!item?.id || existingIds.has(item.id)) return;
           if (!matchesCategory(item)) return;
           merged.push(item);
         });
@@ -939,12 +946,13 @@ export default function DealsScreen() {
     } catch (err) {
       if (!append) setError('Could not load deals. Check your connection.');
     }
-  }, [lat, lng, activeCategory, pageSize]);
+  }, [lat, lng, activeCategory, pageSize, nearbyRadiusKm]);
 
   useEffect(() => {
     setIsLoading(true);
     setPage(1);
     setHasMore(true);
+    setDeals([]);
     loadDeals(1, false).finally(() => setIsLoading(false));
   }, [loadDeals]);
 
@@ -1173,11 +1181,17 @@ export default function DealsScreen() {
   const showStickyFeatured = scrollY > 400 && featuredVisibleDeal;
 
   const savedDealRailItems = useMemo(() => savedItems.slice(0, 5), [savedItems]);
-  const savedPriceDropCount = useMemo(() => savedItems.filter((item) => {
-    const oldPrice = Number(item.price_at_save ?? item.product_price ?? item.price ?? 0);
-    const currentPrice = Number(item.current_price ?? item.price ?? item.product_price ?? 0);
-    return oldPrice > 0 && currentPrice > 0 && currentPrice < oldPrice;
-  }).length, [savedItems]);
+  const savedPriceDropCount = useMemo(() => {
+    if (!Array.isArray(savedItems)) return 0;
+    return savedItems.filter((item) => {
+      // Use saved price as baseline (captured at save time)
+      const savedPrice = Number(item.price_at_save ?? item.original_price ?? item.product_price ?? 0);
+      // Use current price from live data
+      const currentPrice = Number(item.current_price ?? item.price ?? 0);
+      // Only count as price drop if both prices exist and current is lower
+      return savedPrice > 0 && currentPrice > 0 && currentPrice < savedPrice;
+    }).length;
+  }, [savedItems]);
 
   useEffect(() => {
     setWishlistSummary({

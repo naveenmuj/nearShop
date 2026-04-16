@@ -331,7 +331,7 @@ async def assign_conversation(
         shop_name=updated.shop.name if updated.shop else None,
         product_name=updated.product.name if updated.product else None,
         assigned_to_user_id=updated.assigned_to_user_id,
-        assigned_staff_name=_user_display_name(current_user) if updated.assigned_to_user_id else "Unassigned",
+        assigned_staff_name=_user_display_name(updated.assigned_to_user) if updated.assigned_to_user else "Unassigned",
         first_unread_at=None,
         pending_since=None,
         pending_minutes=None,

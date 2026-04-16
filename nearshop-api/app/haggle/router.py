@@ -3,6 +3,7 @@ from typing import Dict, Set
 import json
 import asyncio
 import logging
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -261,27 +262,21 @@ async def haggle_websocket(
                     
                     # Update session in database
                     async with get_async_session() as db:
-                        from app.haggle.models import HaggleSession
+                        from app.haggle.models import HaggleSession, HaggleMessage
                         result = await db.execute(
                             select(HaggleSession).where(HaggleSession.id == UUID(session_id))
                         )
                         session = result.scalar_one_or_none()
                         
                         if session and session.status == "active":
-                            if role == "customer":
-                                session.customer_offer = amount
-                            else:
-                                session.shop_offer = amount
-                            
-                            # Add to offers history
-                            if session.offers is None:
-                                session.offers = []
-                            session.offers.append({
-                                "from": role,
-                                "amount": amount,
-                                "message": message,
-                            })
-                            
+                            db.add(
+                                HaggleMessage(
+                                    session_id=session.id,
+                                    sender_role=role,
+                                    offer_amount=Decimal(str(amount)),
+                                    message=message,
+                                )
+                            )
                             await db.commit()
                     
                     # Broadcast offer to session
@@ -295,15 +290,27 @@ async def haggle_websocket(
                 elif msg_type == "accept":
                     # Accept current offer
                     async with get_async_session() as db:
-                        from app.haggle.models import HaggleSession
+                        from app.haggle.models import HaggleSession, HaggleMessage
                         result = await db.execute(
                             select(HaggleSession).where(HaggleSession.id == UUID(session_id))
                         )
                         session = result.scalar_one_or_none()
                         
                         if session and session.status == "active":
-                            # Determine final price
-                            final_price = session.shop_offer or session.customer_offer
+                            final_offer_result = await db.execute(
+                                select(HaggleMessage.offer_amount)
+                                .where(
+                                    HaggleMessage.session_id == session.id,
+                                    HaggleMessage.offer_amount.is_not(None),
+                                )
+                                .order_by(HaggleMessage.created_at.desc())
+                                .limit(1)
+                            )
+                            final_price = final_offer_result.scalar_one_or_none()
+                            if final_price is None:
+                                await websocket.send_json({"type": "error", "message": "No offer available to accept"})
+                                continue
+
                             session.status = "accepted"
                             session.final_price = final_price
                             await db.commit()
@@ -345,6 +352,21 @@ async def haggle_websocket(
                     # Chat message
                     text = data.get("text", "")
                     if text:
+                        async with get_async_session() as db:
+                            from app.haggle.models import HaggleSession, HaggleMessage
+                            result = await db.execute(
+                                select(HaggleSession).where(HaggleSession.id == UUID(session_id))
+                            )
+                            session = result.scalar_one_or_none()
+                            if session and session.status == "active":
+                                db.add(
+                                    HaggleMessage(
+                                        session_id=session.id,
+                                        sender_role=role,
+                                        message=text,
+                                    )
+                                )
+                                await db.commit()
                         await haggle_manager.broadcast_to_session(session_id, {
                             "type": "message",
                             "from": role,

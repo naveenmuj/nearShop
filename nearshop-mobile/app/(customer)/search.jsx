@@ -107,7 +107,7 @@ function confidenceLabel(band) {
 export default function SearchScreen() {
   const router = useRouter();
   const { category: initialCategory } = useLocalSearchParams();
-  const { lat, lng, error: locationError, refreshLocation } = useLocationStore();
+  const { lat, lng, preferredShopRadiusKm, error: locationError, refreshLocation } = useLocationStore();
   const { showToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -144,6 +144,12 @@ export default function SearchScreen() {
   const debounceTimer = useRef(null);
   const suggestTimer = useRef(null);
 
+  const nearbyRadiusKm = useMemo(() => {
+    const parsed = Number(preferredShopRadiusKm);
+    if (!Number.isFinite(parsed)) return 5;
+    return Math.max(1, Math.min(50, Math.round(parsed)));
+  }, [preferredShopRadiusKm]);
+
   // ─── Fetch recent searches on mount ──────────────────────────────────────────
 
   useEffect(() => {
@@ -168,12 +174,12 @@ export default function SearchScreen() {
   const fetchSuggestions = useCallback(async (q) => {
     if (!q.trim() || q.length < 2) { setSuggestions([]); return; }
     try {
-      const res = await getSearchSuggestions(q.trim(), lat, lng);
+      const res = await getSearchSuggestions(q.trim(), lat, lng, { radius_km: nearbyRadiusKm });
       setSuggestions(res?.data?.suggestions ?? []);
     } catch {
       setSuggestions([]);
     }
-  }, [lat, lng]);
+  }, [lat, lng, nearbyRadiusKm]);
 
   // ─── Fetch helpers ────────────────────────────────────────────────────────────
 
@@ -223,7 +229,7 @@ export default function SearchScreen() {
         setSearchError(null);
         return;
       }
-      const params = { per_page: 40 };
+      const params = { per_page: 40, radius_km: nearbyRadiusKm };
       if (sort) params.sort_by = sort;
       if (q && q.trim()) params.q = q.trim();
       if (lat != null) params.lat = lat;
@@ -246,7 +252,7 @@ export default function SearchScreen() {
       setLoading(false);
       setHasSearched(true);
     }
-  }, [lat, lng]);
+  }, [lat, lng, nearbyRadiusKm]);
 
   const fetchShops = useCallback(async (q, mode) => {
     setLoading(true);
@@ -256,10 +262,10 @@ export default function SearchScreen() {
 
         if (mode === 'smart') {
           try {
-            const conversational = await runConversationalSearch(q.trim(), lat, lng);
+            const conversational = await runConversationalSearch(q.trim(), lat, lng, { radius_km: nearbyRadiusKm });
             searchData = conversational?.data ?? {};
           } catch {
-            const unified = await searchUnified(q.trim(), lat, lng);
+            const unified = await searchUnified(q.trim(), lat, lng, { radius_km: nearbyRadiusKm });
             searchData = {
               ...(unified?.data ?? {}),
               ai_used: false,
@@ -269,7 +275,7 @@ export default function SearchScreen() {
             };
           }
         } else {
-          const unified = await searchUnified(q.trim(), lat, lng);
+          const unified = await searchUnified(q.trim(), lat, lng, { radius_km: nearbyRadiusKm });
           searchData = {
             ...(unified?.data ?? {}),
             ai_used: false,
@@ -289,7 +295,7 @@ export default function SearchScreen() {
         setSearchError(null);
         return;
       }
-      const params = {};
+      const params = { radius_km: nearbyRadiusKm };
       if (lat != null) params.lat = lat;
       if (lng != null) params.lng = lng;
       const res = await searchShops(q, params);
@@ -310,7 +316,7 @@ export default function SearchScreen() {
       setLoading(false);
       setHasSearched(true);
     }
-  }, [lat, lng]);
+  }, [lat, lng, nearbyRadiusKm]);
 
   // ─── Debounced search trigger ─────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { API_BASE } from '../lib/api';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -46,6 +47,21 @@ const useAuthStore = create((set, get) => ({
   },
 
   logout: async () => {
+    // Best-effort push token cleanup for this authenticated user before local sign-out.
+    try {
+      const token = await SecureStore.getItemAsync('access_token');
+      if (token) {
+        await fetch(`${API_BASE}/api/v1/notifications/unregister-token`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('Push token unregister failed during logout:', err?.message || err);
+    }
+
     await SecureStore.deleteItemAsync('access_token');
     await SecureStore.deleteItemAsync('refresh_token');
     await SecureStore.deleteItemAsync('user_data');

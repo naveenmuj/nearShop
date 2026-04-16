@@ -323,55 +323,6 @@ async def get_shop_products_endpoint(
     shop_id: UUID,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-
-
-    @router.get("/following")
-    async def get_followed_shops_endpoint(
-        page: int = Query(1, ge=1),
-        per_page: int = Query(20, ge=1, le=100),
-        current_user: User = Depends(require_customer),
-        db: AsyncSession = Depends(get_db),
-    ):
-        """Get shops followed by the current customer."""
-        from app.auth.models import Follow
-
-        offset = (page - 1) * per_page
-
-        total_result = await db.execute(
-            select(func.count(Follow.id)).where(Follow.user_id == current_user.id)
-        )
-        total = total_result.scalar() or 0
-
-        followed_rows = await db.execute(
-            select(Follow, Shop)
-            .join(Shop, Follow.shop_id == Shop.id)
-            .where(Follow.user_id == current_user.id)
-            .order_by(Follow.created_at.desc())
-            .offset(offset)
-            .limit(per_page)
-        )
-
-        items = []
-        for follow, shop in followed_rows.all():
-            items.append({
-                "id": str(shop.id),
-                "name": shop.name,
-                "slug": shop.slug,
-                "category": shop.category,
-                "logo_url": shop.logo_url,
-                "cover_image": shop.cover_image,
-                "avg_rating": float(shop.avg_rating or 0),
-                "total_products": int(shop.total_products or 0),
-                "is_verified": bool(shop.is_verified),
-                "followed_at": follow.created_at.isoformat() if follow.created_at else None,
-            })
-
-        return {
-            "items": items,
-            "total": total,
-            "page": page,
-            "per_page": per_page,
-        }
     include_hidden: bool = Query(False),
     current_user: User | None = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
@@ -397,6 +348,55 @@ async def get_shop_products_endpoint(
         page=page,
         per_page=per_page,
     )
+
+
+@router.get("/following")
+async def get_followed_shops_endpoint(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(require_customer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get shops followed by the current customer."""
+    from app.auth.models import Follow
+
+    offset = (page - 1) * per_page
+
+    total_result = await db.execute(
+        select(func.count(Follow.id)).where(Follow.user_id == current_user.id)
+    )
+    total = total_result.scalar() or 0
+
+    followed_rows = await db.execute(
+        select(Follow, Shop)
+        .join(Shop, Follow.shop_id == Shop.id)
+        .where(Follow.user_id == current_user.id)
+        .order_by(Follow.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
+    )
+
+    items = []
+    for follow, shop in followed_rows.all():
+        items.append({
+            "id": str(shop.id),
+            "name": shop.name,
+            "slug": shop.slug,
+            "category": shop.category,
+            "logo_url": shop.logo_url,
+            "cover_image": shop.cover_image,
+            "avg_rating": float(shop.avg_rating or 0),
+            "total_products": int(shop.total_products or 0),
+            "is_verified": bool(shop.is_verified),
+            "followed_at": follow.created_at.isoformat() if follow.created_at else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+    }
 
 
 @router.post("/{shop_id}/follow")

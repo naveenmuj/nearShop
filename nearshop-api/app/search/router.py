@@ -32,6 +32,7 @@ async def unified_search(
     q: str = Query(..., min_length=1, max_length=100),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
     profile_id: Optional[str] = Query(None),
     include_debug: bool = Query(False),
     current_user=Depends(get_current_user_optional),
@@ -44,6 +45,7 @@ async def unified_search(
         q,
         lat,
         lng,
+        radius_km=radius_km,
         user_id=current_user.id if current_user else None,
         profile_id=profile_id,
         include_debug=include_debug,
@@ -56,12 +58,13 @@ async def search_suggestions(
     q: str = Query(..., min_length=2, max_length=100),
     lat: Optional[float] = Query(None, ge=-90, le=90),
     lng: Optional[float] = Query(None, ge=-180, le=180),
+    radius_km: float = Query(5.0, gt=0, le=50),
     db: AsyncSession = Depends(get_db),
 ):
     """Get smart search suggestions (products + shops)."""
     try:
         from app.search.service import get_search_suggestions
-        suggestions = await get_search_suggestions(db, q, lat, lng)
+        suggestions = await get_search_suggestions(db, q, lat, lng, radius_km)
         return SearchSuggestionsResponse(suggestions=suggestions)
     except Exception as e:
         print(f"Error in search_suggestions: {e}")

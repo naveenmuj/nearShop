@@ -51,7 +51,7 @@ export default function ShopsScreen() {
   const nearbyRadiusKm = useMemo(() => {
     const parsed = Number(preferredRadiusKm);
     if (!Number.isFinite(parsed)) return 5;
-    return Math.max(1, Math.min(50, parsed));
+    return Math.max(1, Math.min(50, Math.round(parsed)));
   }, [preferredRadiusKm]);
 
   const loadShops = useCallback(async () => {

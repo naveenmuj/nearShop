@@ -569,61 +569,6 @@ export default function WishlistScreen() {
     }
   }, [savedItems, wishlistStats.totalValue]);
 
-  // ── Stats calculation ────────────────────────────────────────────────────────
-
-  const wishlistStats = useMemo(() => {
-    if (activeTab !== TABS.PRODUCTS || savedItems.length === 0) {
-      return {
-        totalItems: 0,
-        totalValue: 0,
-        avgPrice: 0,
-        totalSavings: 0,
-      };
-    }
-
-    const items = savedItems;
-    const totalValue = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-    const totalSavings = items.reduce((sum, item) => {
-      const savings = (item.original_price ?? 0) - (item.price ?? 0);
-      return sum + Math.max(0, savings);
-    }, 0);
-    const avgPrice = items.length > 0 ? totalValue / items.length : 0;
-
-    return {
-      totalItems: items.length,
-      totalValue,
-      avgPrice,
-      totalSavings,
-    };
-  }, [activeTab, savedItems]);
-
-  // ── Share wishlist ───────────────────────────────────────────────────────────
-
-  const handleShareWishlist = useCallback(async () => {
-    if (savedItems.length === 0) {
-      alert.warning({ title: 'Empty Wishlist', message: 'Add items to share your wishlist.' });
-      return;
-    }
-
-    const itemsList = savedItems
-      .slice(0, 5)
-      .map(item => `• ${item.product_name} - ${formatPrice(item.price ?? 0)}`)
-      .join('\n');
-
-    const moreItems = savedItems.length > 5 ? `\n... and ${savedItems.length - 5} more items` : '';
-
-    const message = `Check out my wishlist on NearShop! 🛍️\n\n${itemsList}${moreItems}\n\nTotal Value: ${formatPrice(wishlistStats.totalValue)}\n\nDownload NearShop to see my full wishlist and find great deals nearby!`;
-
-    try {
-      await Share.share({
-        message,
-        title: 'Share My Wishlist',
-      });
-    } catch (error) {
-      alert.error({ title: 'Share Error', message: 'Could not share wishlist. Please try again.' });
-    }
-  }, [savedItems, wishlistStats.totalValue]);
-
   // ── Render helpers ───────────────────────────────────────────────────────────
 
   const renderSavedItem = useCallback(

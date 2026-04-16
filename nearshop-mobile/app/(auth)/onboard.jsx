@@ -154,7 +154,7 @@ export default function OnboardScreen() {
     try {
       const parsedRange = Number(preferredRangeKm);
       const normalizedRangeKm = Number.isFinite(parsedRange)
-        ? Math.min(50, Math.max(1, parsedRange))
+        ? Math.min(50, Math.max(1, Math.round(parsedRange)))
         : 5;
 
       const profileName = role === 'customer' ? name.trim() : ownerName.trim();

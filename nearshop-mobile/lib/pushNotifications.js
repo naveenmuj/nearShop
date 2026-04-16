@@ -25,7 +25,7 @@ try {
 
 class PushNotificationService {
   constructor() {
-    this.expoPushToken = null;
+    this.pushToken = null;
     this.notificationListener = null;
     this.responseListener = null;
     this.playSound = true;
@@ -131,12 +131,12 @@ class PushNotificationService {
       });
 
       // Get push token
-      const token = await this.registerForPushNotifications();
+      const tokenInfo = await this.registerForPushNotifications();
       
-      if (token) {
-        this.expoPushToken = token;
+      if (tokenInfo?.token) {
+        this.pushToken = tokenInfo.token;
         // Register token with backend
-        await this.registerTokenWithBackend(token);
+        await this.registerTokenWithBackend(tokenInfo.token, tokenInfo.provider);
       }
 
       // Set up notification listeners
@@ -153,7 +153,7 @@ class PushNotificationService {
         }
       }
 
-      return token;
+      return tokenInfo?.token || null;
     } catch (error) {
       console.error('Failed to initialize push notifications:', error);
       return null;
@@ -168,7 +168,8 @@ class PushNotificationService {
       return null;
     }
     
-    let token;
+    let token = null;
+    let provider = null;
 
     // Check if physical device (notifications don't work on simulator)
     if (!Device.isDevice) {
@@ -198,22 +199,40 @@ class PushNotificationService {
       return null;
     }
 
-    // Get Expo push token
+    // Prefer native token (FCM on Android) when available.
     try {
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId
-        || Constants?.easConfig?.projectId
-        || Constants?.manifest2?.extra?.expoClient?.extra?.eas?.projectId
-        || Constants?.manifest?.extra?.eas?.projectId;
-
-      const tokenResponse = projectId
-        ? await Notifications.getExpoPushTokenAsync({ projectId })
-        : await Notifications.getExpoPushTokenAsync();
-
-      token = tokenResponse?.data || null;
+      if (typeof Notifications.getDevicePushTokenAsync === 'function') {
+        const nativeTokenResponse = await Notifications.getDevicePushTokenAsync();
+        const nativeType = String(nativeTokenResponse?.type || '').toLowerCase();
+        const nativeToken = nativeTokenResponse?.data || null;
+        if (nativeToken && nativeType === 'fcm') {
+          token = nativeToken;
+          provider = 'fcm';
+        }
+      }
     } catch (error) {
-      console.error('Error getting push token:', error);
-      return null;
+      console.warn('Could not get native push token, trying Expo token:', error?.message || error);
+    }
+
+    // Fallback to Expo token if native FCM token is unavailable.
+    if (!token) {
+      try {
+        const projectId =
+          Constants?.expoConfig?.extra?.eas?.projectId
+          || Constants?.easConfig?.projectId
+          || Constants?.manifest2?.extra?.expoClient?.extra?.eas?.projectId
+          || Constants?.manifest?.extra?.eas?.projectId;
+
+        const tokenResponse = projectId
+          ? await Notifications.getExpoPushTokenAsync({ projectId })
+          : await Notifications.getExpoPushTokenAsync();
+
+        token = tokenResponse?.data || null;
+        provider = token ? 'expo' : null;
+      } catch (error) {
+        console.error('Error getting push token:', error);
+        return null;
+      }
     }
 
     // Configure Android channel
@@ -256,21 +275,21 @@ class PushNotificationService {
       });
     }
 
-    return token;
+    return token ? { token, provider } : null;
   }
 
   /**
    * Register push token with backend
    */
-  async registerTokenWithBackend(token) {
+  async registerTokenWithBackend(token, provider = 'unknown') {
     try {
       const config = await buildAuthConfig();
       await client.post('/notifications/register-token', {
         fcm_token: token,
-        device_type: Platform.OS,
+        device_type: `${Platform.OS}_${provider}`,
         device_name: Device?.modelName || 'Unknown',
       }, config);
-      console.log('Push token registered with backend');
+      console.log(`Push token registered with backend (${provider})`);
     } catch (error) {
       console.error('Failed to register token with backend:', error);
     }
@@ -375,7 +394,7 @@ class PushNotificationService {
    * Unregister token from backend (call on logout)
    */
   async unregisterToken() {
-    if (!this.expoPushToken) return;
+    if (!this.pushToken) return;
 
     try {
       const config = await buildAuthConfig();

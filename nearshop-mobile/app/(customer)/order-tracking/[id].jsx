@@ -30,6 +30,11 @@ export default function OrderTrackingScreen() {
   const [liveUpdate, setLiveUpdate] = useState(null)
   const wsRef = useRef(null)
   const pulseAnim = useRef(new Animated.Value(1)).current
+  const liveUpdateTimeoutRef = useRef(null)
+  const reconnectTimeoutRef = useRef(null)
+  const reconnectCountRef = useRef(0)
+  const maxReconnectAttemptsRef = useRef(5)
+  const baseReconnectDelayRef = useRef(1000) // 1 second
 
   // Pulse animation for live indicator
   useEffect(() => {
@@ -58,48 +63,90 @@ export default function OrderTrackingScreen() {
       .finally(() => setLoading(false))
   }, [id])
 
-  // WebSocket real-time connection
+  // WebSocket real-time connection with reconnection logic
   useEffect(() => {
     if (!id || !token) return
 
-    const ws = connectOrderTracking(id, token, {
-      onOpen: () => {
-        setWsConnected(true)
-      },
-      onMessage: (data) => {
-        if (data.type === 'order_update' || data.type === 'status_update') {
-          setLiveUpdate(data)
-          // Update tracking data with new status
-          setTracking((prev) => {
-            if (!prev) return prev
-            const newTimeline = [...(prev.timeline || [])]
-            if (data.status && data.timestamp) {
-              newTimeline.push({
-                status: data.status,
-                timestamp: data.timestamp,
-                description: data.description || `Order ${data.status}`,
-              })
+    const attemptConnect = () => {
+      const ws = connectOrderTracking(id, token, {
+        onOpen: () => {
+          setWsConnected(true)
+          reconnectCountRef.current = 0 // Reset reconnect count on successful connection
+        },
+        onMessage: (data) => {
+          if (data.type === 'order_update' || data.type === 'status_update') {
+            setLiveUpdate(data)
+            // Update tracking data with new status
+            setTracking((prev) => {
+              if (!prev) return prev
+              const newTimeline = [...(prev.timeline || [])]
+              if (data.status && data.timestamp) {
+                newTimeline.push({
+                  status: data.status,
+                  timestamp: data.timestamp,
+                  description: data.description || `Order ${data.status}`,
+                })
+              }
+              return {
+                ...prev,
+                current_status: data.status || prev.current_status,
+                timeline: newTimeline,
+              }
+            })
+            // Clear the live update indicator after 3s
+            if (liveUpdateTimeoutRef.current) {
+              clearTimeout(liveUpdateTimeoutRef.current)
             }
-            return {
-              ...prev,
-              current_status: data.status || prev.current_status,
-              timeline: newTimeline,
-            }
-          })
-          // Clear the live update indicator after 3s
-          setTimeout(() => setLiveUpdate(null), 3000)
-        }
-      },
-      onError: () => {
-        setWsConnected(false)
-      },
-      onClose: () => {
-        setWsConnected(false)
-      },
-    })
-    wsRef.current = ws
+            liveUpdateTimeoutRef.current = setTimeout(() => setLiveUpdate(null), 3000)
+          }
+        },
+        onError: () => {
+          setWsConnected(false)
+          // Attempt to reconnect on error
+          scheduleReconnect()
+        },
+        onClose: () => {
+          setWsConnected(false)
+          // Attempt to reconnect on close
+          scheduleReconnect()
+        },
+      })
+      wsRef.current = ws
+    }
+
+    const scheduleReconnect = () => {
+      // Don't attempt reconnect if we've exceeded max attempts
+      if (reconnectCountRef.current >= maxReconnectAttemptsRef.current) {
+        return
+      }
+
+      // Clear any pending reconnect timeout
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+
+      // Calculate exponential backoff delay (1s, 2s, 4s, 8s, 16s)
+      const delay = baseReconnectDelayRef.current * Math.pow(2, reconnectCountRef.current)
+      reconnectCountRef.current += 1
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        attemptConnect()
+      }, delay)
+    }
+
+    attemptConnect()
 
     return () => {
+      // Clean up timeouts
+      if (liveUpdateTimeoutRef.current) {
+        clearTimeout(liveUpdateTimeoutRef.current)
+        liveUpdateTimeoutRef.current = null
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      // Close WebSocket
       if (wsRef.current) {
         wsRef.current.close()
         wsRef.current = null
