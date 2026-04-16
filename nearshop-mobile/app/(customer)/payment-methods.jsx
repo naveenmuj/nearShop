@@ -26,62 +26,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import RazorpayCheckout from 'react-native-razorpay';
+import {
+  listPaymentMethods,
+  createPaymentMethod,
+  deletePaymentMethod,
+  setDefaultPaymentMethod,
+  validatePaymentMethod,
+} from '../../lib/savedData';
 import { COLORS, SHADOWS, FONTS } from '../../constants/theme';
 import { toast } from '../../components/ui/Toast';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-
-// API functions
-const API_BASE = 'http://localhost:8000/api/v1';
-
-const paymentAPI = {
-  listMethods: async (token) => {
-    const response = await fetch(`${API_BASE}/payments/methods`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to load payment methods');
-    return response.json();
-  },
-
-  createMethod: async (token, data) => {
-    const response = await fetch(`${API_BASE}/payments/methods`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) throw new Error('Failed to create payment method');
-    return response.json();
-  },
-
-  deleteMethod: async (token, id) => {
-    const response = await fetch(`${API_BASE}/payments/methods/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to delete payment method');
-    return response.json();
-  },
-
-  setDefault: async (token, id) => {
-    const response = await fetch(`${API_BASE}/payments/methods/${id}/set-default`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error('Failed to set default');
-    return response.json();
-  },
-
-  validateMethod: async (token, id) => {
-    const response = await fetch(`${API_BASE}/payments/methods/${id}/validate`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
-    if (!response.ok) throw new Error('Payment method invalid');
-    return response.json();
-  },
-};
 
 // Helper to get card brand icon
 function getCardIcon(brand) {
@@ -352,7 +306,6 @@ export default function PaymentMethodsScreen() {
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedType, setSelectedType] = useState('card');
-  const [token, setToken] = useState(null);
 
   // Load payment methods on focus
   useFocusEffect(
@@ -364,19 +317,10 @@ export default function PaymentMethodsScreen() {
   const loadMethods = async () => {
     try {
       setLoading(true);
-      const authStore = require('../../store/authStore').default;
-      const state = authStore.getState();
-      const userToken = state.tokens?.access_token;
-
-      if (!userToken) {
-        toast.show({ type: 'error', text1: 'Not authenticated' });
-        router.push('/auth/login');
-        return;
-      }
-
-      setToken(userToken);
-      const data = await paymentAPI.listMethods(userToken);
-      setMethods(Array.isArray(data.methods) ? data.methods : []);
+      const response = await listPaymentMethods(0, 50);
+      const data = response?.data || {};
+      const rows = Array.isArray(data) ? data : (Array.isArray(data.methods) ? data.methods : data.items || []);
+      setMethods(rows);
     } catch (err) {
       console.error('Failed to load payment methods:', err);
       toast.show({ type: 'error', text1: 'Failed to load payment methods' });
@@ -393,7 +337,7 @@ export default function PaymentMethodsScreen() {
   const handleSavePayment = async (formData) => {
     try {
       setLoading(true);
-      await paymentAPI.createMethod(token, formData);
+      await createPaymentMethod(formData);
       toast.show({ type: 'success', text1: 'Payment method added' });
       setModalVisible(false);
       loadMethods();
@@ -416,7 +360,7 @@ export default function PaymentMethodsScreen() {
           onPress: async () => {
             try {
               setLoading(true);
-              await paymentAPI.deleteMethod(token, methodId);
+              await deletePaymentMethod(methodId);
               toast.show({ type: 'success', text1: 'Payment method removed' });
               loadMethods();
             } catch (err) {
@@ -435,7 +379,7 @@ export default function PaymentMethodsScreen() {
   const handleSetDefault = async (methodId) => {
     try {
       setLoading(true);
-      await paymentAPI.setDefault(token, methodId);
+      await setDefaultPaymentMethod(methodId);
       toast.show({ type: 'success', text1: 'Set as default' });
       loadMethods();
     } catch (err) {

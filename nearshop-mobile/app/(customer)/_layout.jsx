@@ -65,6 +65,9 @@ export default function CustomerTabs() {
       <Tabs.Screen name="spin" options={{ href: null }} />
       <Tabs.Screen name="cart" options={{ href: null }} />
       <Tabs.Screen name="checkout" options={{ href: null }} />
+      <Tabs.Screen name="payment" options={{ href: null }} />
+      <Tabs.Screen name="payment-receipt" options={{ href: null }} />
+      <Tabs.Screen name="payment-methods" options={{ href: null }} />
       <Tabs.Screen name="returns" options={{ href: null }} />
       <Tabs.Screen name="return-request" options={{ href: null }} />
       <Tabs.Screen name="messages" options={{ href: null }} />

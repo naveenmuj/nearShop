@@ -11,66 +11,66 @@ import client, { authGet, authPost, authPut, authDelete } from './api';
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const listAddresses = async (skip = 0, limit = 50) => {
-  return authGet(`/api/v1/addresses?skip=${skip}&limit=${limit}`);
+  return authGet(`/addresses?skip=${skip}&limit=${limit}`);
 };
 
-export const getAddress = (id) => authGet(`/api/v1/addresses/${id}`);
+export const getAddress = (id) => authGet(`/addresses/${id}`);
 
-export const createAddress = (data) => authPost('/api/v1/addresses', data);
+export const createAddress = (data) => authPost('/addresses', data);
 
-export const updateAddress = (id, data) => authPut(`/api/v1/addresses/${id}`, data);
+export const updateAddress = (id, data) => authPut(`/addresses/${id}`, data);
 
-export const deleteAddress = (id) => authDelete(`/api/v1/addresses/${id}`);
+export const deleteAddress = (id) => authDelete(`/addresses/${id}`);
 
-export const setDefaultAddress = (id) => authPost(`/api/v1/addresses/${id}/set-default`, {});
+export const setDefaultAddress = (id) => authPost(`/addresses/${id}/set-default`, {});
 
-export const setBillingAddress = (id) => authPost(`/api/v1/addresses/${id}/set-billing`, {});
+export const setBillingAddress = (id) => authPost(`/addresses/${id}/set-billing`, {});
 
-export const getDefaultAddress = () => authGet('/api/v1/addresses/default/shipping');
+export const getDefaultAddress = () => authGet('/addresses/default/shipping');
 
-export const getBillingAddress = () => authGet('/api/v1/addresses/default/billing');
+export const getBillingAddress = () => authGet('/addresses/default/billing');
 
 // ──────────────────────────────────────────────────────────────────────────────
 // PAYMENT METHODS API
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const listPaymentMethods = async (skip = 0, limit = 50) => {
-  return authGet(`/api/v1/payments/methods?skip=${skip}&limit=${limit}`);
+  return authGet(`/payments/methods?skip=${skip}&limit=${limit}`);
 };
 
-export const getPaymentMethod = (id) => authGet(`/api/v1/payments/methods/${id}`);
+export const getPaymentMethod = (id) => authGet(`/payments/methods/${id}`);
 
-export const createPaymentMethod = (data) => authPost('/api/v1/payments/methods', data);
+export const createPaymentMethod = (data) => authPost('/payments/methods', data);
 
-export const deletePaymentMethod = (id) => authDelete(`/api/v1/payments/methods/${id}`);
+export const deletePaymentMethod = (id) => authDelete(`/payments/methods/${id}`);
 
-export const setDefaultPaymentMethod = (id) => authPost(`/api/v1/payments/methods/${id}/set-default`, {});
+export const setDefaultPaymentMethod = (id) => authPost(`/payments/methods/${id}/set-default`, {});
 
-export const getDefaultPaymentMethod = () => authGet('/api/v1/payments/methods/default/active');
+export const getDefaultPaymentMethod = () => authGet('/payments/methods/default/active');
 
-export const validatePaymentMethod = (id) => authPost(`/api/v1/payments/methods/${id}/validate`, {});
+export const validatePaymentMethod = (id) => authPost(`/payments/methods/${id}/validate`, {});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // USER PROFILE API
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const getProfile = () => authGet('/api/v1/profile');
+export const getProfile = () => authGet('/profile');
 
-export const updateProfile = (data) => authPut('/api/v1/profile', data);
+export const updateProfile = (data) => authPut('/profile', data);
 
 export const uploadAvatar = (formData) => {
-  return authPost('/api/v1/profile/avatar', formData, {
+  return authPost('/profile/avatar', formData, {
     'Content-Type': 'multipart/form-data',
   });
 };
 
-export const deleteAvatar = () => authDelete('/api/v1/profile/avatar');
+export const deleteAvatar = () => authDelete('/profile/avatar');
 
-export const getPublicProfile = (userId) => client.get(`/api/v1/profile/public/${userId}`);
+export const getPublicProfile = (userId) => client.get(`/profile/public/${userId}`);
 
-export const verifyPhone = () => authPost('/api/v1/profile/verify-phone', {});
+export const verifyPhone = () => authPost('/profile/verify-phone', {});
 
-export const verifyEmail = () => authPost('/api/v1/profile/verify-email', {});
+export const verifyEmail = () => authPost('/profile/verify-email', {});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // RAZORPAY INTEGRATION
@@ -86,7 +86,7 @@ export const verifyEmail = () => authPost('/api/v1/profile/verify-email', {});
 export const tokenizeCardWithRazorpay = async (razorpayKeyId) => {
   return new Promise((resolve, reject) => {
     const options = {
-      key: razorpayKeyId, // Razorpay Key ID (get from /api/v1/features endpoint)
+      key: razorpayKeyId, // Razorpay Key ID (get from /features endpoint)
       recurring: '1', // For card tokenization
       description: 'Save Card for Future Payments',
       currency: 'INR',
@@ -140,7 +140,7 @@ export const tokenizeCardWithRazorpay = async (razorpayKeyId) => {
  */
 export const getRazorpayKey = async () => {
   try {
-    const response = await client.get('/api/v1/features');
+    const response = await client.get('/features');
     return response.data?.razorpay_key_id || '';
   } catch (error) {
     console.error('Failed to get Razorpay key:', error);
@@ -178,7 +178,7 @@ export const getCheckoutQuickInfo = async () => {
  * Called during checkout
  */
 export const applyAddressToOrder = async (orderId, addressId) => {
-  return authPut(`/api/v1/orders/${orderId}`, {
+  return authPut(`/orders/${orderId}`, {
     address_id: addressId,
   });
 };
@@ -188,7 +188,7 @@ export const applyAddressToOrder = async (orderId, addressId) => {
  * Called during payment
  */
 export const applyPaymentMethodToOrder = async (orderId, paymentMethodId) => {
-  return authPost(`/api/v1/orders/${orderId}/apply-payment`, {
+  return authPost(`/orders/${orderId}/apply-payment`, {
     payment_method_id: paymentMethodId,
   });
 };

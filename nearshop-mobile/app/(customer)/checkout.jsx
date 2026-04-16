@@ -3,18 +3,14 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, ActivityIndicator, StatusBar, Modal, BackHandler,
 } from 'react-native';
-import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import useCartStore from '../../store/cartStore';
 import useLocationStore from '../../store/locationStore';
-import { createOrder, createPaymentOrder, confirmPayment, cancelOrder } from '../../lib/orders';
 import { validateCoupon, useCoupon } from '../../lib/deals';
 import { listAddresses, createAddress } from '../../lib/auth';
 import { getBalance } from '../../lib/loyalty';
 import { withRetry } from '../../lib/retry';
-import { recordLocalTelemetry } from '../../lib/localTelemetry';
-import { trackEvent } from '../../lib/analytics';
 import { toast } from '../../components/ui/Toast';
 import { alert } from '../../components/ui/PremiumAlert';
 import LocationFallbackBanner from '../../components/LocationFallbackBanner';
@@ -39,11 +35,6 @@ export default function CheckoutScreen() {
   const [address, setAddress] = useState(locationAddress || '');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [orderCount, setOrderCount] = useState(0);
-  
-  // Payment state
-  const [paymentMethod, setPaymentMethod] = useState('cod');
   
   // Coupon state
   const [couponCode, setCouponCode] = useState('');
@@ -174,7 +165,7 @@ export default function CheckoutScreen() {
     }
   };
 
-  const handlePlaceOrder = async () => {
+  const handleContinueToPayment = async () => {
     if (deliveryType === 'delivery' && !address.trim()) {
       alert.warning({ title: 'Error', message: 'Please enter your delivery address' });
       return;
@@ -187,143 +178,20 @@ export default function CheckoutScreen() {
       return;
     }
     setLoading(true);
-    
-    const createdOrderIds = []; // Track successfully created orders
-    
-    try {
-      let successCount = 0;
-      
-      // Create all orders first
-      for (const group of shopGroups) {
-        const payload = {
-          shop_id: group.shop_id,
-          items: group.items.map((i) => ({
-            product_id: i.product_id,
-            quantity: i.quantity,
-            price: i.price,
-            ranking_context: i.ranking_context || null,
-          })),
-          delivery_type: deliveryType,
-          payment_method: paymentMethod === 'online' ? 'razorpay' : 'cod',
-          ...(deliveryType === 'delivery' ? { delivery_address: address.trim() } : {}),
-          ...(notes.trim() ? { notes: notes.trim() } : {}),
-          // Wallet coins redemption
-          ...(coinsToUse > 0 ? { coins_used: coinsToUse, coin_discount: coinDiscount } : {}),
-        };
-        
-        const { data: orderData } = await createOrder(payload);
-        createdOrderIds.push(orderData.id); // Track successful order
+    const payload = {
+      deliveryType,
+      address: address.trim(),
+      notes: notes.trim(),
+      couponCode: appliedCoupon?.code || '',
+      appliedCouponId: appliedCoupon?.id ? String(appliedCoupon.id) : '',
+      couponDiscount: String(couponDiscount || 0),
+      coinsToUse: String(coinsToUse || 0),
+      coinDiscount: String(coinDiscount || 0),
+      selectedAddressId: selectedAddressId ? String(selectedAddressId) : '',
+    };
 
-        if (paymentMethod === 'online') {
-          try {
-            const { data: paymentOrder } = await createPaymentOrder(orderData.id);
-
-            if (paymentOrder?.test_mode) {
-              await withRetry(
-                () => confirmPayment({
-                  order_id: orderData.id,
-                  razorpay_order_id: paymentOrder.razorpay_order_id,
-                  razorpay_payment_id: paymentOrder.test_payment_id,
-                  razorpay_signature: paymentOrder.test_signature || 'test_signature',
-                }),
-                { retries: 2, delayMs: 550 },
-              );
-            } else {
-              const paymentResult = await RazorpayCheckout.open({
-                key: paymentOrder.razorpay_key_id,
-                amount: String(paymentOrder.amount),
-                currency: paymentOrder.currency || 'INR',
-                order_id: paymentOrder.razorpay_order_id,
-                name: 'NearShop',
-                description: `Order ${paymentOrder.order_number}`,
-                prefill: {
-                  name: 'NearShop customer',
-                },
-                theme: { color: '#7F77DD' },
-              });
-
-              await confirmPayment({
-                order_id: orderData.id,
-                razorpay_order_id: paymentResult.razorpay_order_id || paymentOrder.razorpay_order_id,
-                razorpay_payment_id: paymentResult.razorpay_payment_id,
-                razorpay_signature: paymentResult.razorpay_signature,
-              });
-            }
-
-            recordLocalTelemetry({
-              type: 'mutation',
-              name: paymentOrder?.test_mode ? 'checkout_test_payment' : 'checkout_live_payment',
-              outcome: 'success',
-              meta: { orderId: orderData.id, testMode: Boolean(paymentOrder?.test_mode) },
-            }).catch(() => {});
-
-            trackEvent({
-              event_type: paymentOrder?.test_mode ? 'checkout_payment_test_success' : 'checkout_payment_success',
-              entity_type: 'order',
-              entity_id: orderData.id,
-              metadata: {
-                payment_method: 'online',
-                mode: paymentOrder?.test_mode ? 'test' : 'live',
-              },
-            }).catch(() => {});
-          } catch (paymentErr) {
-            const cancelledByUser = String(paymentErr?.code || paymentErr?.description || '').toLowerCase().includes('cancel');
-            try {
-              await cancelOrder(orderData.id, 'payment_not_completed');
-            } catch (cancelErr) {
-              console.error('Failed to rollback unpaid order:', cancelErr);
-            }
-            recordLocalTelemetry({
-              type: 'mutation',
-              name: cancelledByUser ? 'checkout_live_payment' : 'checkout_payment_failure',
-              outcome: cancelledByUser ? 'cancelled' : 'failure',
-              meta: { orderId: orderData.id },
-            }).catch(() => {});
-            trackEvent({
-              event_type: cancelledByUser ? 'checkout_payment_cancelled' : 'checkout_payment_failed',
-              entity_type: 'order',
-              entity_id: orderData.id,
-              metadata: {
-                payment_method: 'online',
-                error: paymentErr?.message || paymentErr?.description || 'unknown',
-              },
-            }).catch(() => {});
-            throw paymentErr;
-          }
-        }
-        
-        clearShopItems(group.shop_id);
-        successCount++;
-      }
-      
-      // Only record coupon usage AFTER all orders succeed
-      if (appliedCoupon && createdOrderIds.length > 0) {
-        try {
-          // Record coupon usage with first order ID
-          await useCoupon(appliedCoupon.id, createdOrderIds[0], couponDiscount);
-        } catch (e) {
-          // Log but don't fail the order - backend should handle duplicate usage
-          console.error('Failed to record coupon usage:', e);
-          alert.warning({
-            title: 'Note',
-            message: 'Order placed successfully, but coupon tracking may have failed. Contact support if needed.'
-          });
-        }
-      }
-      
-      setOrderCount(successCount);
-      setShowSuccess(true);
-      toast.show({ type: 'order', text1: `${successCount} order${successCount > 1 ? 's' : ''} placed!` });
-    } catch (err) {
-      const detail = err.response?.data?.detail;
-      const msg = typeof detail === 'string' ? detail : 'Failed to place order. Please try again.';
-      alert.error({ title: 'Error', message: msg });
-      
-      // Don't record coupon usage if order failed
-      // Coupon remains available for next attempt
-    } finally {
-      setLoading(false);
-    }
+    router.push({ pathname: '/(customer)/payment', params: payload });
+    setLoading(false);
   };
 
   if (shopGroups.length === 0) {
@@ -560,31 +428,10 @@ export default function CheckoutScreen() {
           />
         </View>
 
-        {/* Payment Method */}
         <View style={[styles.card, SHADOWS.card]}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
-          <View style={styles.toggleRow}>
-            <TouchableOpacity
-              style={[styles.toggleBtn, paymentMethod === 'cod' && styles.toggleBtnActive]}
-              onPress={() => setPaymentMethod('cod')}
-            >
-              <Text style={[styles.toggleText, paymentMethod === 'cod' && styles.toggleTextActive]}>
-                💵 Cash on Delivery
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, paymentMethod === 'online' && styles.toggleBtnActive]}
-              onPress={() => setPaymentMethod('online')}
-            >
-              <Text style={[styles.toggleText, paymentMethod === 'online' && styles.toggleTextActive]}>
-                💳 Pay Online
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.sectionTitle}>Payment</Text>
           <Text style={styles.paymentNote}>
-            {paymentMethod === 'online'
-              ? '💡 Test mode payments are auto-confirmed. Live Razorpay checkout now uses the native SDK.'
-              : '💡 You can switch to online payment above.'}
+            Choose payment method and review recent payment history on the next screen.
           </Text>
         </View>
 
@@ -621,12 +468,12 @@ export default function CheckoutScreen() {
 
       {/* Place Order button */}
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.placeOrderBtn} onPress={handlePlaceOrder} disabled={loading}>
+        <TouchableOpacity style={styles.placeOrderBtn} onPress={handleContinueToPayment} disabled={loading}>
           {loading ? (
             <ActivityIndicator color={COLORS.white} />
           ) : (
             <Text style={styles.placeOrderBtnText}>
-              {paymentMethod === 'online' ? 'Pay & Place Order' : 'Place Order'} — {formatPrice(grandTotal)}
+              Continue to Payment — {formatPrice(grandTotal)}
             </Text>
           )}
         </TouchableOpacity>
@@ -681,33 +528,6 @@ export default function CheckoutScreen() {
         </View>
       </Modal>
 
-      {/* Success Modal */}
-      <Modal visible={showSuccess} transparent animationType="fade">
-        <View style={styles.successOverlay}>
-          <View style={styles.successCard}>
-            <Text style={styles.successEmoji}>🎉</Text>
-            <Text style={styles.successTitle}>Order Placed!</Text>
-            <Text style={styles.successSub}>
-              {orderCount > 1
-                ? `${orderCount} orders have been sent to the shops`
-                : 'Your order has been sent to the shop'}
-            </Text>
-            <Text style={styles.successHint}>You'll be notified when it's ready</Text>
-            <TouchableOpacity
-              style={styles.successPrimaryBtn}
-              onPress={() => { setShowSuccess(false); router.replace('/(customer)/orders'); }}
-            >
-              <Text style={styles.successPrimaryText}>📦 View My Orders</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.successSecondaryBtn}
-              onPress={() => { setShowSuccess(false); router.replace('/(customer)/home'); }}
-            >
-              <Text style={styles.successSecondaryText}>Continue Shopping</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
