@@ -11,6 +11,7 @@ import { listAddresses, createAddress } from '../../api/auth'
 import PaymentGatewaySelector from '../../components/PaymentGatewaySelector'
 import PaymentProcessing from '../../components/PaymentProcessing'
 import PaymentSummary from '../../components/PaymentSummary'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
@@ -345,18 +346,19 @@ export default function EnhancedCheckoutPage() {
     }
 
     if (allValid) {
-      // Navigate to new payment page with state
-      navigate('/payment', {
+      // Navigate to payment page with checkout context
+      navigate('/app/payment', {
         state: {
-          items,
-          shopGroups,
-          shopSettings,
-          addresses,
-          selectedAddressId,
-          couponDiscount,
-          coupon: appliedCoupon,
-          subtotal: grandSubtotal,
-          deliveryFee: getTotalDeliveryFees(),
+          checkoutData: {
+            subtotal: grandSubtotal,
+            deliveryFee: getTotalDeliveryFees(),
+            discount: couponDiscount,
+            coupon: appliedCoupon,
+            items: items,
+            shopGroups: shopGroups,
+            shopSettings: shopSettings,
+            selectedAddressId: selectedAddressId,
+          }
         }
       })
     }
@@ -381,13 +383,14 @@ export default function EnhancedCheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageTransition>
+      <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 hover-lift smooth-transition"
           >
             <ArrowLeft className="w-5 h-5" />
             Back
@@ -596,5 +599,6 @@ export default function EnhancedCheckoutPage() {
         </div>
       </div>
     </div>
+    </PageTransition>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getOrderDetail, downloadInvoice } from '../../api/orders'
 import OrderTimeline from '../../components/OrderTimeline'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const formatPrice = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`
 
@@ -38,7 +39,8 @@ export default function OrderDetailPage() {
   if (!order) return <div className="desktop-panel p-8 text-sm text-gray-500">Order not found.</div>
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <PageTransition>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="desktop-panel overflow-hidden">
         <div className="desktop-toolbar flex items-center justify-between px-6 py-4">
           <div>
@@ -78,5 +80,6 @@ export default function OrderDetailPage() {
         </div>
       </aside>
     </div>
+    </PageTransition>
   )
 }

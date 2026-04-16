@@ -8,6 +8,7 @@ import { getNearbyShops } from '../../api/shops'
 import { useLocationStore } from '../../store/locationStore'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import api from '../../api/client'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 // ---------------------------------------------------------------------------
 // Haversine distance (km) -- used as a client-side fallback when the API
@@ -76,8 +77,8 @@ const USER_MARKER_CSS = `
 function FallbackListView({ shops, loading, navigate, latitude, longitude }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 pb-24">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Shops Near You</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1 animate-fade-in-up">Shops Near You</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 animate-fade-in-up" style={{animationDelay: '50ms"}}>
         Map view is currently unavailable. Showing list view instead.
       </p>
 
@@ -601,7 +602,8 @@ export default function ShopsMapPage() {
 
   // ======== MAP VIEW ========
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
+    <PageTransition>
+      <div className="relative h-screen w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
 
       {/* -------- Map Container -------- */}
       <div
@@ -795,5 +797,6 @@ export default function ShopsMapPage() {
         </div>
       </div>
     </div>
+    </PageTransition>
   )
 }

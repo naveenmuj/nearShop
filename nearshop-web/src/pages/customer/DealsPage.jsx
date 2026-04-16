@@ -7,6 +7,7 @@ import { useLocation } from '../../hooks/useLocation'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
 
@@ -70,7 +71,8 @@ export default function DealsPage() {
   if (error) return <EmptyState icon={Zap} title="Could not load deals" message={error} action="Retry" onAction={fetchDeals} />
 
   return (
-    <div>
+    <PageTransition>
+      <div>
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-brand-red to-brand-coral rounded-2xl p-6 lg:p-8 mb-6 text-white">
         <div className="flex items-center gap-2 mb-2">
@@ -84,14 +86,15 @@ export default function DealsPage() {
       {deals.length === 0 ? (
         <EmptyState icon={Zap} title="No deals right now" message="Deals from nearby shops will appear here" />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {deals.map(deal => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 stagger-list">
+          {deals.map((deal, idx) => {
             const timeLeft = timers[deal.id] || getTimeLeft(deal.expires_at)
             const expired = timeLeft === 'Expired'
             // Use savings_pct from API if available, otherwise calculate from prices
             const discount = deal.savings_pct ?? (deal.original_price && deal.deal_price ? Math.round((1 - deal.deal_price / deal.original_price) * 100) : deal.discount_pct ?? null)
             return (
-              <div key={deal.id} className={`bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all ${expired ? 'opacity-50' : ''}`}>
+              <div key={deal.id} className={`bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all animate-fade-in-up hover-lift smooth-transition ${expired ? 'opacity-50' : ''}`}
+                style={{animationDelay: `${idx * 50}ms`}}>
                 {/* Discount header */}
                 <div className="bg-gradient-to-r from-brand-red to-brand-coral p-4 relative">
                   {discount && <p className="text-2xl font-extrabold text-white">{discount}% OFF</p>}
@@ -113,7 +116,7 @@ export default function DealsPage() {
                   {deal.match_reason && <p className="text-xs text-purple-500 mt-1 flex items-center gap-1"><Sparkles className="w-3 h-3" />{deal.match_reason}</p>}
                   {deal.current_claims != null && <p className="text-xs text-gray-400 mt-1">{deal.current_claims} claimed</p>}
                   <button onClick={() => !expired && handleClaim(deal.id)} disabled={expired || claiming === deal.id}
-                    className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition ${expired ? 'bg-gray-100 text-gray-400' : 'bg-brand-purple text-white hover:bg-brand-purple-dark'}`}>
+                    className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition hover-scale smooth-transition ${expired ? 'bg-gray-100 text-gray-400' : 'bg-brand-purple text-white hover:bg-brand-purple-dark'}`}>
                     {expired ? 'Expired' : claiming === deal.id ? 'Claiming...' : 'Claim Deal'}
                   </button>
                 </div>
@@ -123,5 +126,6 @@ export default function DealsPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

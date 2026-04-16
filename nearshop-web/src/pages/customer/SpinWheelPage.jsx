@@ -3,6 +3,7 @@ import { Gift, Clock, Flame, Trophy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getDailySpinStatus, performDailySpin } from '../../api/engagement'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const SEGMENTS = [
   { label: '5 Coins',   coins: 5,    color: '#7F77DD', textColor: '#fff' },
@@ -139,7 +140,8 @@ export default function SpinWheelPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto">
+    <PageTransition>
+      <div className="max-w-xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Daily Spin</h1>
         <p className="text-gray-500 text-sm">Spin once every day to win coins and rewards!</p>
@@ -270,6 +272,7 @@ export default function SpinWheelPage() {
           <li>Check your wallet to see your coin balance</li>
         </ul>
       </div>
-    </div>
+      </div>
+    </PageTransition>
   )
 }

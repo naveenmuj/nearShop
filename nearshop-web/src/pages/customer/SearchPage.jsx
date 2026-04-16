@@ -65,24 +65,22 @@ export default function SearchPage() {
       if (q.trim()) params.q = q
       if (category) params.category = category
 
-      // Use unified search if query exists
-      let productsRes, shopsRes
+      // Use unified search if query exists (returns both products and shops)
       if (q.trim()) {
         const unifiedRes = await searchUnified(q, latitude, longitude)
         const unifiedProducts = (unifiedRes.data.products || []).filter(product => !category || product.category === category)
-        productsRes = { data: { items: unifiedProducts } }
-        shopsRes = { data: { items: unifiedRes.data.shops || [] } }
+        const unifiedShops = unifiedRes.data.shops || []
+        setProducts(unifiedProducts)
+        setShops(unifiedShops)
+        setTotalCount(unifiedProducts.length)
       } else {
-        const [pRes, sRes] = await Promise.allSettled([
-          searchProducts(params),
-          Promise.resolve({ data: { items: [] } }),
-        ])
-        productsRes = pRes.status === 'fulfilled' ? pRes.value : { data: { items: [] } }
-        shopsRes = sRes.status === 'fulfilled' ? sRes.value : { data: { items: [] } }
+        // Category-only search: get products by category
+        const pRes = await searchProducts(params)
+        const products = pRes?.data?.items ?? []
+        setProducts(products)
+        setShops([]) // No shop search for category-only (shops aren't typically categorized)
+        setTotalCount(products.length)
       }
-
-      if (productsRes.status === 'fulfilled') { const d = productsRes.value.data; setProducts(d.items ?? []); setTotalCount(d.total ?? 0) } else { setProducts(productsRes?.data?.items ?? []); setTotalCount(0) }
-      if (shopsRes.status === 'fulfilled') { setShops(shopsRes.value.data.items ?? []) } else { setShops(shopsRes?.data?.items ?? []) }
     } catch { setProducts([]); setShops([]); setTotalCount(0) } finally { setLoading(false) }
   }, [latitude, longitude])
 

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { getMyOrders } from '../../api/orders'
 import { createReturnRequest, getReturnReasons } from '../../api/returns'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 export default function ReturnRequestPage() {
   const navigate = useNavigate()
@@ -70,7 +71,8 @@ export default function ReturnRequestPage() {
   if (loading) return <div className="desktop-panel p-8 text-sm text-gray-500">Loading return form...</div>
 
   return (
-    <form onSubmit={submit} className="desktop-panel overflow-hidden">
+    <PageTransition>
+      <form onSubmit={submit} className="desktop-panel overflow-hidden">
       <div className="desktop-toolbar px-6 py-4">
         <h1 className="text-2xl font-bold text-gray-900">Request Return</h1>
         <p className="text-sm text-gray-500">Submit item return with reason and notes.</p>

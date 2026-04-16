@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { connectOrderTracking, getOrderDetail } from '../../api/orders'
 import { useAuthStore } from '../../store/authStore'
 import OrderTimeline from '../../components/OrderTimeline'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 export default function OrderTrackingPage() {
   const { orderId } = useParams()
@@ -36,7 +37,8 @@ export default function OrderTrackingPage() {
   if (!order) return <div className="desktop-panel p-8 text-sm text-gray-500">Order not found.</div>
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <PageTransition>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <section className="desktop-panel overflow-hidden">
         <div className="desktop-toolbar flex items-center justify-between px-6 py-4">
           <div>
@@ -62,5 +64,6 @@ export default function OrderTrackingPage() {
         </div>
       </aside>
     </div>
+    </PageTransition>
   )
 }

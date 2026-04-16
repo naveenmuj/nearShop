@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
 import { getMyReturns } from '../../api/returns'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const STATUS = ['all', 'pending', 'approved', 'processing', 'rejected', 'completed']
 const tone = {
@@ -38,7 +39,8 @@ export default function ReturnsPage() {
   }, {}), [items])
 
   return (
-    <div className="desktop-panel overflow-hidden">
+    <PageTransition>
+      <div className="desktop-panel overflow-hidden">
       <div className="desktop-toolbar px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -46,13 +48,13 @@ export default function ReturnsPage() {
             <p className="text-sm text-gray-500">Track return approvals and refunds.</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => navigate('/app/returns/request')} className="rounded-lg bg-[#3f5efb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334ed4]">Request Return</button>
-            <button onClick={load} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"><RefreshCw className="h-4 w-4" /></button>
+            <button onClick={() => navigate('/app/returns/request')} className="rounded-lg bg-[#3f5efb] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334ed4] hover-scale smooth-transition">Request Return</button>
+            <button onClick={load} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover-lift smooth-transition"><RefreshCw className="h-4 w-4" /></button>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {STATUS.map((s) => (
-            <button key={s} onClick={() => setStatus(s)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${status === s ? 'bg-gray-900 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            <button key={s} onClick={() => setStatus(s)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold hover-scale smooth-transition ${status === s ? 'bg-gray-900 text-white' : 'border border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
               {s.toUpperCase()} ({countByStatus[s] || 0})
             </button>
           ))}
@@ -90,5 +92,6 @@ export default function ReturnsPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

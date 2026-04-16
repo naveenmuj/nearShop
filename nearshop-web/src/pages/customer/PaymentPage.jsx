@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCartStore } from '../store/cartStore'
@@ -7,6 +7,7 @@ import { createOrder, createPaymentOrder, confirmPayment } from '../api/orders'
 import PaymentGatewaySelector from '../components/PaymentGatewaySelector'
 import PaymentProcessing from '../components/PaymentProcessing'
 import PaymentSummary from '../components/PaymentSummary'
+import { PageTransition } from '../components/ui/PageTransition'
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -52,6 +53,7 @@ const loadGooglePayScript = () => {
 
 export default function PaymentPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const items = useCartStore((s) => s.items)
   const getSubtotal = useCartStore((s) => s.getSubtotal)
 
@@ -62,11 +64,13 @@ export default function PaymentPage() {
   const [error, setError] = useState(null)
   const [showSummary, setShowSummary] = useState(false)
 
-  // Mock order data - in real scenario this comes from previous checkout step
-  const subtotal = getSubtotal()
-  const deliveryFee = 0 // This should come from your logic
-  const discount = 0
-  const coupon = null
+  // Get order data from previous checkout step
+  const checkoutData = location.state?.checkoutData || {}
+  const subtotal = checkoutData.subtotal ?? getSubtotal()
+  const deliveryFee = checkoutData.deliveryFee ?? 0
+  const discount = checkoutData.discount ?? 0
+  const coupon = checkoutData.coupon ?? null
+  const orderId = checkoutData.orderId // Optional: if order already created
 
   useEffect(() => {
     if (items.length === 0) {
@@ -95,6 +99,8 @@ export default function PaymentPage() {
           quantity: item.quantity,
         })),
         payment_method: 'razorpay',
+        delivery_fee: deliveryFee,
+        discount: discount,
       })
 
       const orderId = orderResponse.data.id
@@ -150,66 +156,80 @@ export default function PaymentPage() {
     }
   }
 
-  // Handle PhonePe payment (simulated for now)
+  // Handle PhonePe payment
   const handlePhonePePayment = async () => {
     setIsProcessing(true)
     setProcessingMethod('phonepe')
 
     try {
-      // In production, integrate with actual PhonePe API
-      // This is a placeholder implementation
+      const phonePeKeyId = process.env.REACT_APP_PHONEPE_KEY_ID
+      if (!phonePeKeyId) {
+        throw new Error('PhonePe is not configured. Please add REACT_APP_PHONEPE_KEY_ID to .env')
+      }
 
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
-      // Create order
+      // Create order first
       const orderResponse = await createOrder({
         items: items.map((item) => ({
           id: item.id,
           quantity: item.quantity,
         })),
         payment_method: 'phonepe',
+        delivery_fee: deliveryFee,
+        discount: discount,
       })
 
-      toast.success('Payment processed via PhonePe!')
-      setTimeout(() => {
-        navigate('/orders')
-      }, 2000)
+      const phonePeOrderId = orderResponse.data.id
+
+      // TODO: Integrate actual PhonePe SDK when credentials are available
+      // const phonePeResponse = await initializePhonePePayment({ ... })
+      // Verify payment response with backend before confirming
+
+      // For now, show message to implement later
+      toast.error('PhonePe integration pending. Please use Razorpay or UPI for now.')
+      setIsProcessing(false)
+      return
     } catch (err) {
-      setError('PhonePe payment failed. Please try again.')
-      toast.error('PhonePe payment failed')
+      setError(err.message || 'PhonePe payment failed. Please try again.')
+      toast.error(err.message || 'PhonePe payment failed')
       setIsProcessing(false)
     }
   }
 
-  // Handle Google Pay payment (simulated for now)
+  // Handle Google Pay payment
   const handleGooglePayPayment = async () => {
     setIsProcessing(true)
     setProcessingMethod('gpay')
 
     try {
-      // In production, integrate with actual Google Pay API
-      // This is a placeholder implementation
+      const googlePayKey = process.env.REACT_APP_GOOGLE_PAY_KEY
+      if (!googlePayKey) {
+        throw new Error('Google Pay is not configured. Please add REACT_APP_GOOGLE_PAY_KEY to .env')
+      }
 
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-
-      // Create order
+      // Create order first
       const orderResponse = await createOrder({
         items: items.map((item) => ({
           id: item.id,
           quantity: item.quantity,
         })),
         payment_method: 'gpay',
+        delivery_fee: deliveryFee,
+        discount: discount,
       })
 
-      toast.success('Payment processed via Google Pay!')
-      setTimeout(() => {
-        navigate('/orders')
-      }, 2000)
+      const googlePayOrderId = orderResponse.data.id
+
+      // TODO: Integrate actual Google Pay SDK when credentials are available
+      // const gpayResponse = await initializeGooglePay({ ... })
+      // Verify payment token with backend
+
+      // For now, show message to implement later
+      toast.error('Google Pay integration pending. Please use Razorpay or UPI for now.')
+      setIsProcessing(false)
+      return
     } catch (err) {
-      setError('Google Pay payment failed. Please try again.')
-      toast.error('Google Pay payment failed')
+      setError(err.message || 'Google Pay payment failed. Please try again.')
+      toast.error(err.message || 'Google Pay payment failed')
       setIsProcessing(false)
     }
   }
@@ -249,6 +269,8 @@ export default function PaymentPage() {
           quantity: item.quantity,
         })),
         payment_method: 'cod',
+        delivery_fee: deliveryFee,
+        discount: discount,
       })
 
       toast.success('Order placed successfully! Pay on delivery.')
@@ -267,13 +289,14 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <PageTransition>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors hover-lift smooth-transition"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Back</span>
@@ -382,5 +405,6 @@ export default function PaymentPage() {
         onCancel={() => setIsProcessing(false)}
       />
     </div>
+    </PageTransition>
   )
 }
