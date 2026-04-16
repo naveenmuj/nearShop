@@ -7,6 +7,8 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import OrderCardSkeleton from '../../components/ui/OrderCardSkeleton'
 import OrderTimeline from '../../components/OrderTimeline'
+import { PageTransition } from '../../components/ui/PageTransition'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
 import { useConfirmDialog } from '../../components/ui/ConfirmDialog/useConfirmDialog'
 
 const statusStyle = (s) => {
@@ -92,16 +94,17 @@ export default function OrdersPage() {
   })
 
   if (loading) return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
-      <div className="space-y-3">
-        {Array.from({ length: 4 }).map((_, i) => <OrderCardSkeleton key={i} />)}
+    <PageTransition>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">My Orders</h1>
+        <SkeletonLoader type="order" count={4} />
       </div>
-    </div>
+    </PageTransition>
   )
 
   return (
-    <div>
+    <PageTransition>
+      <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
       </div>
@@ -110,7 +113,7 @@ export default function OrdersPage() {
       <div className="flex gap-2 mb-6 overflow-x-auto">
         {['All', 'Active', 'Completed', 'Cancelled'].map(tab => (
           <button key={tab} onClick={() => setActiveFilter(tab.toLowerCase())}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap ${activeFilter === tab.toLowerCase() ? 'bg-brand-purple text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-brand-purple hover:text-brand-purple'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap hover-scale ${activeFilter === tab.toLowerCase() ? 'bg-brand-purple text-white' : 'bg-white border border-gray-200 text-gray-500 hover:border-brand-purple hover:text-brand-purple'}`}>
             {tab}
           </button>
         ))}
@@ -205,9 +208,9 @@ export default function OrdersPage() {
           </div>
 
           {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {filtered.map(order => (
-              <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4">
+          <div className="md:hidden space-y-3 stagger-list">
+            {filtered.map((order, idx) => (
+              <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4 animate-fade-in-up hover-lift smooth-transition" style={{ animationDelay: `${idx * 0.05}s` }}>
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="font-mono text-xs text-gray-400">#{order.order_number || order.id?.toString().slice(-6)}</p>
@@ -262,5 +265,6 @@ export default function OrdersPage() {
         </>
       )}
     </div>
+    </PageTransition>
   )
 }

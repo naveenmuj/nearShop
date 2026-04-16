@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '../../store/cartStore'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const formatPrice = (v) => `₹${Number(v || 0).toLocaleString('en-IN')}`
 
@@ -20,7 +21,8 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="desktop-panel p-14 text-center">
+      <PageTransition>
+        <div className="desktop-panel p-14 text-center">
         <ShoppingCart className="mx-auto h-10 w-10 text-gray-300" />
         <h1 className="mt-3 text-2xl font-bold text-gray-900">Your cart is empty</h1>
         <p className="mt-1 text-sm text-gray-500">Browse products and add them to your cart.</p>
@@ -28,10 +30,12 @@ export default function CartPage() {
           Start Shopping
         </button>
       </div>
+      </PageTransition>
     )
   }
 
   return (
+    <PageTransition>
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="desktop-panel overflow-hidden">
         <div className="desktop-toolbar flex items-center justify-between px-5 py-3">
@@ -43,14 +47,14 @@ export default function CartPage() {
         </div>
         <div className="divide-y divide-gray-100">
           {groups.map((group) => (
-            <div key={group.shop_id} className="p-4">
+            <div key={group.shop_id} className="p-4 animate-fade-in-up">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-gray-900">{group.shop_name}</h2>
                 <p className="text-xs font-semibold text-gray-500">Subtotal {formatPrice(group.subtotal)}</p>
               </div>
               <div className="space-y-2">
                 {group.items.map((item) => (
-                  <div key={item.id} className="grid items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 lg:grid-cols-[1fr_140px_120px_60px]">
+                  <div key={item.id} className="grid items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 lg:grid-cols-[1fr_140px_120px_60px] hover-lift smooth-transition">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{item.name}</p>
                       <p className="text-xs text-gray-500">{formatPrice(item.price)} each</p>
@@ -79,10 +83,11 @@ export default function CartPage() {
         <div className="mt-4 border-t border-gray-200 pt-3">
           <div className="flex justify-between text-sm font-semibold text-gray-900"><span>Total</span><span>{formatPrice(subtotal)}</span></div>
         </div>
-        <button onClick={() => navigate('/app/checkout')} className="mt-5 w-full rounded-lg bg-[#3f5efb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#334ed4]">
+        <button onClick={() => navigate('/app/checkout')} className="mt-5 w-full rounded-lg bg-[#3f5efb] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#334ed4] hover-scale smooth-transition">
           Proceed to Checkout
         </button>
       </aside>
     </div>
+    </PageTransition>
   )
 }

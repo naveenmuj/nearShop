@@ -77,9 +77,10 @@ def get_razorpay_client():
 
 def verify_payment_signature(razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str) -> bool:
     """Verify Razorpay payment signature"""
-    # In test mode, accept any signature starting with "test_"
+    # In test mode, accept only specific test signature
     if settings.PAYMENT_TEST_MODE:
-        return razorpay_signature.startswith("test_") or razorpay_signature == "test_signature"
+        # Test mode signature must be exactly this or match the Razorpay test pattern
+        return razorpay_signature == "test_signature_only" or razorpay_signature.startswith("test_sign_")
     
     try:
         client = get_razorpay_client()

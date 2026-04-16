@@ -11,6 +11,8 @@ import { trackEvent } from '../../api/analytics'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import DeliveryBadge from '../../components/DeliveryBadge'
+import { PageTransition } from '../../components/ui/PageTransition'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
 
 const TABS = ['Products', 'Reviews', 'About']
 
@@ -83,13 +85,15 @@ export default function ShopDetailPage() {
   }
 
   if (shopLoading) {
-    return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
+    return <PageTransition><div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div></PageTransition>
   }
   if (error || !shop) {
     return (
-      <EmptyState icon={ShoppingBag} title="Shop not found"
-        message={error ?? 'This shop does not exist or has been removed.'}
-        action="Go back" onAction={() => navigate(-1)} />
+      <PageTransition>
+        <EmptyState icon={ShoppingBag} title="Shop not found"
+          message={error ?? 'This shop does not exist or has been removed.'}
+          action="Go back" onAction={() => navigate(-1)} />
+      </PageTransition>
     )
   }
 
@@ -117,7 +121,8 @@ export default function ShopDetailPage() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-24">
+    <PageTransition>
+      <div className="bg-gray-50 min-h-screen pb-24">
       {/* ── Hero ── */}
       <div className="relative h-64 bg-gradient-to-br from-[#5B2BE7]/20 to-[#7F77DD]/20">
         {shop.cover_image ? (
@@ -312,8 +317,8 @@ export default function ShopDetailPage() {
                 <p className="text-sm text-gray-400 mt-1">This shop hasn't listed any products.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
-                {products.map(product => {
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 stagger-list">
+                {products.map((product, idx) => {
                   const discount = product.compare_price && product.price && product.compare_price > product.price
                     ? Math.round((1 - Number(product.price) / Number(product.compare_price)) * 100)
                     : null
@@ -321,7 +326,8 @@ export default function ShopDetailPage() {
                     <button
                       key={product.id}
                       onClick={() => navigate(`/app/product/${product.id}`)}
-                      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.97] text-left"
+                      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.97] text-left animate-fade-in-up hover-lift smooth-transition"
+                      style={{animationDelay: `${idx * 50}ms`}}
                     >
                       <div className="relative aspect-square bg-gray-50 overflow-hidden">
                         {product.images?.[0] ? (

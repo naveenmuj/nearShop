@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MessageSquare, Search, RefreshCw, Store } from 'lucide-react'
 import { getConversations } from '../../api/messaging'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 function formatTime(dateStr) {
   if (!dateStr) return ''
@@ -52,7 +53,8 @@ export default function CustomerMessagesPage() {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <PageTransition>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
       <div className="border-b border-gray-200 px-6 py-4">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
@@ -104,7 +106,7 @@ export default function CustomerMessagesPage() {
             <button
               key={item.id}
               onClick={() => navigate(`/app/chat/${item.id}`)}
-              className="grid w-full min-w-[860px] grid-cols-[52px_1.2fr_1fr_180px_100px] items-center border-b border-gray-100 px-6 py-3 text-left transition hover:bg-indigo-50/40"
+              className="grid w-full min-w-[860px] grid-cols-[52px_1.2fr_1fr_180px_100px] items-center border-b border-gray-100 px-6 py-3 text-left transition hover:bg-indigo-50/40 hover-lift smooth-transition">
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EEEDFE] text-[#534AB7]">
                 <Store className="h-5 w-5" />
@@ -130,5 +132,6 @@ export default function CustomerMessagesPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

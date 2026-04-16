@@ -7,6 +7,8 @@ import { searchUnified } from '../../api/search'
 import { getCategories } from '../../api/categories'
 import EmptyState from '../../components/ui/EmptyState'
 import ShopCard from '../../components/ShopCard'
+import { PageTransition } from '../../components/ui/PageTransition'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
 import { getRankingReasonLabel, getRankingReasonTone } from '../../utils/ranking'
 import { rankingSearchParams, trackRankingClick, trackRankingImpressions } from '../../utils/rankingTracking'
 
@@ -146,10 +148,11 @@ export default function SearchPage() {
   )
 
   return (
-    <div>
+    <PageTransition>
+      <div>
       {/* Search bar */}
       <div ref={containerRef} className="relative mb-6">
-        <div className={`flex items-center bg-white border rounded-xl px-4 h-12 transition ${inputFocused ? 'border-brand-purple shadow-md' : 'border-gray-200'}`}>
+        <div className={`flex items-center bg-white border rounded-xl px-4 h-12 transition input-glow ${inputFocused ? 'border-brand-purple shadow-md' : 'border-gray-200'}`}>
           <Search className="w-5 h-5 text-gray-400 mr-3 flex-shrink-0" />
           <input ref={inputRef} autoFocus value={query} onChange={e => { setQuery(e.target.value); setPage(1) }}
             onFocus={() => setInputFocused(true)} onBlur={() => setTimeout(() => setInputFocused(false), 150)}
@@ -225,7 +228,7 @@ export default function SearchPage() {
 
           {/* Loading */}
           {loading && (query.trim() || selectedCategory) && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">{[1,2,3,4,5,6].map(i => <div key={i} className="bg-white rounded-xl h-56 animate-pulse border border-gray-100" />)}</div>
+            <SkeletonLoader type="product" count={6} />
           )}
 
           {/* Products grid */}
@@ -234,45 +237,47 @@ export default function SearchPage() {
               {products.length === 0 ? (
                 <EmptyState icon={ShoppingBag} title="No products found" message="Try different keywords" />
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
-                  {products.map(product => {
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4 stagger-list">
+                  {products.map((product, idx) => {
                     const discount = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
                     const reasonLabel = getRankingReasonLabel(product.reason, '')
                     const reasonTone = getRankingReasonTone(product.reason)
                     return (
-                      <button key={product.id} onClick={() => {
-                        trackRankingClick(product, {
-                          ranking_surface: 'unified_search',
-                          source_screen: 'search_results',
-                          query: query.trim(),
-                        })
-                        navigate(`/app/product/${product.id}${rankingSearchParams({
-                          ranking_surface: 'unified_search',
-                          source_screen: 'search_results',
-                          ranking_reason: product.reason,
-                          query: query.trim(),
-                        })}`)
-                      }}
-                        className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group">
-                        <div className="aspect-square bg-gray-50 relative overflow-hidden">
-                          {product.images?.[0] ? <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                            : <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-200" /></div>}
-                          {discount && <span className="absolute top-2 left-2 bg-brand-red text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{discount}% OFF</span>}
-                        </div>
-                        <div className="p-3">
-                          <p className="text-sm font-semibold text-gray-900 line-clamp-2">{product.name}</p>
-                          {reasonLabel && (
-                            <span className={`inline-flex mt-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${reasonTone}`}>
-                              {reasonLabel}
-                            </span>
-                          )}
-                          <div className="flex items-baseline gap-1.5 mt-1.5">
-                            <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
-                            {product.compare_price > product.price && <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>}
+                      <div key={product.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 0.05}s` }}>
+                        <button onClick={() => {
+                          trackRankingClick(product, {
+                            ranking_surface: 'unified_search',
+                            source_screen: 'search_results',
+                            query: query.trim(),
+                          })
+                          navigate(`/app/product/${product.id}${rankingSearchParams({
+                            ranking_surface: 'unified_search',
+                            source_screen: 'search_results',
+                            ranking_reason: product.reason,
+                            query: query.trim(),
+                          })}`)
+                        }}
+                          className="w-full bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group hover-scale">
+                          <div className="aspect-square bg-gray-50 relative overflow-hidden">
+                            {product.images?.[0] ? <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              : <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-10 h-10 text-gray-200" /></div>}
+                            {discount && <span className="absolute top-2 left-2 bg-brand-red text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">{discount}% OFF</span>}
                           </div>
-                          {product.shop_name && <p className="text-xs text-gray-400 mt-1 truncate">🏪 {product.shop_name}</p>}
-                        </div>
-                      </button>
+                          <div className="p-3">
+                            <p className="text-sm font-semibold text-gray-900 line-clamp-2">{product.name}</p>
+                            {reasonLabel && (
+                              <span className={`inline-flex mt-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${reasonTone}`}>
+                                {reasonLabel}
+                              </span>
+                            )}
+                            <div className="flex items-baseline gap-1.5 mt-1.5">
+                              <span className="text-base font-bold text-gray-900">{formatPrice(product.price)}</span>
+                              {product.compare_price > product.price && <span className="text-xs text-gray-400 line-through">{formatPrice(product.compare_price)}</span>}
+                            </div>
+                            {product.shop_name && <p className="text-xs text-gray-400 mt-1 truncate">🏪 {product.shop_name}</p>}
+                          </div>
+                        </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -291,10 +296,11 @@ export default function SearchPage() {
           {!loading && (query.trim() || selectedCategory) && activeResultTab === 'shops' && (
             <>
               {shops.length === 0 ? <EmptyState icon={Store} title="No shops found" message="Try searching in Products" /> : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {shops.map(shop => (
-                    <button key={shop.id} onClick={() => navigate(`/app/shop/${shop.id}`)}
-                      className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4 hover:shadow-md transition text-left">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 stagger-list">
+                  {shops.map((shop, idx) => (
+                    <div key={shop.id} className="animate-fade-in-up" style={{ animationDelay: `${idx * 0.05}s` }}>
+                      <button onClick={() => navigate(`/app/shop/${shop.id}`)}
+                        className="w-full bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4 hover:shadow-md transition text-left hover-lift">
                       <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-brand-purple/10 to-brand-purple/5 flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-100">
                         {shop.logo || shop.cover_image ? <img src={shop.logo ?? shop.cover_image} alt="" className="w-full h-full object-cover" /> : <span className="text-2xl">🏪</span>}
                       </div>
@@ -309,8 +315,7 @@ export default function SearchPage() {
                         {shop.avg_rating > 0 && <span className="text-xs text-amber-600 font-semibold">⭐ {Number(shop.avg_rating).toFixed(1)}</span>}
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                    </button>
-                  ))}
+                    </button>                    </div>                  ))}
                 </div>
               )}
             </>
@@ -342,5 +347,6 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

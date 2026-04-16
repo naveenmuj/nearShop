@@ -80,6 +80,7 @@ export default function CheckoutScreen() {
         }
       } catch (err) {
         console.error('Failed to load addresses:', err);
+        toast.show({ type: 'error', text1: 'Failed to load saved addresses' });
       }
     };
     
@@ -89,6 +90,7 @@ export default function CheckoutScreen() {
         setWalletBalance(res.data?.balance || 0);
       } catch (err) {
         console.error('Failed to load wallet balance:', err);
+        toast.show({ type: 'error', text1: 'Failed to load wallet balance' });
       }
     };
     

@@ -13,6 +13,8 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
 import WishlistHeart from '../../components/WishlistHeart'
 import ShareModal from '../../components/ShareModal'
+import { PageTransition } from '../../components/ui/PageTransition'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
 import { readRankingContext, trackRankingAction } from '../../utils/rankingTracking'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
@@ -46,7 +48,7 @@ function AddToCartButton({ product }) {
   return (
     <button
       onClick={() => { addItem(product, 1, rankingContext); trackRankingAction('add_to_cart', product, rankingContext); toast.success('Added to cart!') }}
-      className="w-full flex items-center justify-center gap-2 bg-brand-purple text-white py-3 rounded-xl text-sm font-bold hover:bg-brand-purple-dark transition">
+      className="w-full flex items-center justify-center gap-2 bg-brand-purple text-white py-3 rounded-xl text-sm font-bold hover:bg-brand-purple-dark transition hover-scale smooth-transition">
       <ShoppingCart className="w-4 h-4" /> Add to Cart
     </button>
   )
@@ -120,8 +122,8 @@ export default function ProductDetailPage() {
 
   const handleShare = () => setShareOpen(true)
 
-  if (loading) return <div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div>
-  if (error) return <EmptyState icon={ShoppingBag} title="Could not load product" message={error} action="Retry" onAction={fetchProduct} />
+  if (loading) return <PageTransition><div className="flex items-center justify-center py-24"><LoadingSpinner size="lg" /></div></PageTransition>
+  if (error) return <PageTransition><EmptyState icon={ShoppingBag} title="Could not load product" message={error} action="Retry" onAction={fetchProduct} /></PageTransition>
   if (!product) return null
 
   const images = product.images?.length ? product.images : (product.image ? [product.image] : [])
@@ -129,7 +131,8 @@ export default function ProductDetailPage() {
   const discountPct = product.compare_price && product.price && Number(product.compare_price) > Number(product.price) ? Math.round((1 - product.price / product.compare_price) * 100) : null
 
   return (
-    <div>
+    <PageTransition>
+      <div>
       {/* Breadcrumb */}
       <nav className="hidden md:flex items-center gap-2 text-sm text-gray-400 mb-4">
         <Link to="/app/home" className="hover:text-brand-purple transition">Home</Link>
@@ -228,10 +231,10 @@ export default function ProductDetailPage() {
             {/* Action buttons */}
             <div className="space-y-2">
               <AddToCartButton product={product} />
-              <button onClick={handleWhatsApp} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition">
+              <button onClick={handleWhatsApp} className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition hover-scale smooth-transition">
                 <MessageSquare className="w-4 h-4" /> Chat on WhatsApp
               </button>
-              <button onClick={handleInAppChat} className="w-full flex items-center justify-center gap-2 bg-[#7F77DD] text-white py-3 rounded-xl text-sm font-bold hover:bg-[#6b63d2] transition">
+              <button onClick={handleInAppChat} className="w-full flex items-center justify-center gap-2 bg-[#7F77DD] text-white py-3 rounded-xl text-sm font-bold hover:bg-[#6b63d2] transition hover-scale smooth-transition">
                 <MessageSquare className="w-4 h-4" /> Chat In NearShop
               </button>
               <div className="grid grid-cols-2 gap-2">
@@ -286,10 +289,11 @@ export default function ProductDetailPage() {
       {similar.length > 0 && (
         <div className="mt-8">
           <h2 className="text-lg font-bold text-gray-900 mb-4">Similar Products</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-            {similar.map(p => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 stagger-list">
+            {similar.map((p, idx) => (
               <button key={p.id} onClick={() => navigate(`/app/product/${p.id}`)}
-                className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group">
+                className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group animate-fade-in-up hover-lift smooth-transition"
+                style={{animationDelay: `${idx * 50}ms`}}>
                 <div className="aspect-square bg-gray-50 overflow-hidden">
                   {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="w-full h-full flex items-center justify-center"><ShoppingBag className="w-8 h-8 text-gray-200" /></div>}
                 </div>
@@ -334,6 +338,7 @@ export default function ProductDetailPage() {
         entityType="product"
         entityId={product?.id}
       />
-    </div>
+      </div>
+    </PageTransition>
   )
 }

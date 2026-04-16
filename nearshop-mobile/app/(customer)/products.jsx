@@ -155,9 +155,10 @@ export default function ProductsScreen() {
           return;
         }
 
-        // Apply filters
-        const price = Number(normalized?.price || 0);
-        if (price < minPrice || price > maxPrice) return;
+        // Apply filters - ensure free products show when minPrice is 0
+        const price = Number(normalized?.price ?? 0);
+        if (price > 0 && (price < minPrice || price > maxPrice)) return;
+        if (price === 0 && minPrice > 0) return; // Hide free items if minPrice > 0
 
         const rating = Number(normalized?.rating || 0);
         if (rating < minRating) return;
@@ -192,13 +193,22 @@ export default function ProductsScreen() {
               <Text style={styles.backBtnText}>←</Text>
             </TouchableOpacity>
             <Text style={styles.heroTitle}>All Products</Text>
-            <TouchableOpacity 
-              style={styles.filterBtn} 
-              onPress={() => setShowFilters(true)} 
-              activeOpacity={0.8}
-            >
-              <Text style={styles.filterBtnText}>🔧</Text>
-            </TouchableOpacity>
+            <View style={styles.filterBtnWrapper}>
+              <TouchableOpacity 
+                style={styles.filterBtn} 
+                onPress={() => setShowFilters(true)} 
+                activeOpacity={0.8}
+              >
+                <Text style={styles.filterBtnText}>🔧</Text>
+              </TouchableOpacity>
+              {(minPrice > 0 || maxPrice < 50000 || minRating > 0 || inStockOnly) && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>
+                    {[minPrice > 0 ? 1 : 0, maxPrice < 50000 ? 1 : 0, minRating > 0 ? 1 : 0, inStockOnly ? 1 : 0].filter(Boolean).length}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           <Text style={styles.heroSubtitle} numberOfLines={1}>{address || 'Current location'}</Text>
           <Text style={styles.heroDesc}>
@@ -408,6 +418,27 @@ const styles = StyleSheet.create({
   },
   filterBtnText: {
     fontSize: 18,
+  },
+  filterBtnWrapper: {
+    position: 'relative',
+    width: 34,
+    height: 34,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeText: {
+    color: COLORS.white,
+    fontSize: 11,
+    fontWeight: '700',
   },
   backBtnText: {
     fontSize: 20,

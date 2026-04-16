@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { getBalance, getStreak, getBadges } from '../../api/loyalty'
 import client from '../../api/client'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import { PageTransition } from '../../components/ui/PageTransition'
 import { ShoppingBag, Heart, Wallet, MessageSquare, Settings, Repeat, LogOut, ChevronRight, Coins, Award, Trash2 } from 'lucide-react'
 
 export default function ProfilePage() {
@@ -90,9 +91,10 @@ export default function ProfilePage() {
   ]
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <PageTransition>
+      <div className="max-w-3xl mx-auto">
       {/* Profile header */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 mb-6">
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 mb-6 animate-fade-in-up">
         <div className="flex items-center gap-5">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-purple to-brand-purple-dark flex items-center justify-center text-white text-3xl font-bold flex-shrink-0">
             {user?.name?.[0]?.toUpperCase() || '?'}
@@ -131,7 +133,7 @@ export default function ProfilePage() {
           <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50">
             {section.items.map(item => (
               <button key={item.label} onClick={() => navigate(item.to)}
-                className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition text-left">
+                className="w-full flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition text-left hover-lift smooth-transition">
                 <div className="w-9 h-9 rounded-lg bg-brand-purple-light flex items-center justify-center flex-shrink-0">
                   <item.icon className="w-4 h-4 text-brand-purple" />
                 </div>
@@ -228,6 +230,7 @@ export default function ProfilePage() {
       )}
 
       <p className="text-center text-xs text-gray-300 mt-6">NearShop v1.0.0</p>
-    </div>
+      </div>
+    </PageTransition>
   )
 }

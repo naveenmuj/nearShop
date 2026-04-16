@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { getMyHaggles, sendOffer, acceptHaggle } from '../../api/haggle'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const STATUS_COLORS = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -87,7 +88,8 @@ export default function HagglePage() {
   }
 
   return (
-    <div className="px-4 py-4">
+    <PageTransition>
+      <div className="px-4 py-4">
       <h1 className="mb-4 text-2xl font-bold">My Haggle Sessions</h1>
 
       {sessions.length === 0 ? (
@@ -161,9 +163,10 @@ export default function HagglePage() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-3 lg:hidden">
-          {sessions.map((session) => (
-            <div key={session.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex flex-col gap-3 lg:hidden stagger-list">
+          {sessions.map((session, idx) => (
+            <div key={session.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 animate-fade-in-up hover-lift smooth-transition"
+              style={{animationDelay: `${idx * 50}ms`}}>
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="font-semibold">{session.product?.name || 'Product'}</p>
@@ -208,7 +211,7 @@ export default function HagglePage() {
                       <button
                         onClick={() => handleAccept(session.id)}
                         disabled={acting === session.id}
-                        className="w-full bg-green-500 text-white py-2 rounded-lg text-sm disabled:opacity-50"
+                        className="w-full bg-green-500 text-white py-2 rounded-lg text-sm disabled:opacity-50 hover-scale smooth-transition"
                       >
                         Accept ₹{shopCounter}
                       </button>
@@ -239,5 +242,6 @@ export default function HagglePage() {
         </>
       )}
     </div>
+    </PageTransition>
   )
 }

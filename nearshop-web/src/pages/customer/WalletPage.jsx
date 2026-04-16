@@ -3,6 +3,7 @@ import { Star, Trophy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getBalance, getCoinHistory, getBadges, getStreak, dailyCheckin } from '../../api/loyalty'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
@@ -72,9 +73,10 @@ export default function WalletPage() {
   const currentStreak = streak?.current_streak || 0
 
   return (
-    <div className="">
+    <PageTransition>
+      <div className="">
       {/* Balance card */}
-      <div className="mx-4 mt-4 rounded-3xl p-6 text-white" style={{background: 'linear-gradient(135deg, #EF9F27, #D85A30)'}}>
+      <div className="mx-4 mt-4 rounded-3xl p-6 text-white animate-fade-in-up" style={{background: 'linear-gradient(135deg, #EF9F27, #D85A30)'}}>
         <p className="text-white/70 text-sm font-medium">ShopCoins Balance</p>
         <div className="flex items-baseline gap-2 mt-1">
           <span className="text-5xl font-bold">{balance}</span>
@@ -124,7 +126,7 @@ export default function WalletPage() {
         ) : (
           <div>
             {history.map((txn, idx) => (
-              <div key={txn.id || idx} className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0">
+              <div key={txn.id || idx} className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0 hover-lift smooth-transition px-2 rounded-lg">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${txn.amount > 0 ? 'bg-brand-green-light' : 'bg-brand-red-light'}`}>
                   <span>{txn.amount > 0 ? '⬆️' : '⬇️'}</span>
                 </div>
@@ -140,6 +142,6 @@ export default function WalletPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageTransition>
   )
 }

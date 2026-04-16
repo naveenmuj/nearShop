@@ -11,6 +11,7 @@ import {
 } from '../../api/messaging'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const QUICK_REACTIONS = ['👍', '❤️', '🙏', '🔥', '😂']
 
@@ -176,7 +177,8 @@ export default function CustomerChatPage() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <PageTransition>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
         <button onClick={() => navigate('/app/messages')} className="rounded-lg p-2 hover:bg-gray-100">
@@ -193,11 +195,12 @@ export default function CustomerChatPage() {
 
       <div className="h-[66vh] overflow-y-auto bg-gradient-to-b from-[#f7f8fc] to-white px-4 py-4 lg:h-[72vh]">
         <div className="space-y-2">
-          {sortedMessages.map((msg) => {
+          {sortedMessages.map((msg, idx) => {
             const isMe = msg.sender_role === 'customer' || String(msg.sender_id) === String(user?.id)
             const reactionMap = normalizeReactionMap(msg)
             return (
-              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+              <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in-up hover-lift smooth-transition`}
+                style={{animationDelay: `${idx * 30}ms`}}>
                 <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${isMe ? 'bg-[#5b54c8] text-white' : 'border border-gray-200 bg-white text-gray-900'}`}>
                   {msg.metadata?.reply_to_preview ? (
                     <div className={`mb-1 rounded-lg px-2 py-1 text-xs ${isMe ? 'bg-[#6f69d7] text-white/90' : 'bg-gray-100 text-gray-600'}`}>
@@ -362,5 +365,6 @@ export default function CustomerChatPage() {
         </div>
       ) : null}
     </div>
+    </PageTransition>
   )
 }

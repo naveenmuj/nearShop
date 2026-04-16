@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, BellRing, CheckCheck, RefreshCw, ShoppingBag, MessageSquare, Trophy } from 'lucide-react'
 import { getNotifications, markAllRead } from '../../api/notifications'
+import { PageTransition } from '../../components/ui/PageTransition'
 
 const timeAgo = (date) => {
   if (!date) return ''
@@ -93,7 +94,8 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <PageTransition>
+      <div className="space-y-4">
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -129,7 +131,7 @@ export default function NotificationsPage() {
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold hover-scale smooth-transition ${
                 filter === tab.key ? 'bg-[#7F77DD] text-white' : 'bg-gray-100 text-gray-600'
               }`}
             >
@@ -148,16 +150,17 @@ export default function NotificationsPage() {
           <p className="mt-1 text-sm text-gray-500">You are all caught up.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((item) => {
+        <div className="space-y-2 stagger-list">
+          {filtered.map((item, idx) => {
             const Icon = iconForNotification(item)
             return (
               <button
                 key={item.id}
                 onClick={() => handleNotificationClick(item)}
-                className={`rounded-xl border p-3 shadow-sm transition ${
+                className={`rounded-xl border p-3 shadow-sm transition animate-fade-in-up hover-lift smooth-transition ${
                   item.is_read ? 'border-gray-100 bg-white' : 'border-[#cfc9ff] bg-[#f5f3ff]'
                 } ${resolveNotificationTarget(item) ? 'w-full text-left hover:border-[#b8b0ff]' : 'w-full text-left cursor-default'}`}
+                style={{animationDelay: `${idx * 50}ms`}}
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg ${item.is_read ? 'bg-gray-100 text-gray-600' : 'bg-white text-[#6b63d2]'}`}>
@@ -178,5 +181,6 @@ export default function NotificationsPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

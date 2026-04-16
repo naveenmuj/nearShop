@@ -16,6 +16,8 @@ import ScrollReveal from '../../components/ui/ScrollReveal'
 import RecentlyViewed from '../../components/RecentlyViewed'
 import ShopCarousel from '../../components/ShopCarousel'
 import ShopCard from '../../components/ShopCard'
+import { PageTransition } from '../../components/ui/PageTransition'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
 import { getRankingReasonLabel, getRankingReasonTone } from '../../utils/ranking'
 import { rankingSearchParams, trackRankingClick, trackRankingImpressions } from '../../utils/rankingTracking'
 
@@ -130,7 +132,8 @@ export default function HomePage() {
   const firstName = user?.name?.split(' ')[0] || 'there'
 
   return (
-    <div className="space-y-8">
+    <PageTransition>
+      <div className="space-y-8">
       {/* Hero / Greeting */}
       <ScrollReveal direction="up">
         <div className="bg-gradient-to-r from-brand-purple to-[#38BDF8] rounded-2xl p-6 lg:p-8 text-white">
@@ -253,7 +256,7 @@ export default function HomePage() {
                 const icon = CATEGORY_ICONS[String(cat.name).toLowerCase()] ?? CATEGORY_ICONS.default
                 return (
                   <button key={cat.slug ?? cat.id} onClick={() => navigate(`/app/search?category=${cat.slug ?? cat.id}`)}
-                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand-purple hover:text-brand-purple hover:shadow-sm transition">
+                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-brand-purple hover:text-brand-purple hover:shadow-sm transition hover-scale hover-lift">
                     <span className="text-lg">{icon}</span> {cat.name}
                   </button>
                 )
@@ -328,14 +331,16 @@ export default function HomePage() {
               Map view <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          {loading && <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{Array.from({length:8}).map((_,i) => <div key={i} className="bg-white rounded-xl h-48 skeleton-shimmer" />)}</div>}
+          {loading && <SkeletonLoader type="shop" count={4} />}
           {!loading && shops.length === 0 && <EmptyState icon={Store} title="No shops nearby" message="There are no shops in your area yet." />}
           {!loading && shops.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 stagger-list">
               {shops.map((shop, i) => (
-                <ScrollReveal key={shop.id} direction="up" delay={i * 40}>
-                  <ShopCard shop={shop} />
-                </ScrollReveal>
+                <div key={shop.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
+                  <ScrollReveal direction="up" delay={i * 40}>
+                    <ShopCard shop={shop} />
+                  </ScrollReveal>
+                </div>
               ))}
             </div>
           )}
@@ -496,5 +501,6 @@ export default function HomePage() {
         </ScrollReveal>
       )}
     </div>
+    </PageTransition>
   )
 }

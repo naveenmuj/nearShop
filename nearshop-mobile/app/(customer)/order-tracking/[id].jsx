@@ -137,7 +137,7 @@ export default function OrderTrackingScreen() {
     attemptConnect()
 
     return () => {
-      // Clean up timeouts
+      // Critical cleanup to prevent memory leaks and ensure no state updates on unmounted component
       if (liveUpdateTimeoutRef.current) {
         clearTimeout(liveUpdateTimeoutRef.current)
         liveUpdateTimeoutRef.current = null
@@ -146,11 +146,13 @@ export default function OrderTrackingScreen() {
         clearTimeout(reconnectTimeoutRef.current)
         reconnectTimeoutRef.current = null
       }
-      // Close WebSocket
+      // Close WebSocket and clean up reference
       if (wsRef.current) {
         wsRef.current.close()
         wsRef.current = null
       }
+      // Reset reconnect attempts for fresh attempts on remount
+      reconnectCountRef.current = 0
     }
   }, [id, token])
 

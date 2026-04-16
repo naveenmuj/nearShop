@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { getWishlist, removeFromWishlist, getPriceDrops } from '../../api/wishlists'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import EmptyState from '../../components/ui/EmptyState'
+import { PageTransition } from '../../components/ui/PageTransition'
 import { Heart, ShoppingBag, Trash2, TrendingDown } from 'lucide-react'
 
 const formatPrice = (v) => '₹' + Number(v || 0).toLocaleString('en-IN')
@@ -36,7 +37,8 @@ export default function WishlistPage() {
   if (error) return <EmptyState icon={Heart} title="Could not load wishlist" message={error} action="Retry" onAction={fetchAll} />
 
   return (
-    <div>
+    <PageTransition>
+      <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900">My Wishlist</h1>
@@ -50,8 +52,8 @@ export default function WishlistPage() {
           <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
             <TrendingDown className="w-5 h-5 text-green-600" /> Price Drops
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {priceDrops.map(item => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-list">
+            {priceDrops.map((item, idx) => {
               const pid = item.product_id || item.id
               const name = item.product_name || item.name || 'Product'
               const imageUrl = item.image || (item.images && item.images[0]) || null
@@ -61,7 +63,8 @@ export default function WishlistPage() {
               const dropPct = item.drop_percentage ?? (oldPrice > 0 ? Math.round((1 - newPrice / oldPrice) * 100) : 0)
               return (
                 <button key={pid} onClick={() => navigate(`/app/product/${pid}`)}
-                  className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all text-left w-full">
+                  className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3 hover:shadow-md transition-all text-left w-full animate-fade-in-up hover-lift smooth-transition"
+                  style={{animationDelay: `${idx * 50}ms`}}>
                   <div className="w-16 h-16 rounded-lg bg-white overflow-hidden flex-shrink-0 flex items-center justify-center">
                     {imageUrl ? <img src={imageUrl} alt={name} className="w-full h-full object-cover" /> : <ShoppingBag className="w-6 h-6 text-gray-200" />}
                   </div>
@@ -93,8 +96,8 @@ export default function WishlistPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
-          {items.map(item => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4 stagger-list">
+          {items.map((item, idx) => {
             const product = item.product || item
             const pid = item.product_id || item.id
             const drop = isPriceDrop(item)
@@ -105,7 +108,8 @@ export default function WishlistPage() {
             const shopName = product.shop_name || ''
             const discount = comparePrice && currentPrice && Number(comparePrice) > Number(currentPrice) ? Math.round((1 - currentPrice / comparePrice) * 100) : null
             return (
-              <div key={pid} className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all group relative">
+              <div key={pid} className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all group relative animate-fade-in-up hover-lift smooth-transition"
+                style={{animationDelay: `${idx * 50}ms`}}>
                 {/* Remove button */}
                 <button onClick={() => handleRemove(pid)}
                   className="absolute top-2 right-2 z-10 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-50">
@@ -141,5 +145,6 @@ export default function WishlistPage() {
         </div>
       )}
     </div>
+    </PageTransition>
   )
 }

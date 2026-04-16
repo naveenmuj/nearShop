@@ -919,11 +919,14 @@ export default function DealsScreen() {
           merged.push(item);
         });
       } else {
-        // For subsequent pages, filter nearby AND deduplicate against existing deals
+        // For subsequent pages, filter nearby AND deduplicate against ALL existing deals (both initial and loaded)
         const existingIds = new Set(deals.map(d => d.id));
         nearbyItems.forEach((item) => {
-          if (!item?.id || existingIds.has(item.id)) return;
+          if (!item?.id) return;
+          // Check against both previously loaded items AND this batch to prevent duplicates
+          if (existingIds.has(item.id) || seen.has(item.id)) return;
           if (!matchesCategory(item)) return;
+          seen.add(item.id);
           merged.push(item);
         });
       }
@@ -948,13 +951,14 @@ export default function DealsScreen() {
     }
   }, [lat, lng, activeCategory, pageSize, nearbyRadiusKm]);
 
+  // Reset pagination and reload deals when category changes
   useEffect(() => {
     setIsLoading(true);
     setPage(1);
     setHasMore(true);
     setDeals([]);
     loadDeals(1, false).finally(() => setIsLoading(false));
-  }, [loadDeals]);
+  }, [activeCategory, loadDeals]); // Explicit activeCategory dependency prevents race condition
 
   const loadSavedDeals = useCallback(async () => {
     try {
@@ -1249,7 +1253,12 @@ export default function DealsScreen() {
         )}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ListFooterComponent={loadingMore ? <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} /> : null}
+        ListFooterComponent={loadingMore ? (
+          <View style={styles.paginationLoader}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Text style={styles.paginationLoaderText}>Loading more deals...</Text>
+          </View>
+        ) : null}
         contentContainerStyle={[
           styles.list,
           displayDeals.length === 0 && !isLoading && styles.listEmpty,
@@ -2105,6 +2114,18 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   listEmpty: { flexGrow: 1 },
+  paginationLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  paginationLoaderText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
   gridRow: { gap: 12, marginBottom: 12 },
 
   // ═══════════════════════════════════════════════════════════════════════════════
