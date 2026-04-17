@@ -24,9 +24,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { COLORS, SHADOWS, FONTS } from '../../constants/theme';
 import { toast } from '../../components/ui/Toast';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // API functions - to be created
 const API_BASE = 'http://localhost:8000/api/v1';

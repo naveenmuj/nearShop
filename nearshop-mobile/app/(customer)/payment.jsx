@@ -21,7 +21,7 @@ import {
   cancelOrder,
   getMyOrders,
 } from '../../lib/orders';
-import { useCoupon } from '../../lib/deals';
+import { useCoupon as consumeCoupon } from '../../lib/deals';
 import { trackEvent } from '../../lib/analytics';
 import { recordLocalTelemetry } from '../../lib/localTelemetry';
 import { alert } from '../../components/ui/PremiumAlert';
@@ -296,7 +296,7 @@ export default function PaymentScreen() {
 
       if (appliedCouponId && createdOrderIds.length > 0) {
         try {
-          await useCoupon(appliedCouponId, createdOrderIds[0], couponDiscount);
+          await consumeCoupon(appliedCouponId, createdOrderIds[0], couponDiscount);
         } catch {
           alert.warning({
             title: 'Note',

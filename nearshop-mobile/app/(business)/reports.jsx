@@ -3,8 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { alert } from '../../components/ui/PremiumAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { authGet } from '../../lib/api';
 import useMyShop from '../../hooks/useMyShop';
 import { exportOrders } from '../../lib/orders';
@@ -101,7 +100,7 @@ export default function ReportsScreen() {
             : `Orders exported to ${fileName}. Open it from your device files if it did not launch automatically.`
         });
       }
-    } catch (err) {
+    } catch {
       alert.error({ title: 'Error', message: 'Failed to export orders. Please try again.' });
     } finally {
       setExporting(false);
@@ -169,7 +168,7 @@ export default function ReportsScreen() {
                   ) : (
                     <>
                       <Text style={s.exportIcon}>📊</Text>
-                      <Text style={s.exportBtnText}>Export This Month's Orders</Text>
+                      <Text style={s.exportBtnText}>Export This Month&apos;s Orders</Text>
                     </>
                   )}
                 </TouchableOpacity>

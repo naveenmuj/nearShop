@@ -10,11 +10,11 @@ import {
   ScrollView,
   StatusBar,
   BackHandler,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getMyOrders, cancelOrder, downloadInvoice } from '../../lib/orders';
 import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
 import { alert } from '../../components/ui/PremiumAlert';
@@ -172,7 +172,7 @@ export default function OrdersScreen() {
         list = list.filter(o => o.status === activeFilter);
       }
       setOrders(list);
-    } catch (err) {
+    } catch {
       setError('Failed to load orders. Pull down to retry.');
       setOrders([]);
     } finally {
@@ -229,7 +229,7 @@ export default function OrdersScreen() {
             : 'Invoice downloaded. Open it from your device files if it did not launch automatically.',
         });
       }
-    } catch (err) {
+    } catch {
       alert.error({ title: 'Error', message: 'Could not download invoice. Please try again.' });
     } finally {
       setDownloadingInvoice(null);

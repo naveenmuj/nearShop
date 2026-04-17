@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { GenericListSkeleton } from '../../components/ui/ScreenSkeletons';
-import ProductAddOptionsPanel from '../../components/ProductAddOptionsPanel';
 
 import useMyShop from '../../hooks/useMyShop';
 import { getShopProducts } from '../../lib/shops';
@@ -300,14 +299,16 @@ export default function CatalogScreen() {
           <TouchableOpacity
             style={[styles.addBtn, { backgroundColor: COLORS.blue }]}
             onPress={() => router.push('/(business)/catalog-browser')}
+            accessibilityLabel="Open shared product library"
           >
             <Ionicons name="search-outline" size={20} color={COLORS.white} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => router.push('/(business)/snap-list')}
+            accessibilityLabel="Open snap and list"
           >
-            <Ionicons name="add" size={24} color={COLORS.white} />
+            <Ionicons name="camera-outline" size={20} color={COLORS.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -334,14 +335,6 @@ export default function CatalogScreen() {
           <Text style={[styles.filterText, showOnlyHidden && styles.filterTextActive]}>Hidden</Text>
         </TouchableOpacity>
       </View>
-
-      <ProductAddOptionsPanel
-        title="Add Products"
-        subtitle="Use any method: snap, spreadsheet import, or shared product library."
-        onSnap={() => router.push('/(business)/snap-list')}
-        onBulk={() => router.push('/(business)/bulk-upload')}
-        onCatalog={() => router.push('/(business)/catalog-browser')}
-      />
 
       {/* Bulk Actions for Hidden Products */}
       {showOnlyHidden && filtered.length > 0 && (

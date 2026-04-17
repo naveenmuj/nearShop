@@ -13,7 +13,7 @@ import {
   Easing,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
@@ -31,6 +31,7 @@ import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
 const PAGE_SIZE = 40;
 
 export default function CatalogBrowserScreen() {
+  const insets = useSafeAreaInsets();
   const { shop, shopId, loading: shopLoading } = useMyShop();
   const [query, setQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -45,6 +46,8 @@ export default function CatalogBrowserScreen() {
   const [adding, setAdding] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPublishReview, setShowPublishReview] = useState(false);
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [showSelectionTools, setShowSelectionTools] = useState(false);
   const [shopSelections, setShopSelections] = useState([]);
   const [loadingSelections, setLoadingSelections] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -56,7 +59,6 @@ export default function CatalogBrowserScreen() {
   }, [shop?.category, shop?.subcategories]);
 
   const selectedCategoriesSet = useMemo(() => new Set(selectedCategories), [selectedCategories]);
-  const selectedCategoryCount = selectedCategories.length;
   const recommendedMatches = useMemo(() => {
     if (!categories.length || !onboardingCategories.length) return [];
     const normalized = new Set(onboardingCategories.map((item) => item.toLowerCase()));
@@ -81,7 +83,7 @@ export default function CatalogBrowserScreen() {
         const parsed = parseNumberField(override.price);
         return sum + Number(parsed ?? item.base_price_inr ?? 0);
       }, 0),
-    [overrides, selectedProducts]
+    [overrides, selectedProducts, parseNumberField]
   );
   const expectedMarginPct = useMemo(() => {
     if (!selectedBaseTotal) return null;
@@ -194,7 +196,13 @@ export default function CatalogBrowserScreen() {
         isLargeJump,
       };
     });
-  }, [duplicateSelectedProducts, overrides, selectedProducts]);
+  }, [duplicateSelectedProducts, overrides, selectedProducts, parseNumberField]);
+
+  useEffect(() => {
+    if (selectedCount > 0) {
+      setShowSelectionTools(true);
+    }
+  }, [selectedCount]);
 
   const reviewRiskCounts = useMemo(() => {
     return selectedReviewItems.reduce(
@@ -346,18 +354,18 @@ export default function CatalogBrowserScreen() {
     }));
   }, []);
 
-  const parseNumberField = (value) => {
+  const parseNumberField = useCallback((value) => {
     const trimmed = String(value ?? '').trim();
     if (!trimmed) return undefined;
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) ? parsed : undefined;
-  };
+  }, []);
 
-  const parseIntegerField = (value) => {
+  const parseIntegerField = useCallback((value) => {
     const parsed = parseNumberField(value);
     if (parsed == null) return undefined;
     return Math.max(0, Math.floor(parsed));
-  };
+  }, [parseNumberField]);
 
   const clearFilters = useCallback(() => {
     setQuery('');
@@ -420,7 +428,10 @@ export default function CatalogBrowserScreen() {
     });
   }, [products]);
 
-  const visibleCategories = useMemo(() => categories.slice(0, 20), [categories]);
+  const visibleCategories = useMemo(
+    () => (showAllCategories ? categories : categories.slice(0, 8)),
+    [categories, showAllCategories]
+  );
 
   const applyMarginToSelected = useCallback(() => {
     const margin = parseNumberField(bulkMarginPct);
@@ -455,7 +466,7 @@ export default function CatalogBrowserScreen() {
       title: 'Margin applied',
       message: `Applied ${margin}% to ${selectedCount} selected product${selectedCount === 1 ? '' : 's'}.`,
     });
-  }, [bulkMarginPct, products, selected, selectedCount]);
+  }, [bulkMarginPct, products, selected, selectedCount, parseNumberField]);
 
   const openPublishReview = useCallback(() => {
     if (selectedCount === 0) {
@@ -503,7 +514,7 @@ export default function CatalogBrowserScreen() {
     } finally {
       setAdding(false);
     }
-  }, [overrides, products, selected, selectedCount, shopId]);
+  }, [overrides, products, selected, selectedCount, shopId, parseIntegerField, parseNumberField]);
 
   const handlePublishSelected = useCallback(async () => {
     if (!shopId) {
@@ -571,7 +582,7 @@ export default function CatalogBrowserScreen() {
     } finally {
       setPublishing(false);
     }
-  }, [loadShopSelections, overrides, products, riskyReviewCount, selected, selectedCount, shopId]);
+  }, [loadShopSelections, overrides, products, riskyReviewCount, selected, selectedCount, shopId, parseIntegerField, parseNumberField]);
 
   const renderCategoryChip = (item) => {
     const active = selectedCategoriesSet.has(item.name);
@@ -787,8 +798,8 @@ export default function CatalogBrowserScreen() {
               These categories are preselected from your business setup. Tap any chip to keep it, remove it, or add more.
             </Text>
           </View>
-            <TouchableOpacity onPress={() => setCategoryPreset(onboardingCategories)}>
-            <Text style={styles.linkText}>Reset to shop choices</Text>
+          <TouchableOpacity onPress={() => setCategoryPreset(onboardingCategories)} style={styles.linkBtn}>
+            <Text style={styles.linkBtnText}>Reset to shop choices</Text>
           </TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recommendedRow}>
             {onboardingCategories.map((name) => {
@@ -815,9 +826,16 @@ export default function CatalogBrowserScreen() {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>All Categories</Text>
-        <TouchableOpacity onPress={clearFilters}>
-          <Text style={styles.linkText}>Clear</Text>
-        </TouchableOpacity>
+        <View style={styles.sectionActionsRow}>
+          {categories.length > 8 ? (
+            <TouchableOpacity onPress={() => setShowAllCategories((prev) => !prev)} style={styles.linkBtn}>
+              <Text style={styles.linkBtnText}>{showAllCategories ? 'Less' : 'More'}</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity onPress={clearFilters} style={styles.linkBtn}>
+            <Text style={styles.linkBtnText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.chipRowWrap}>
@@ -845,41 +863,64 @@ export default function CatalogBrowserScreen() {
         <Text style={styles.resultsHint}>{selectedCount} selected</Text>
       </View>
 
-      <View style={styles.bulkActionsWrap}>
-        <TouchableOpacity
-          style={[styles.bulkSelectBtn, allVisibleSelected && styles.bulkSelectBtnActive]}
-          onPress={toggleSelectAllVisible}
-          activeOpacity={0.86}
-        >
-          <Ionicons
-            name={allVisibleSelected ? 'checkbox-outline' : 'square-outline'}
-            size={16}
-            color={allVisibleSelected ? COLORS.white : COLORS.gray700}
-          />
-          <Text style={[styles.bulkSelectBtnText, allVisibleSelected && styles.bulkSelectBtnTextActive]}>
-            {allVisibleSelected ? 'Unselect visible' : 'Select all visible'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={styles.marginRow}>
-          <TextInput
-            value={bulkMarginPct}
-            onChangeText={setBulkMarginPct}
-            keyboardType="numeric"
-            placeholder="Margin %"
-            placeholderTextColor={COLORS.gray400}
-            style={styles.marginInput}
-          />
+      {selectedCount > 0 ? (
+        <View style={styles.bulkActionsWrap}>
           <TouchableOpacity
-            style={styles.marginApplyBtn}
-            onPress={applyMarginToSelected}
+            style={styles.toolsToggleBtn}
             activeOpacity={0.86}
+            onPress={() => setShowSelectionTools((prev) => !prev)}
           >
-            <Text style={styles.marginApplyText}>Apply Margin</Text>
+            <View style={styles.toolsToggleLabelRow}>
+              <Ionicons name="options-outline" size={16} color={COLORS.gray700} />
+              <Text style={styles.toolsToggleLabel}>Selection tools</Text>
+            </View>
+            <Ionicons
+              name={showSelectionTools ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={COLORS.gray500}
+            />
           </TouchableOpacity>
-        </View>
-      </View>
 
+          {showSelectionTools ? (
+            <>
+              <TouchableOpacity
+                style={[styles.bulkSelectBtn, allVisibleSelected && styles.bulkSelectBtnActive]}
+                onPress={toggleSelectAllVisible}
+                activeOpacity={0.86}
+              >
+                <Ionicons
+                  name={allVisibleSelected ? 'checkbox-outline' : 'square-outline'}
+                  size={16}
+                  color={allVisibleSelected ? COLORS.white : COLORS.gray700}
+                />
+                <Text style={[styles.bulkSelectBtnText, allVisibleSelected && styles.bulkSelectBtnTextActive]}>
+                  {allVisibleSelected ? 'Unselect visible' : 'Select all visible'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.marginRow}>
+                <TextInput
+                  value={bulkMarginPct}
+                  onChangeText={setBulkMarginPct}
+                  keyboardType="numeric"
+                  placeholder="Margin %"
+                  placeholderTextColor={COLORS.gray400}
+                  style={styles.marginInput}
+                />
+                <TouchableOpacity
+                  style={styles.marginApplyBtn}
+                  onPress={applyMarginToSelected}
+                  activeOpacity={0.86}
+                >
+                  <Text style={styles.marginApplyText}>Apply Margin</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : null}
+        </View>
+      ) : null}
+
+      {selectedCount > 0 ? (
       <View style={styles.reviewSummaryCard}>
         <View style={styles.reviewSummaryTopRow}>
           <View>
@@ -957,6 +998,7 @@ export default function CatalogBrowserScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      ) : null}
 
       {error ? (
         <View style={styles.errorCard}>
@@ -972,7 +1014,12 @@ export default function CatalogBrowserScreen() {
         data={products}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderProduct}
-        contentContainerStyle={products.length === 0 ? styles.listEmptyContent : styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={
+          products.length === 0
+            ? (selectedCount > 0 ? styles.listEmptyContentWithFooter : styles.listEmptyContent)
+            : (selectedCount > 0 ? styles.listContentWithFooter : styles.listContent)
+        }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           loading ? null : (
@@ -988,39 +1035,41 @@ export default function CatalogBrowserScreen() {
         }
       />
 
-      <View style={styles.footer}>
-        <View style={styles.footerRow}>
-          <TouchableOpacity
-            style={[styles.addBtn, styles.footerHalfBtn, selectedCount === 0 && styles.addBtnDisabled]}
-            disabled={selectedCount === 0 || adding || publishing}
-            onPress={handleAddSelected}
-          >
-            {adding ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <Ionicons name="bookmark-outline" size={18} color={COLORS.white} />
-                <Text style={styles.addBtnText}>Save Selection</Text>
-              </>
-            )}
-          </TouchableOpacity>
+      {selectedCount > 0 ? (
+        <View style={[styles.footer, { marginBottom: Math.max(insets.bottom + 8, 14) }]}>
+          <View style={styles.footerRow}>
+            <TouchableOpacity
+              style={[styles.addBtn, styles.footerHalfBtn, selectedCount === 0 && styles.addBtnDisabled]}
+              disabled={selectedCount === 0 || adding || publishing}
+              onPress={handleAddSelected}
+            >
+              {adding ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <>
+                  <Ionicons name="bookmark-outline" size={18} color={COLORS.white} />
+                  <Text style={styles.addBtnText}>Save Selection</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.publishBtn, styles.footerHalfBtn, selectedCount === 0 && styles.addBtnDisabled]}
-            disabled={selectedCount === 0 || adding || publishing}
-            onPress={openPublishReview}
-          >
-            {publishing ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <>
-                <Ionicons name="rocket-outline" size={18} color={COLORS.white} />
-                <Text style={styles.addBtnText}>Publish to Shop</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.publishBtn, styles.footerHalfBtn, selectedCount === 0 && styles.addBtnDisabled]}
+              disabled={selectedCount === 0 || adding || publishing}
+              onPress={openPublishReview}
+            >
+              {publishing ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <>
+                  <Ionicons name="rocket-outline" size={18} color={COLORS.white} />
+                  <Text style={styles.addBtnText}>Publish to Shop</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {loading && products.length === 0 ? (
         <View style={styles.loadingOverlay}>
@@ -1200,8 +1249,8 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
+    marginBottom: 10,
+    padding: 14,
     borderRadius: 22,
     backgroundColor: '#F7F5FF',
     borderWidth: 1,
@@ -1223,8 +1272,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   heroTitle: {
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: '900',
     color: COLORS.gray900,
     maxWidth: 260,
@@ -1247,8 +1296,8 @@ const styles = StyleSheet.create({
   },
   heroStatsRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 14,
+    gap: 8,
+    marginTop: 12,
   },
   heroStat: {
     flex: 1,
@@ -1260,7 +1309,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.gray200,
   },
   heroStatValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: COLORS.gray900,
   },
@@ -1321,22 +1370,22 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderRadius: 16,
     marginHorizontal: 16,
-    marginTop: 12,
-    padding: 14,
+    marginTop: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: COLORS.gray100,
     ...SHADOWS.card,
   },
   infoIconWrap: {
-    width: 42,
-    height: 42,
+    width: 36,
+    height: 36,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.primaryLight,
   },
   infoTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.gray900,
   },
@@ -1347,7 +1396,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   recommendedWrap: {
-    marginTop: 8,
+    marginTop: 6,
   },
   recommendedHeader: {
     flexDirection: 'row',
@@ -1384,7 +1433,7 @@ const styles = StyleSheet.create({
   },
   recommendedLead: {
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 16,
@@ -1401,6 +1450,7 @@ const styles = StyleSheet.create({
   recommendedRow: {
     paddingHorizontal: 16,
     gap: 8,
+    paddingBottom: 2,
   },
   recommendedChip: {
     flexDirection: 'row',
@@ -1429,7 +1479,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 12,
     marginHorizontal: 16,
     marginBottom: 8,
   },
@@ -1444,6 +1494,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.primary,
+  },
+  sectionActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  linkBtn: {
+    height: 34,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+  },
+  linkBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.primaryDark,
   },
   chipRowWrap: {
     minHeight: 44,
@@ -1463,7 +1533,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 12,
-    height: 32,
+    height: 36,
     borderRadius: 999,
     backgroundColor: COLORS.white,
     borderWidth: 1,
@@ -1494,7 +1564,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 8,
   },
   resultsText: {
@@ -1509,8 +1579,29 @@ const styles = StyleSheet.create({
   },
   bulkActionsWrap: {
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 6,
     gap: 8,
+  },
+  toolsToggleBtn: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toolsToggleLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  toolsToggleLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.gray700,
   },
   reviewSummaryCard: {
     marginHorizontal: 16,
@@ -1656,7 +1747,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 38,
+    height: 44,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.gray200,
@@ -1680,7 +1771,7 @@ const styles = StyleSheet.create({
   },
   marginInput: {
     flex: 1,
-    height: 40,
+    height: 44,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.gray200,
@@ -1692,7 +1783,7 @@ const styles = StyleSheet.create({
   },
   marginApplyBtn: {
     width: 122,
-    height: 40,
+    height: 44,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1728,14 +1819,26 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 120,
+    paddingBottom: 28,
+    gap: 10,
+  },
+  listContentWithFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 160,
     gap: 10,
   },
   listEmptyContent: {
     flexGrow: 1,
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 120,
+    paddingBottom: 28,
+  },
+  listEmptyContentWithFooter: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 160,
   },
   card: {
     flexDirection: 'row',
@@ -1923,13 +2026,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 18,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 8,
   },
   footerRow: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 10,
   },
   footerHalfBtn: {
@@ -1940,7 +2042,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 52,
+    height: 56,
     borderRadius: 16,
     backgroundColor: COLORS.green,
     ...SHADOWS.card,
@@ -1950,7 +2052,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 52,
+    height: 56,
     borderRadius: 16,
     backgroundColor: COLORS.blue,
     ...SHADOWS.card,

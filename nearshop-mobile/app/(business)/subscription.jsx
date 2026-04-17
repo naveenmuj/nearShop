@@ -4,26 +4,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { COLORS, SHADOWS } from '../../constants/theme';
+import { getMySubscription, getSubscriptionTiers, getSubscriptionUsage, upgradeSubscription } from '../../lib/subscriptions';
+import { toast } from '../../components/ui/Toast/toastRef';
 
 // Dynamic import with fallback for LinearGradient
 let LinearGradient;
 try {
   LinearGradient = require('expo-linear-gradient').LinearGradient;
-} catch (e) {
-  LinearGradient = ({ colors, style, children, ...props }) => (
-    <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
-      {children}
-    </View>
-  );
+} catch {
+  function LinearGradientFallback({ colors, style, children, ...props }) {
+    return (
+      <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
+        {children}
+      </View>
+    );
+  }
+  LinearGradientFallback.displayName = 'LinearGradientFallback';
+  LinearGradient = LinearGradientFallback;
 }
-import { getMySubscription, getSubscriptionTiers, getSubscriptionUsage, upgradeSubscription } from '../../lib/subscriptions';
-import { toast } from '../../components/ui/Toast/toastRef';
 
 const TIER_GRADIENTS = {
   free: ['#9CA3AF', '#6B7280'],
@@ -133,7 +137,7 @@ export default function SubscriptionScreen() {
         {/* Usage Stats */}
         {usage && (
           <View style={styles.usageSection}>
-            <Text style={styles.sectionTitle}>This Month's Usage</Text>
+            <Text style={styles.sectionTitle}>This Month&apos;s Usage</Text>
             <View style={styles.usageGrid}>
               <UsageMeter label="Products" current={usage.products_count} limit={usage.products_limit} />
               <UsageMeter label="Orders" current={usage.orders_count} limit={usage.orders_limit} />

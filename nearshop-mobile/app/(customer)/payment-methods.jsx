@@ -25,17 +25,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import RazorpayCheckout from 'react-native-razorpay';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import {
   listPaymentMethods,
   createPaymentMethod,
   deletePaymentMethod,
   setDefaultPaymentMethod,
-  validatePaymentMethod,
 } from '../../lib/savedData';
 import { COLORS, SHADOWS, FONTS } from '../../constants/theme';
 import { toast } from '../../components/ui/Toast';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Helper to get card brand icon
 function getCardIcon(brand) {
@@ -191,7 +189,7 @@ function AddPaymentModal({ visible, paymentType, onClose, onSave, loading }) {
             <>
               <Text style={styles.sectionTitle}>Card Details</Text>
               <Text style={styles.helpText}>
-                Use Razorpay to securely save your card. Tap "Link Card" below.
+                Use Razorpay to securely save your card. Tap &quot;Link Card&quot; below.
               </Text>
 
               <TouchableOpacity

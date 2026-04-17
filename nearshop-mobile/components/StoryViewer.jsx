@@ -21,11 +21,15 @@ let LinearGradient;
 try {
   LinearGradient = require('expo-linear-gradient').LinearGradient;
 } catch (e) {
-  LinearGradient = ({ colors, style, children, ...props }) => (
-    <View style={[style, { backgroundColor: colors?.[0] || '#000' }]} {...props}>
-      {children}
-    </View>
-  );
+  function LinearGradientFallback({ colors, style, children, ...props }) {
+    return (
+      <View style={[style, { backgroundColor: colors?.[0] || '#000' }]} {...props}>
+        {children}
+      </View>
+    );
+  }
+  LinearGradientFallback.displayName = 'LinearGradientFallback';
+  LinearGradient = LinearGradientFallback;
 }
 import { COLORS, SHADOWS } from '../constants/theme';
 import { viewStory } from '../lib/stories';

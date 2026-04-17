@@ -5,7 +5,11 @@ let LinearGradient
 try {
   LinearGradient = require('expo-linear-gradient').LinearGradient
 } catch {
-  LinearGradient = ({ style }) => <View style={[style, { backgroundColor: 'rgba(255,255,255,0.35)' }]} />
+  function LinearGradientFallback({ style }) {
+    return <View style={[style, { backgroundColor: 'rgba(255,255,255,0.35)' }]} />
+  }
+  LinearGradientFallback.displayName = 'LinearGradientFallback'
+  LinearGradient = LinearGradientFallback
 }
 
 export default function Skeleton({

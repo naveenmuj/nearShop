@@ -18,29 +18,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import useMyShop from '../../hooks/useMyShop';
-
-// Dynamic import with fallback for LinearGradient
-let LinearGradient;
-try {
-  LinearGradient = require('expo-linear-gradient').LinearGradient;
-} catch (e) {
-  LinearGradient = ({ colors, style, children, ...props }) => (
-    <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
-      {children}
-    </View>
-  );
-}
 import { createStory, getShopStories, deleteStory } from '../../lib/stories';
 import { uploadImage } from '../../lib/api';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { alert } from '../../components/ui/PremiumAlert';
 import { toast } from '../../components/ui/Toast/toastRef';
 
+// Dynamic import with fallback for LinearGradient
+let LinearGradient;
+try {
+  LinearGradient = require('expo-linear-gradient').LinearGradient;
+} catch {
+  function LinearGradientFallback({ colors, style, children, ...props }) {
+    return (
+      <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
+        {children}
+      </View>
+    );
+  }
+  LinearGradientFallback.displayName = 'LinearGradientFallback';
+  LinearGradient = LinearGradientFallback;
+}
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const STORY_CARD_WIDTH = (SCREEN_WIDTH - 60) / 3;
 
 export default function StoriesScreen() {
-  const { shop, shopId, loading: shopLoading, refresh: refreshShop } = useMyShop();
+  const { shopId, loading: shopLoading } = useMyShop();
   
   const [stories, setStories] = useState([]);
   const [products, setProducts] = useState([]);

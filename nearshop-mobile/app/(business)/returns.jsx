@@ -305,7 +305,7 @@ export default function ReturnsManagementScreen() {
                   Qty: {selectedReturn.item_quantity} • ₹{selectedReturn.item_price}
                 </Text>
                 <View style={styles.reasonBox}>
-                  <Text style={styles.reasonLabel}>Customer's reason:</Text>
+                  <Text style={styles.reasonLabel}>Customer&apos;s reason:</Text>
                   <Text style={styles.reasonText}>{String(selectedReturn.reason || 'not_specified').replace(/_/g, ' ')}</Text>
                   {selectedReturn.description && (
                     <Text style={styles.descriptionText}>{selectedReturn.description}</Text>

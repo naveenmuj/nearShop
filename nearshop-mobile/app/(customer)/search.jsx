@@ -9,9 +9,10 @@ import {
   Keyboard,
   Platform,
   BackHandler,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { searchProducts, getSearchSuggestions } from '../../lib/products';
 import { searchShops, searchUnified, runConversationalSearch } from '../../lib/shops';

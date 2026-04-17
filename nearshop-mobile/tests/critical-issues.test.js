@@ -95,7 +95,7 @@ console.log('\n Issue #1: WebSocket Memory Leak Prevention');
     assert.strictEqual(canUpdateState, false, 'State updates should be prevented');
   });
 
-  test('[PASS] WebSocket cleanup prevents memory leaks ✓');
+  test('[PASS] WebSocket cleanup prevents memory leaks ✓', () => {});
 });
 
 // ============================================================
@@ -161,7 +161,11 @@ console.log('\n Issue #2: Pagination Deduplication Bug');
     // Verify each ID appears only once
     const ids = merged.map(d => d.id);
     const uniqueIds = new Set(ids);
-  test('[PASS] Pagination deduplication prevents duplicates ✓');
+    assert.strictEqual(ids.length, uniqueIds.size, 'Should have no duplicate IDs');
+    assert.deepStrictEqual(ids, [1, 2, 3], 'Should preserve first occurrence order');
+  });
+
+  test('[PASS] Pagination deduplication prevents duplicates ✓', () => {});
 });
 
 // ============================================================
@@ -242,7 +246,7 @@ console.log('\n Issue #3: Category Change Race Condition');
     }, 200);
   });
 
-  test('[PASS] Category change race condition is prevented ✓');
+  test('[PASS] Category change race condition is prevented ✓', () => {});
 });
 
 // ============================================================
@@ -348,7 +352,7 @@ console.log('\n Issue #4: WebSocket Reconnection Logic');
     assert.strictEqual(reconnectLog[4].status, 'MAX_ATTEMPTS_REACHED');
   });
 
-  test('[PASS] WebSocket reconnection logic works correctly ✓');
+  test('[PASS] WebSocket reconnection logic works correctly ✓', () => {});
 })();
 
 // ============================================================

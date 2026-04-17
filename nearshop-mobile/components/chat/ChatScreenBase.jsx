@@ -55,6 +55,18 @@ const BUSINESS_QUICK_TEMPLATES = [
   'We can arrange delivery today. Preferred time?',
 ];
 
+function generateFallbackReplyDrafts(messageText) {
+  const clean = (messageText || '').trim();
+  const short = clean.length > 90 ? `${clean.slice(0, 87)}...` : clean;
+  const promptLine = short ? ` regarding "${short}"` : '';
+
+  return [
+    `Thanks for your message${promptLine}. I will confirm the exact details shortly.`,
+    `I can help with this${promptLine}. Could you share your preferred delivery time?`,
+    `Noted${promptLine}. I am checking availability now and will update you in a moment.`,
+  ];
+}
+
 function formatTime(dateStr) {
   const date = new Date(dateStr);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -109,6 +121,8 @@ export default function ChatScreenBase({ viewerRole }) {
   const [presence, setPresence] = useState({ role_online: { customer: false, business: false }, role_last_seen: {} });
   const [aiReplyLoading, setAiReplyLoading] = useState(false);
   const [aiReplyDrafts, setAiReplyDrafts] = useState([]);
+  const [connectionState, setConnectionState] = useState('connecting');
+  const [viewerImageUrl, setViewerImageUrl] = useState(null);
 
   const flatListRef = useRef(null);
   const wsRef = useRef(null);
@@ -251,19 +265,31 @@ export default function ChatScreenBase({ viewerRole }) {
 
   useEffect(() => {
     let mounted = true;
+    let connectingTimeout = null;
 
     const connectWs = async () => {
       const token = await getStoredAccessToken();
       if (!token || !mounted) return;
 
+      setConnectionState('connecting');
+      connectingTimeout = setTimeout(() => {
+        if (mounted) {
+          setConnectionState((prev) => (prev === 'connecting' ? 'offline' : prev));
+        }
+      }, 9000);
+
       wsRef.current = createMessagingConnection(conversationId, token, {
         autoReconnect: true,
         onConnected: () => {
           setConnected(true);
+          setConnectionState('connected');
           flushQueue();
           emitReadReceipt();
         },
-        onDisconnected: () => setConnected(false),
+        onDisconnected: () => {
+          setConnected(false);
+          setConnectionState((prev) => (prev === 'connecting' ? 'connecting' : 'reconnecting'));
+        },
         onMessage: (msg) => {
           if (!mounted) return;
           appendUniqueMessage(msg);
@@ -296,7 +322,10 @@ export default function ChatScreenBase({ viewerRole }) {
             });
           }
         },
-        onError: (err) => console.error('WS error:', err),
+        onError: (err) => {
+          setConnectionState('reconnecting');
+          console.error('WS error:', err);
+        },
       });
     };
 
@@ -306,6 +335,7 @@ export default function ChatScreenBase({ viewerRole }) {
     return () => {
       mounted = false;
       wsRef.current?.close();
+      clearTimeout(connectingTimeout);
       clearTimeout(typingTimeout.current);
       clearInterval(retryTimer);
     };
@@ -321,6 +351,9 @@ export default function ChatScreenBase({ viewerRole }) {
           role_online: data?.role_online || { customer: false, business: false },
           role_last_seen: data?.role_last_seen || {},
         });
+        if (!connected) {
+          setConnectionState((prev) => (prev === 'connecting' ? 'offline' : prev));
+        }
       } catch {
         // no-op
       }
@@ -332,7 +365,7 @@ export default function ChatScreenBase({ viewerRole }) {
       mounted = false;
       clearInterval(timer);
     };
-  }, [conversationId]);
+  }, [conversationId, connected]);
 
   useEffect(() => {
     Animated.loop(
@@ -541,7 +574,11 @@ export default function ChatScreenBase({ viewerRole }) {
       setShowEmojiTray(false);
       setShowAttachTray(false);
     } catch (err) {
-      Alert.alert('Suggestion unavailable', 'Could not generate an AI reply right now.');
+      const fallbackDrafts = generateFallbackReplyDrafts(basisText);
+      setAiReplyDrafts(fallbackDrafts);
+      setInputText(fallbackDrafts[0]);
+      setShowEmojiTray(false);
+      setShowAttachTray(false);
     } finally {
       setAiReplyLoading(false);
     }
@@ -662,7 +699,9 @@ export default function ChatScreenBase({ viewerRole }) {
         {item.attachments.map((url, idx) => (
           <View key={`${item.id || item.local_id}-att-${idx}`} style={styles.attachmentItem}>
             {isImageUrl(url) ? (
-              <Image source={{ uri: url }} style={styles.attachmentImage} resizeMode="cover" />
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setViewerImageUrl(url)}>
+                <Image source={{ uri: url }} style={styles.attachmentImage} resizeMode="cover" />
+              </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 style={[styles.attachmentFallback, isMe && styles.attachmentFallbackMe]}
@@ -756,6 +795,12 @@ export default function ChatScreenBase({ viewerRole }) {
   const presenceSubtitle = isTyping
     ? 'typing...'
     : (isOtherOnline ? 'online' : (otherLastSeen ? `last seen ${formatTime(otherLastSeen)}` : 'offline'));
+  const connectionSubtitle = connected
+    ? presenceSubtitle
+    : (connectionState === 'connecting' ? 'connecting...' : (connectionState === 'reconnecting' ? 'reconnecting...' : 'offline'));
+  const subtitleStyle = connected
+    ? styles.headerSubtitleConnected
+    : (connectionState === 'offline' ? styles.headerSubtitleOffline : styles.headerSubtitlePending);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -765,7 +810,7 @@ export default function ChatScreenBase({ viewerRole }) {
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle} numberOfLines={1}>{headerTitle}</Text>
-          <Text style={styles.headerSubtitle}>{connected ? presenceSubtitle : 'connecting...'}</Text>
+          <Text style={[styles.headerSubtitle, subtitleStyle]}>{connectionSubtitle}</Text>
         </View>
         <TouchableOpacity onPress={() => loadConversation(true)}>
           <Ionicons name="refresh" size={22} color={COLORS.text} />
@@ -984,6 +1029,33 @@ export default function ChatScreenBase({ viewerRole }) {
       </KeyboardAvoidingView>
 
       <Modal
+        visible={Boolean(viewerImageUrl)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setViewerImageUrl(null)}
+      >
+        <View style={styles.imageViewerBackdrop}>
+          <TouchableOpacity style={styles.imageViewerClose} onPress={() => setViewerImageUrl(null)}>
+            <Ionicons name="close" size={24} color={COLORS.white} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.imageViewerOpenLink}
+            onPress={() => {
+              if (viewerImageUrl) {
+                Linking.openURL(viewerImageUrl);
+              }
+            }}
+          >
+            <Ionicons name="open-outline" size={20} color={COLORS.white} />
+          </TouchableOpacity>
+          {viewerImageUrl ? (
+            <Image source={{ uri: viewerImageUrl }} style={styles.imageViewerImage} resizeMode="contain" />
+          ) : null}
+        </View>
+      </Modal>
+
+      <Modal
         visible={Boolean(activeMessageAction)}
         transparent
         animationType="fade"
@@ -1040,7 +1112,10 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   headerInfo: { flex: 1, marginLeft: 12 },
   headerTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  headerSubtitle: { fontSize: 12, color: COLORS.success },
+  headerSubtitle: { fontSize: 12 },
+  headerSubtitleConnected: { color: COLORS.success },
+  headerSubtitlePending: { color: '#D97706' },
+  headerSubtitleOffline: { color: COLORS.gray },
   messagesList: { padding: 14, paddingBottom: 8 },
   loadOlderBtn: {
     alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12,
@@ -1229,6 +1304,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginLeft: 8,
   },
   sendBtnDisabled: { backgroundColor: '#9db9af' },
+  imageViewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  imageViewerImage: {
+    width: '100%',
+    height: '82%',
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: 54,
+    right: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  imageViewerOpenLink: {
+    position: 'absolute',
+    top: 54,
+    right: 62,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
   actionSheetBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.42)',

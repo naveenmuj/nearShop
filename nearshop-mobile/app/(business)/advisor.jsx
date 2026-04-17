@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
-  ActivityIndicator, StatusBar, BackHandler, Linking, KeyboardAvoidingView, Platform, Animated,
+  ActivityIndicator, StatusBar, BackHandler, Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { authGet, authPost } from '../../lib/api';
-import { toast } from '../../components/ui/Toast';
 import useMyShop from '../../hooks/useMyShop';
-import { COLORS, SHADOWS, formatPrice } from '../../constants/theme';
+import { COLORS, SHADOWS } from '../../constants/theme';
 
 const PRIORITY_COLORS = {
   high: { bg: COLORS.redLight, text: COLORS.red, border: COLORS.red },
@@ -35,7 +34,7 @@ const ACTION_ROUTES = {
 };
 
 export default function AdvisorScreen() {
-  const { shopId, shop } = useMyShop();
+  const { shop } = useMyShop();
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,7 +83,7 @@ export default function AdvisorScreen() {
         fallback: res.data?.fallback,
         retryable: res.data?.retryable,
       }]);
-    } catch (err) {
+    } catch {
       setChatMessages(prev => [...prev, {
         role: 'assistant',
         text: 'Sorry, I couldn\'t process your question. Please try again.',
@@ -207,7 +206,7 @@ export default function AdvisorScreen() {
                 <Text style={{ fontSize: 48, marginBottom: 12 }}>🤖</Text>
                 <Text style={s.chatWelcomeTitle}>Hi, {shop?.name || 'there'}!</Text>
                 <Text style={s.chatWelcomeSub}>
-                  I'm your AI business advisor. Ask me anything about growing your shop, pricing, marketing, or attracting customers.
+                  I&apos;m your AI business advisor. Ask me anything about growing your shop, pricing, marketing, or attracting customers.
                 </Text>
 
                 <Text style={s.quickLabel}>QUICK QUESTIONS</Text>

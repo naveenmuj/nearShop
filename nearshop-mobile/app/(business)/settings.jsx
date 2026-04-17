@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity,
   StyleSheet, Switch, ActivityIndicator, StatusBar, Image,
@@ -11,7 +11,6 @@ import useAuthStore from '../../store/authStore';
 import { updateShop, requestVerification, getVerificationStatus } from '../../lib/shops';
 import { switchRole as apiSwitchRole } from '../../lib/auth';
 import { COLORS, SHADOWS } from '../../constants/theme';
-import { toast } from '../../components/ui/Toast/toastRef';
 import { alert } from '../../components/ui/PremiumAlert';
 import DeliveryTimeSlotsModal from '../../components/DeliveryTimeSlotsModal';
 
@@ -483,7 +482,7 @@ export default function SettingsScreen() {
               <Text style={styles.pendingIcon}>⏳</Text>
               <View style={styles.verificationBannerText}>
                 <Text style={styles.pendingTitle}>Verification Pending</Text>
-                <Text style={styles.pendingSubtitle}>We're reviewing your documents (2-3 business days)</Text>
+                <Text style={styles.pendingSubtitle}>We&apos;re reviewing your documents (2-3 business days)</Text>
               </View>
             </View>
           )}

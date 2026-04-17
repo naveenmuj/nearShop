@@ -21,22 +21,28 @@ try {
   LinearGradient = require('expo-linear-gradient').LinearGradient;
 } catch (_e) {
   // Fallback: Simple View with background color
-  LinearGradient = ({ colors, style, children, ...props }) => (
-    <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
-      {children}
-    </View>
-  );
-  LinearGradient.displayName = 'LinearGradientFallback';
+  function LinearGradientFallback({ colors, style, children, ...props }) {
+    return (
+      <View style={[style, { backgroundColor: colors?.[0] || '#7C3AED' }]} {...props}>
+        {children}
+      </View>
+    );
+  }
+  LinearGradientFallback.displayName = 'LinearGradientFallback';
+  LinearGradient = LinearGradientFallback;
 }
 try {
   BlurView = require('expo-blur').BlurView;
 } catch (_e) {
-  BlurView = ({ style, children, ...props }) => (
-    <View style={[style, { backgroundColor: 'rgba(255,255,255,0.9)' }]} {...props}>
-      {children}
-    </View>
-  );
-  BlurView.displayName = 'BlurViewFallback';
+  function BlurViewFallback({ style, children, ...props }) {
+    return (
+      <View style={[style, { backgroundColor: 'rgba(255,255,255,0.9)' }]} {...props}>
+        {children}
+      </View>
+    );
+  }
+  BlurViewFallback.displayName = 'BlurViewFallback';
+  BlurView = BlurViewFallback;
 }
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');

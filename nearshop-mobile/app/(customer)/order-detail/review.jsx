@@ -221,7 +221,7 @@ export default function SubmitReview() {
         {/* Tips */}
         <View style={styles.tipsCard}>
           <Text style={styles.tipsTitle}>💡 Review Tips</Text>
-          <Text style={styles.tipText}>• Be specific about what you liked or didn't like</Text>
+          <Text style={styles.tipText}>• Be specific about what you liked or didn&apos;t like</Text>
           <Text style={styles.tipText}>• Mention product quality, packaging, and delivery</Text>
           <Text style={styles.tipText}>• Add photos to help other customers</Text>
         </View>
